@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-24T05:01:26Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-24T06:52:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (dbe455eca) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (a6adaff89) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1681** · ждёт владельца: **16** · занято сессиями: **14**.
 
@@ -970,6 +970,7 @@
 - Восемь карточек всё ещё ждут владельца БЕЗ КНОПОК — разобрать остаток  ·  `inbox-vosem-kartochek-vse-esche-zhdut-vladelts.md` · 2026-08-10
 - Восемь вопросов владельцу живут только на origin — отправитель считает очередь по ПРОД-дереву и не видел их ни разу  ·  `inbox-vosem-voprosov-vladeltsu-zhivut-tolko-na.md` · 2026-08-21
 - Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
+- Возраст наблюдения бывает ОТРИЦАТЕЛЬНЫМ, и порог свежести на нём не срабатывает никогда (замер −89119.5 мин при пороге 1560; население НЕ ИЗМЕРЕНО)  ·  `inbox-vozrast-nablyudeniya-byvaet-otritsatelny.md` · 2026-11-23
 - Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
 - Вторая дверь герметичного launchd: прямое присваивание в tests/ глушит положительный контроль у соседей  ·  `inbox-vtoraya-dver-germetichnogo-launchd-pryam.md` · 2026-11-23
 - Вторая ветка с решением и карточками владельца: unreadable-description-ltyucb — измерить, жива ли, и разобрать  ·  `inbox-vtoraya-vetka-s-resheniem-i-kartochkami.md` · 2026-08-20
@@ -1418,7 +1419,6 @@
 - Восемнадцать ответов владельца 27.10: исполнителя не назвал никто  ·  `inbox-vosemnadtsat-otvetov-vladeltsa-27-10-isp.md` · 2026-10-28
 - Восемнадцать сторожей судят артефакты, которых конституция не знает — их пороги не способен проверить никто  ·  `inbox-vosemnadtsat-storozhei-sudyat-artefakty.md` · 2026-10-08
 - Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
-- Возраст наблюдения бывает ОТРИЦАТЕЛЬНЫМ, и порог свежести на нём не срабатывает никогда (замер −89119.5 мин при пороге 1560; население НЕ ИЗМЕРЕНО)  ·  `inbox-vozrast-nablyudeniya-byvaet-otritsatelny.md` · 2026-11-23
 - Вторая запись о деньгах, позванная как предписано — из своего worktree, — не видит ту самую дыру, ради которой написана  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-ne-vi.md` · 2026-10-22
 - Вторая запись о деньгах из worktree печатает ЛОЖНУЮ дыру: журнал обрезан до 7 ходов из 34, а вывод выглядит находкой  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-pecha.md` · 2026-09-28
 - Вторая запись о деньгах из worktree судит о ЗАМОРОЖЕННОМ каноне git, и код возврата тот же  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-sudit.md` · 2026-10-24

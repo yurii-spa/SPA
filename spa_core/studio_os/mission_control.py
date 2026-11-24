@@ -56,6 +56,13 @@ ANSWERED_STATUSES = ("owner-done", "owner-accepted", "ingested")
 COLOUR = {"HEALTHY": "neutral-ok", "DEGRADED": "warn", "STALE": "warn", "NOT_MEASURED": "unknown",
           "CRITICAL": "alert"}
 
+#: How far AHEAD of the judging clock an observation may be stamped before the section becomes
+#: NOT_MEASURED instead of «fresh» (ADR-1078; the class is `_meta` below). The number has ONE home
+#: in the codebase — ``readiness_scopes.FUTURE_SKEW_MINUTES``, the same convention ``company_truth``
+#: re-uses. A local literal would split the panel's answer from the scopes' answer by exactly the
+#: difference between two copies, which is how a threshold stops being a threshold.
+from spa_core.studio_os.readiness_scopes import FUTURE_SKEW_MINUTES  # noqa: E402 — одна копия числа
+
 AREAS = {
     "overview": "Studio OS + Capital summary — the 30-second answer",
     "capital": "SPA / Capital — paper strategies and research (no execution path, real capital 0)",
@@ -362,9 +369,23 @@ def _age_min(now: datetime, at: Optional[datetime]) -> Optional[float]:
 
 def _meta(state: str, sources: list, observed_at: Optional[datetime], now: datetime,
           stale_after_min: Optional[float] = None, reason: Optional[str] = None) -> dict:
-    """Section envelope: the state is downgraded to STALE when the observation is older than its contract."""
+    """Section envelope: the state is downgraded to STALE when the observation is older than its contract.
+
+    A stamp AHEAD of the judging clock is a THIRD outcome (ADR-1078, invariant #17), never
+    merely "fresh": the downgrade below asks ``age > stale_after_min``, and on a negative age
+    that comparison is false FOREVER — the coarser the clock skew, the more reliably the
+    observation looks fresh (measured: ``state=HEALTHY · age_min=-89119.5 · stale_after_min=1560``).
+    Within ``FUTURE_SKEW_MINUTES`` the stamp is NOT a finding and the state is left alone: that
+    window is the build's own read window (``now`` is fixed when the build starts, sources are
+    read seconds later), and painting it would be the same error in the other direction — the
+    exact shape ADR-612/ADR-763 already closed for ``readiness_scopes``/``company_truth``.
+    """
     age = _age_min(now, observed_at)
-    if state not in ("NOT_MEASURED", "CRITICAL") and stale_after_min is not None and (age is None or age > stale_after_min):
+    if state not in ("NOT_MEASURED", "CRITICAL") and age is not None and -age > FUTURE_SKEW_MINUTES:
+        state = "NOT_MEASURED"
+        reason = (f"observation stamped {-age} min AHEAD of the judging clock "
+                  f"(tolerance: {FUTURE_SKEW_MINUTES:g} min) — not measured, not fresh")
+    elif state not in ("NOT_MEASURED", "CRITICAL") and stale_after_min is not None and (age is None or age > stale_after_min):
         state, reason = "STALE", reason or (f"last observation {age} min ago (contract: {stale_after_min} min)"
                                             if age is not None else "no observation time")
     return {"state": state, "colour": COLOUR.get(state, "unknown"), "sources": sources,

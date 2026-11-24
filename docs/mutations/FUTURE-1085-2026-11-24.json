@@ -1,0 +1,104 @@
+{
+ "title": "ADR-1085 FUTURE — отметка наблюдения ВПЕРЁД судящих часов: третий исход у _meta панели владельца (ADR-1078, карточка inbox-vozrast-nablyudeniya-byvaet-otritsatelny, G1070 п. 7). Оси: ветка будущего · знак разрыва · граница допуска · причина третьего исхода · имя исхода · ОДИН дом числа · CRITICAL не понижается · беспороговая секция · прибор населения (рода, охват) · проба (предпосылка населения, контроль в обе стороны)",
+ "tests": [
+  "spa_core/tests/test_mission_control_future_stamp.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 ветка будущего вырвана — далёкое будущее снова читается как свежесть",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "and age is not None and -age > FUTURE_SKEW_MINUTES",
+   "new": "and age is not None and False"
+  },
+  {
+   "name": "M02 знак разрыва потерян — третий исход ловит ДАВНОСТЬ, а не будущее",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "and age is not None and -age > FUTURE_SKEW_MINUTES",
+   "new": "and age is not None and age > FUTURE_SKEW_MINUTES"
+  },
+  {
+   "name": "M03 допуска нет — окно чтения сборки покрашено (ошибка в другую сторону)",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "and age is not None and -age > FUTURE_SKEW_MINUTES",
+   "new": "and age is not None and age < 0"
+  },
+  {
+   "name": "M04 граница допуска включающая — ровно допуск уже красит",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "and age is not None and -age > FUTURE_SKEW_MINUTES",
+   "new": "and age is not None and -age >= FUTURE_SKEW_MINUTES"
+  },
+  {
+   "name": "M05 третий исход назван STALE — «не измерено» слипается с «протухло»",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "        state = \"NOT_MEASURED\"\n        reason = (f\"observation stamped",
+   "new": "        state = \"STALE\"\n        reason = (f\"observation stamped"
+  },
+  {
+   "name": "M06 CRITICAL понижается до NOT_MEASURED — авария становится незнанием",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "    if state not in (\"NOT_MEASURED\", \"CRITICAL\") and age is not None and -age > FUTURE_SKEW_MINUTES",
+   "new": "    if state not in (\"NOT_MEASURED\",) and age is not None and -age > FUTURE_SKEW_MINUTES"
+  },
+  {
+   "name": "M07 число допуска получает ВТОРОЙ дом — панель и области расходятся молча",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "from spa_core.studio_os.readiness_scopes import FUTURE_SKEW_MINUTES  # noqa: E402 — одна копия",
+   "new": "FUTURE_SKEW_MINUTES = 7.0  # noqa: E402"
+  },
+  {
+   "name": "M08 перепись слепа к знаку — любое будущее «в пределах допуска»",
+   "file": "scripts/future_dated_observation_census.py",
+   "old": "    return AHEAD_WITHIN if -age_min <= tolerance else AHEAD_BEYOND",
+   "new": "    return AHEAD_WITHIN"
+  },
+  {
+   "name": "M09 перепись читает отсутствие отметки как нулевой возраст",
+   "file": "scripts/future_dated_observation_census.py",
+   "old": "    if age_min is None:\n        return NO_STAMP",
+   "new": "    if age_min is None:\n        return BEHIND"
+  },
+  {
+   "name": "M10 перепись берёт в население секцию БЕЗ возраста — охват подменён",
+   "file": "scripts/future_dated_observation_census.py",
+   "old": "            if isinstance(meta, dict) and \"age_min\" in meta:",
+   "new": "            if isinstance(meta, dict):"
+  },
+  {
+   "name": "M11 перепись назначает своё число допуска вместо дома",
+   "file": "scripts/future_dated_observation_census.py",
+   "old": "    from spa_core.studio_os.readiness_scopes import FUTURE_SKEW_MINUTES",
+   "new": "    FUTURE_SKEW_MINUTES = 7.0  # noqa"
+  },
+  {
+   "name": "M12 проба зелена без прибора населения — порядок «сперва население» снят",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not census_path.exists():",
+   "new": "    if False:"
+  },
+  {
+   "name": "M13 проба не спрашивает про далёкое будущее — остаётся украшением",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if far.get(\"state\") != \"NOT_MEASURED\":",
+   "new": "    if False:"
+  },
+  {
+   "name": "M14 проба не спрашивает про причину третьего исхода",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    elif not (far.get(\"reason\") or \"\"):",
+   "new": "    elif False:"
+  },
+  {
+   "name": "M15 проба не спрашивает про обратную половину (окно чтения не красить)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if got[\"впереди, в пределах допуска\"].get(\"state\") != \"HEALTHY\":",
+   "new": "    if False:"
+  },
+  {
+   "name": "M16 проба слепа к отсутствию допуска у модуля — НЕ ИЗМЕРЕНО выдаётся за ответ",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not isinstance(tolerance, (int, float)) or tolerance <= 0:",
+   "new": "    if False:"
+  }
+ ]
+}

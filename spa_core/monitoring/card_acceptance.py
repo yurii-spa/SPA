@@ -21029,6 +21029,124 @@ def _probe_owner_has_the_three_stop_organs(
     return owner_stop_organs_verdict(doc)
 
 
+def _probe_meta_distinguishes_a_stamp_from_the_future(arg: str | None = None,
+                                                      *, repo_root: str | None = None
+                                                      ) -> tuple[str, str]:
+    """Критерий: конверт секции различает «свежо» · «протухло» · «отметка ВПЕРЁД часов».
+
+    Предмет — замер ADR-1078: `mission_control._meta()` низводит состояние до
+    `STALE`, когда `age > stale_after_min`. На ОТРИЦАТЕЛЬНОМ возрасте это
+    сравнение ложно ВСЕГДА, то есть отметка, стоящая впереди судящих часов,
+    читается как свежая: `state=HEALTHY · age_min=-89119.5 · stale_after_min=1560`.
+    Чем грубее расхождение часов, тем надёжнее наблюдение выглядит свежим — это
+    fail-OPEN инв. #17, где отсутствие наблюдения НЕ представлено своим значением.
+
+    **Проба мерит ИСХОД, а не структуру.** Наличие в коде константы допуска или
+    строки `age < 0` не говорит ничего: гейт мог остаться незваным (дословный
+    урок ADR-1065 — сайт был НАЗВАН дважды и оставлен открытым). Поэтому пробе
+    отвечает САМ `_meta` на ТРЁХ сценах, отличающихся РОВНО знаком и величиной
+    разрыва между отметкой и `now`, при одном и том же пороге:
+
+    1. отметка ПОЗАДИ часов в пределах порога ⇒ состояние НЕ понижено;
+    2. отметка ПОЗАДИ часов дальше порога ⇒ `STALE`;
+    3. отметка ВПЕРЁД часов дальше допуска ⇒ **`NOT_MEASURED`** с причиной,
+       называющей будущее, а НЕ `HEALTHY` и НЕ `STALE`.
+
+    Плюс четвёртая сцена — положительный контроль допуска в обратную сторону:
+    отметка ВПЕРЁД часов В ПРЕДЕЛАХ допуска ⇒ состояние НЕ понижено. Без неё
+    проба зеленела бы и у правки, которая красит окно чтения сборки: именно
+    такой разрыв (−0.4 мин, отметка зеркала прочитана после `now`) наблюдался
+    на живом прод-дереве у 4 секций из 24, и красить его было бы той же
+    ошибкой в другую сторону.
+
+    Третий исход СВОЙ (инв. #17): модуля нет по пути · `_meta` не ввозится ·
+    допуск не объявлен · перепись населения не ввозится ⇒ `unmeasured` с
+    НАЗВАННОЙ причиной, а не «не выполнено».
+    """
+    import datetime as _dt
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    module = root / "spa_core" / "studio_os" / "mission_control.py"
+    if not module.exists():
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: модуля нет по пути {module}"
+    census_path = root / "scripts" / "future_dated_observation_census.py"
+    if not census_path.exists():
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: переписи населения нет по пути {census_path} — "
+                            "«сперва население, потом правка» проверить нечем")
+    import importlib.util as _ilu
+    import sys as _sys
+
+    # Модуль грузится ИЗ НАЗВАННОГО дерева, а не ввозится по имени: по имени
+    # вернулась бы копия того дерева, что уже на `sys.path`, и проба ответила бы
+    # о ЧУЖИХ байтах (класс ADR-1080/1081 — «ответ о другом носителе молча»).
+    if str(root) not in _sys.path:
+        _sys.path.insert(0, str(root))
+    name = "_mc_future_stamp_probe"
+    try:
+        spec = _ilu.spec_from_file_location(name, module)
+        if spec is None or spec.loader is None:
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: модуль не загружается по пути {module}"
+        mc = _ilu.module_from_spec(spec)
+        # `@dataclass` ищет собственный модуль в `sys.modules` по `cls.__module__`
+        # и падает `AttributeError`, если его там нет: запись обязана стоять ДО
+        # исполнения тела, а не после.
+        _sys.modules[name] = mc
+        try:
+            spec.loader.exec_module(mc)
+        finally:
+            _sys.modules.pop(name, None)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: модуль не ввозится — {type(exc).__name__}: {exc}"
+    meta = getattr(mc, "_meta", None)
+    if not callable(meta):
+        return UNMEASURED, "НЕ ИЗМЕРЕНО: `_meta` в модуле не объявлен"
+    tolerance = getattr(mc, "FUTURE_SKEW_MINUTES", None)
+    if not isinstance(tolerance, (int, float)) or tolerance <= 0:
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: допуск `FUTURE_SKEW_MINUTES` у модуля не объявлен — "
+                            "порог «далёкого будущего» сравнивать не с чем")
+
+    now = _dt.datetime(2026, 11, 24, 12, 0, 0, tzinfo=_dt.timezone.utc)
+    contract = 90.0
+    scenes = {
+        "позади, в пределах порога": now - _dt.timedelta(minutes=5),
+        "позади, дальше порога": now - _dt.timedelta(minutes=contract + 5),
+        "впереди, в пределах допуска": now + _dt.timedelta(minutes=float(tolerance) / 2),
+        "впереди, дальше допуска": now + _dt.timedelta(minutes=float(tolerance) + 5),
+    }
+    got = {}
+    for label, stamp in scenes.items():
+        try:
+            got[label] = meta("HEALTHY", ["проба"], stamp, now, contract)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: `_meta` упал на сцене {label!r} — {type(exc).__name__}: {exc}"
+
+    broken = []
+    if got["позади, в пределах порога"].get("state") != "HEALTHY":
+        broken.append("свежая отметка понижена: "
+                      f"{got['позади, в пределах порога'].get('state')}")
+    if got["позади, дальше порога"].get("state") != "STALE":
+        broken.append("протухшая отметка НЕ понижена до STALE: "
+                      f"{got['позади, дальше порога'].get('state')}")
+    if got["впереди, в пределах допуска"].get("state") != "HEALTHY":
+        broken.append("окно чтения сборки покрашено — отметка впереди часов В ПРЕДЕЛАХ допуска "
+                      f"дала {got['впереди, дальше допуска'].get('state')}")
+    far = got["впереди, дальше допуска"]
+    if far.get("state") != "NOT_MEASURED":
+        broken.append("отметка ВПЕРЁД часов дальше допуска читается как "
+                      f"{far.get('state')} (возраст {far.get('age_min')}) — "
+                      "порог на отрицательном возрасте не срабатывает никогда")
+    elif not (far.get("reason") or ""):
+        broken.append("третий исход есть, но ПРИЧИНА не названа — «не измерено» "
+                      "неотличимо от «протухло»")
+
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, (f"три исхода различимы у одного конверта: позади⇒HEALTHY · "
+                       f"позади дальше {contract:g} мин⇒STALE · впереди дальше {float(tolerance):g} мин⇒"
+                       f"NOT_MEASURED ({far.get('reason')}) · впереди в пределах допуска⇒HEALTHY; "
+                       "перепись населения на месте")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -21284,6 +21402,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cio_as_is_deliverable_is_whole": _probe_cio_as_is_deliverable_is_whole,
     "launchd_door_has_no_second_site":
         _probe_launchd_door_has_no_second_site,
+    "meta_distinguishes_a_stamp_from_the_future":
+        _probe_meta_distinguishes_a_stamp_from_the_future,
 }
 
 

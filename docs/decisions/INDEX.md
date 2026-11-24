@@ -213,6 +213,7 @@
 | ADR-1082 | ADR-1082 — «Прогон ОТМЕНЁН» — отдельная причина отсутствия вердикта: заказ вытесняется из группы `ci-control` ожидающим, и в 16 из 24 отмен это ИЗМЕРИМО по соседу в окне 60 с | Accepted | [ADR-1082](ADR-1082-cancelled-control-run-is-a-displaced-order.md) |
 | ADR-1083 | ADR-1083 — У ЗАКАЗА контрольного прогона появляется своя дверь: подача судится ДО того, как кого-то убьёт | Accepted | [ADR-1083](ADR-1083-the-order-of-a-control-run-has-its-own-door.md) |
 | ADR-1084 | ADR-1084 — Запись памяти называет модуль, которого на `origin/main` нет: ложное утверждение о состоянии мира, прочитанное ДО первой строки работы | Accepted | [ADR-1084](ADR-1084-memory-note-names-a-module-that-is-not-on-origin.md) |
+| ADR-1085 | ADR-1085 — Отметка наблюдения ВПЕРЁД судящих часов — третий исход, а не «свежо» | Accepted | [ADR-1085](ADR-1085-future-dated-observation-is-a-third-outcome.md) |
 
 ## Соглашения
 
