@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-24T19:45:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-24T21:03:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (424d23c05) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1685** · ждёт владельца: **15** · занято сессиями: **14**.
+> Всего карточек: **1687** · ждёт владельца: **16** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает** · _critical_  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md`
 - **Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх**  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md`
 - **Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет**  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md`
 - **Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)**  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md`
@@ -45,9 +46,10 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-93227` · с 2026-11-24T16:47:55Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (396)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (397)
 
 ### · needs-owner
+- Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md` · 2026-11-24
 - Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md` · 2026-11-19
 - Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
 - Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md` · 2026-11-09
@@ -448,7 +450,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (980)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (981)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1373,6 +1375,7 @@
 - Страж перезаписи не оставляет квитанции: его вердикт нельзя проверить ни на одном прошлом прогоне  ·  `inbox-strazh-perezapisi-ne-ostavlyaet-kvitants.md` · 2026-09-12
 - Страж перезаписи решает применимость по КЭШУ: у пушера ноль fetch, а свежая база рядом берётся по HTTP  ·  `inbox-strazh-perezapisi-reshaet-primenimost-po.md` · 2026-09-12
 - Страж провенанса читает правку строки на месте как её исчезновение — и выводит автора на обход  ·  `inbox-strazh-provenansa-chitaet-pravku-stroki.md` · 2026-09-26
+- Сторож срока ключа следит за ЗАПИСАННОЙ датой и не спрашивает GitHub, жив ли ключ  ·  `inbox-strazh-sroka-klyucha-ne-sprashivaet-github.md` · 2026-11-24
 - Строгий режим доставки не проходим на ПОДЪЁМЕ осиротевшей работы, и его подсказка зовёт по кругу  ·  `inbox-strogii-rezhim-dostavki-ne-prohodim-na-p.md` · 2026-10-24
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Ступень переписи зовётся, артефакт не рождается, и бегун об этом молчит (unobserved_leg_remedy_class)  ·  `inbox-stupen-perepisi-zovetsya-artefakt-ne-roz.md` · 2026-09-14
