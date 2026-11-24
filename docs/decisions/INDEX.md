@@ -216,6 +216,8 @@
 | ADR-1085 | ADR-1085 — Отметка наблюдения ВПЕРЁД судящих часов — третий исход, а не «свежо» | Accepted | [ADR-1085](ADR-1085-future-dated-observation-is-a-third-outcome.md) |
 | ADR-1086 | ADR-1086 — Половина инъекции часов: `now` впрыснут, а отметка наблюдения из `mtime` файла осталась на календаре | Accepted | [ADR-1086](ADR-1086-half-injected-clock-in-the-scene.md) |
 | ADR-1087 | ADR-1087 — Население класса «половина инъекции часов через `mtime`»: прибор, предмет и вилка | Accepted | [ADR-1087](ADR-1087-mtime-half-injected-clock-population.md) |
+| ADR-1088 | ADR-1088 — Правило `atomic_writes` считало ТЕКСТ, а не ЗОВ: три из семи нарушений лежали внутри строкового литерала | Accepted | [ADR-1088](ADR-1088-atomic-writes-rule-counts-text-not-calls.md) |
+| ADR-1089 | ADR-1089 — Решение владельца 24.11: снять блокировку earn-defi KC-1 (вариант 1); инжест ответа, действие за владельцем | Accepted | [ADR-1089](ADR-1089-owner-clears-earn-defi-kc1-incident.md) |
 
 ## Соглашения
 

@@ -2,10 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: "Снять ли блокировку earn-defi (KC-1 с 19.09) — она возникла из-за незакрытой дневной свечи Coinbase"
-status: needs-owner
+status: ingested
 source: orchestrator
 created: 2026-11-04
 subject: money
+owner_choice: 1
+owner_answered_at: 2026-11-24T10:44:39.967096+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-11-24T10:44:39.967447+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-11-24T13:03:03.336973+00:00 owner-done -> ingested · queue.set_status · cycle-99630"
 ---
 
 ## Что случилось и почему это важно
@@ -26,3 +34,11 @@ subject: money
 
 ## Что будет после
 Агент сверит режим движка на пульте и в боте. Затем проверит, что следующий дневной прогон earn-defi прошёл в режиме NORMAL, и запишет итог в журнал.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Снять блокировку
+
+_Ответ владельца получен 2026-11-24T10:44:39.967096+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

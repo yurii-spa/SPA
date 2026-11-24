@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-24T11:39:30Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-24T13:08:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ede583547) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (cd9610c40) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1682** · ждёт владельца: **16** · занято сессиями: **14**.
+> Всего карточек: **1683** · ждёт владельца: **15** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -22,7 +22,6 @@
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md`
 - **Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку** · _high_  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md`
 - **Система не говорит, на какой ступени выпуска она стои́т — а три книги уже взведены и подписаны «ничего не двинуто»**  ·  `owner-decision-sistema-ne-govorit-na-kakoi-stupeni-vypu.md`
-- **Снять ли блокировку earn-defi (KC-1 с 19.09) — она возникла из-за незакрытой дневной свечи Coinbase**  ·  `owner-decision-snyat-li-blokirovku-earn-defi-kc-1.md`
 - **Три вклада в одном риске считаются тремя разными — включить ли защиту, которая уже написана**  ·  `owner-decision-tri-vklada-v-odnom-riske-schitayutsya-tr.md`
 - **Включить сторожа находок: проверка перед установкой отказывала ошибочно, и 143 находки в день теряются** · _high_  ·  `owner-decision-vklyuchit-storozha-nahodok-proverka-pere.md`
 - **Влить ли готовую правку про потолок 8 позиций (ADR-902): ты решил «да» 2 ноября, доставка ждёт твоего слова** · _high_  ·  `owner-decision-vlit-li-gotovuyu-pravku-pro-potolok-8-po.md`
@@ -43,7 +42,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-46787` · с 2026-11-24T04:03:12Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-99630` · с 2026-11-24T12:51:29Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (396)
@@ -61,7 +60,6 @@
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md` · 2026-11-08
 - Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md` · 2026-10-30
 - Система не говорит, на какой ступени выпуска она стои́т — а три книги уже взведены и подписаны «ничего не двинуто»  ·  `owner-decision-sistema-ne-govorit-na-kakoi-stupeni-vypu.md` · 2026-11-22
-- Снять ли блокировку earn-defi (KC-1 с 19.09) — она возникла из-за незакрытой дневной свечи Coinbase  ·  `owner-decision-snyat-li-blokirovku-earn-defi-kc-1.md` · 2026-11-04
 - Три вклада в одном риске считаются тремя разными — включить ли защиту, которая уже написана  ·  `owner-decision-tri-vklada-v-odnom-riske-schitayutsya-tr.md` · 2026-11-09
 - Включить сторожа находок: проверка перед установкой отказывала ошибочно, и 143 находки в день теряются  ·  `owner-decision-vklyuchit-storozha-nahodok-proverka-pere.md` · 2026-11-19
 - Влить ли готовую правку про потолок 8 позиций (ADR-902): ты решил «да» 2 ноября, доставка ждёт твоего слова  ·  `owner-decision-vlit-li-gotovuyu-pravku-pro-potolok-8-po.md` · 2026-11-04
@@ -312,6 +310,7 @@
 - Сколько стоит один цикл агента — без твоего числа стоимость цеха не считается  ·  `owner-decision-skolko-stoit-odin-tsikl-agenta.md` · 2026-09-09
 - Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?  ·  `owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko.md` · 2026-09-12
 - Слепая просадка и покупки: наращивать ли позиции, когда просадку вычислить не из чего  ·  `owner-decision-slepaya-prosadka-i-pokupki-naraschivat-l.md` · 2026-08-23
+- Снять ли блокировку earn-defi (KC-1 с 19.09) — она возникла из-за незакрытой дневной свечи Coinbase  ·  `owner-decision-snyat-li-blokirovku-earn-defi-kc-1.md` · 2026-11-04
 - Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа  ·  `owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co.md` · 2026-08-22
 - Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро  ·  `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k.md` · 2026-09-05
 - Советник по перекладке денег не сможет включиться НИКОГДА — 30 дней он молчал не потому, что рынок тихий  ·  `owner-decision-sovetnik-po-perekladke-deneg-ne-smozhet.md` · 2026-09-05
@@ -449,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (977)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (978)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -469,7 +468,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-46787`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-99630`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -1263,6 +1262,7 @@
 - Поверхность владельца зовёт флот просроченным 25 минут каждого часа — порог 35 минут против часового писателя  ·  `inbox-poverhnost-vladeltsa-zovet-flot-prosroch.md` · 2026-10-08
 - Повтор просьбы владельца неотличим от повторного приёма того же сообщения: личности сообщения не несёт ни одна карточка  ·  `inbox-povtor-prosby-vladeltsa-neotlichim-ot-po.md` · 2026-10-30
 - Поздний «принято» воскрешает карточку, закрытую замером — и предъявляет агенту ОТМЕНЁННУЮ разрушительную команду  ·  `inbox-pozdnii-prinyato-voskreshaet-kartochku-z.md` · 2026-08-30
+- Правило atomic_writes объявляет пропуск тестов, а мерит ИМЯ файла — 64 помощника в spa_core/tests/ сканируются  ·  `inbox-pravilo-atomic-writes-obyavlyaet-propusk.md` · 2026-11-24
 - Правило о якорях: дописать НОМЕР СТРОКИ третьим носителем класса (замер #534)  ·  `inbox-pravilo-o-yakoryah-dopisat-nomer-stroki.md` · 2026-09-09
 - Предписанный прогон даёт 39 падений против записанной полосы 14 — знаменатели РАЗНЫЕ, и число снято загрязнённым прогоном  ·  `inbox-predpisannyi-progon-daet-39-padenii-prot.md` · 2026-09-21
 - Предписанный прогон КРАСНЫЙ на чистом main: 17 падений, замер на пришпиленном af1d972eb  ·  `inbox-predpisannyi-progon-krasnyi-na-chistom-m.md` · 2026-08-29

@@ -201,6 +201,135 @@ class TestCheckAtomicWrites(unittest.TestCase):
         result = audit.check_atomic_writes()
         self.assertIsInstance(result, list)
 
+    # ── ADR-1088: предмет правила — ЗОВ, а не ТЕКСТ ──────────────────────────
+    # Каждая сцена ниже — положительный контроль на настоящую находку 24.11:
+    # прибор `spa_core/tests/_mtime_clock_door.py` выложил исходник плагина
+    # СТРОКОВЫМ ЛИТЕРАЛОМ, и правило доложило о двух «нарушениях» в тексте,
+    # который в этом файле никто не исполняет. Потолок при этом покраснел.
+
+    def test_a_write_inside_a_generated_source_literal_is_not_a_call(self):
+        """Исходник, выложенный МНОГОСТРОЧНЫМ литералом, зовом не является."""
+        src = (
+            "def plugin_source():\n"
+            '    return (\n'
+            '        "import json, os\\n"\n'
+            '        "with open(_CANARY, \'w\') as fh:\\n"\n'
+            '        "    json.dump({}, fh)\\n"\n'
+            "    )\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            spa = os.path.join(tmp, "spa_core")
+            _write_py(spa, "gen.py", src)
+            audit = ArchitectureAudit(base_dir=spa)
+            violations = audit.check_atomic_writes()
+        self.assertEqual(
+            violations, [],
+            msg="текст внутри литерала доложен как зов — вернулась находка 24.11",
+        )
+
+    def test_the_same_text_outside_a_literal_is_still_flagged(self):
+        """Обратная половина: тот же текст КОДОМ по-прежнему нарушение."""
+        src = (
+            "import json\n"
+            "_CANARY = 'canary.json'\n"
+            "with open(_CANARY, 'w') as fh:\n"
+            "    json.dump({}, fh)\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            spa = os.path.join(tmp, "spa_core")
+            _write_py(spa, "real.py", src)
+            audit = ArchitectureAudit(base_dir=spa)
+            violations = audit.check_atomic_writes()
+        self.assertEqual(len(violations), 1, msg=f"ожидалось 1, вышло {violations}")
+        self.assertEqual(violations[0].line, 3)
+
+    def test_prose_of_a_docstring_warning_about_the_hazard_is_not_flagged(self):
+        """Проза, ОБЪЯСНЯЮЩАЯ опасность такой записи, нарушением не является.
+
+        Дословная форма `monitoring/decision_reproducibility.py:270`: строка
+        докстринга, которая предупреждает, что ``open(..., "w")`` пишет сквозь
+        жёсткую ссылку. Она была одним из пяти «нарушений», на которых стоял
+        прежний потолок.
+        """
+        src = (
+            "def _build_sandbox(dest):\n"
+            '    """Свежая копия снимка на ОДИН прогон.\n'
+            "\n"
+            '    Копия, а не жёсткая ссылка: ссылка мгновенна, но ``open(..., "w")``\n'
+            "    пишет СКВОЗЬ неё в живой файл.\n"
+            '    """\n'
+            "    return dest\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            spa = os.path.join(tmp, "spa_core")
+            _write_py(spa, "prose.py", src)
+            audit = ArchitectureAudit(base_dir=spa)
+            violations = audit.check_atomic_writes()
+        self.assertEqual(violations, [], msg=f"проза доложена как зов: {violations}")
+
+    def test_a_file_whose_tokens_do_not_parse_is_named_unmeasured_not_clean(self):
+        """Третий исход: поток токенов не разобран ⇒ нарушение с НАЗВАННОЙ причиной.
+
+        Fail-CLOSED (инв. #17): «зов это или текст» в таком файле НЕ ИЗМЕРЕНО,
+        и молчание сделало бы «не измерено» неотличимым от «чисто».
+
+        ⚠️ Форма сцены — НЕЗАКРЫТЫЙ ТРОЙНОЙ литерал, и это ЗАМЕР, а не вкус.
+        Незакрытый ОДИНАРНЫЙ литерал отказывает только у нового разборщика
+        (PEP 701): замер 24.11 — 3.13 даёт `TokenError`, а 3.9/3.11 разбирают
+        такой файл МОЛЧА и отдают три токена `STRING`. Сцена на одинарной
+        кавычке была бы зелена на Маке и красна на CI (`ubuntu-latest`, 3.11) —
+        ровно класс «дверь, о которой тест не объявил». Тройной литерал
+        отказывает у ОБОИХ разборщиков, что и проверено двумя интерпретаторами.
+        """
+        src = (
+            'BROKEN = """тройной литерал не закрыт\n'
+            "with open('out.json', 'w') as fh:\n"
+            "    fh.write('x')\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            spa = os.path.join(tmp, "spa_core")
+            _write_py(spa, "broken.py", src)
+            audit = ArchitectureAudit(base_dir=spa)
+            violations = audit.check_atomic_writes()
+        self.assertEqual(len(violations), 1, msg=f"ожидалось 1, вышло {violations}")
+        self.assertIn("НЕ РАЗОБРАНО", violations[0].message)
+
+    def test_a_real_call_on_a_line_that_also_quotes_the_pattern_is_flagged(self):
+        """Совпадение, НАЧАВШЕЕСЯ в литерале и вышедшее за него, — зов.
+
+        Обе границы отрезка проверяются по отдельности: спрос только о левой
+        («совпадение началось внутри литерала») пропустил бы НАСТОЯЩИЙ зов,
+        стоящий на той же строке, что и кавычка-упоминание.
+        """
+        src = (
+            "import json\n"
+            'PREFIX = "open(x, " ; fh = open(\'out.json\', \'w\')\n'
+            "json.dump({}, fh)\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            spa = os.path.join(tmp, "spa_core")
+            _write_py(spa, "mixed.py", src)
+            audit = ArchitectureAudit(base_dir=spa)
+            violations = audit.check_atomic_writes()
+        self.assertEqual(len(violations), 1, msg=f"зов пропущен: {violations}")
+        self.assertEqual(violations[0].line, 2)
+
+    def test_the_atomic_tmp_excuse_survives_the_token_question(self):
+        """Прежняя поблажка (tmp + os.replace рядом) не отменена починкой."""
+        src = (
+            "import os, tempfile\n"
+            "fd, tmp = tempfile.mkstemp()\n"
+            "with open(tmp, 'w') as f:\n"
+            "    f.write('data')\n"
+            "os.replace(tmp, 'target.json')\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            spa = os.path.join(tmp, "spa_core")
+            _write_py(spa, "atomic2.py", src)
+            audit = ArchitectureAudit(base_dir=spa)
+            violations = audit.check_atomic_writes()
+        self.assertEqual(violations, [])
+
 
 # ── check_no_hardcoded_secrets() ─────────────────────────────────────────────
 
@@ -415,13 +544,20 @@ class TestRunAll(unittest.TestCase):
             self.assertIsInstance(v, AuditViolation)
 
     def test_real_codebase_violation_count_low(self):
-        """violation_count() on the real codebase is <= 5 (healthy codebase)."""
+        """violation_count() on the real codebase is <= 4 (healthy codebase).
+
+        Потолок опущен 5 → 4 циклом #1234 (ADR-1088) ПОСЛЕ починки меры:
+        прежний потолок 5 стоял на числе, в которое входила проза докстринга
+        `monitoring/decision_reproducibility.py` (текст, а не зов). Снятие
+        ложного попадания УЖЕСТОЧАЕТ храповик: база может только убывать, и
+        дописывать в неё ради зелёного CI запрещено (инв. #16).
+        """
         audit = ArchitectureAudit()
         audit.run_all()
         count = audit.violation_count()
         self.assertLessEqual(
-            count, 5,
-            msg=f"Expected <= 5 violations, got {count}. "
+            count, 4,
+            msg=f"Expected <= 4 violations, got {count}. "
                 f"Violations: {[(v.rule, v.file, v.line) for v in audit._violations]}"
         )
 

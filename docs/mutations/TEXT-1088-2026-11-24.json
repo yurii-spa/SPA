@@ -1,0 +1,62 @@
+{
+  "title": "ADR-1088 TEXT — дельта цикла #1234: правило atomic_writes спрашивает ТОКЕНЫ (зов или текст внутри литерала), три исхода различимы, обе границы отрезка проверяются по отдельности, прежняя поблажка tmp+os.replace не отменена",
+  "tests": [
+    "tests/test_architecture_audit.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 ветка литерала снята — текст снова считается зовом (форма аварии 24.11)",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "                if _match_is_inside_a_string(",
+      "new": "                if False and _match_is_inside_a_string("
+    },
+    {
+      "name": "M02 ветка литерала вывернута — зов считается текстом (правило ослеплено)",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "                if _match_is_inside_a_string(",
+      "new": "                if True or _match_is_inside_a_string("
+    },
+    {
+      "name": "M03 причина третьего исхода не названа — «не измерено» слито с нарушением",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "                            f\"{_UNPARSED}: поток токенов файла не разобран — \"\n                            \"зов это или текст внутри литерала, не измерено\"",
+      "new": "                            \"Direct open(path, 'w') without atomic tmp+os.replace pattern\""
+    },
+    {
+      "name": "M04 нечитаемый поток токенов подменён пустой картой — НЕ ИЗМЕРЕНО выдано за измеренное",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "            spans = _string_token_spans(\"\\n\".join(lines))",
+      "new": "            spans = _string_token_spans(\"\\n\".join(lines)) or {}"
+    },
+    {
+      "name": "M05 многострочный литерал не отмечается — проза докстринга снова нарушение",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "            spans.setdefault(row_a, []).append((col_a, None))",
+      "new": "            continue"
+    },
+    {
+      "name": "M06 отказ разбора возвращает пустую карту вместо третьего исхода",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):\n        return None",
+      "new": "    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):\n        return {}"
+    },
+    {
+      "name": "M07 колонки игнорируются — «в строке ЕСТЬ литерал» выдано за «совпадение ВНУТРИ литерала» (дефект моей первой мерки)",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "    for col_a, col_b in spans.get(lineno, ()):\n        if col_a <= start and (col_b is None or end <= col_b):\n            return True\n    return False",
+      "new": "    return bool(spans.get(lineno, ()))"
+    },
+    {
+      "name": "M08 прежняя поблажка tmp+os.replace отменена починкой",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "                if \"tmp\" in context.lower() or \"os.replace\" in context:\n                    continue",
+      "new": "                if False:\n                    continue"
+    },
+    {
+      "name": "M09 правая граница отрезка не проверяется — зов на строке с кавычкой-упоминанием пропущен",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "        if col_a <= start and (col_b is None or end <= col_b):",
+      "new": "        if col_a <= start:"
+    }
+  ]
+}

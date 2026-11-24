@@ -30,9 +30,11 @@ import argparse
 import ast
 import json
 import os
+import io
 import re
 import sys
 import tempfile
+import tokenize
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import List, Optional
@@ -149,6 +151,44 @@ _SECRET_ASSIGNMENT = re.compile(
 # Pattern: bare open(path, "w") — but NOT fdopen, os.fdopen, etc.
 # Word boundary before "open" ensures we skip fdopen, os.fdopen.
 _DIRECT_WRITE_OPEN = re.compile(r"""\bopen\s*\(.+,\s*['"]w['"]\)""")
+
+_UNPARSED = "НЕ РАЗОБРАНО"
+
+
+def _string_token_spans(src: str):
+    """Отрезки колонок, занятые токенами STRING, по номерам строк.
+
+    Отвечает на вопрос «лежит ли совпадение ВНУТРИ строкового литерала», то
+    есть является ли найденный текст ЗОВОМ или ТЕКСТОМ. Третий исход назван
+    отдельно: ``None`` = поток токенов не разобран, и тогда ответа НЕТ ни в
+    одну сторону (инв. #17).
+    """
+    spans: dict = {}
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+            if tok.type != tokenize.STRING:
+                continue
+            (row_a, col_a), (row_b, col_b) = tok.start, tok.end
+            if row_a == row_b:
+                spans.setdefault(row_a, []).append((col_a, col_b))
+                continue
+            # Многострочный литерал: первая строка — от своей колонки до конца,
+            # середина — целиком, последняя — до своей колонки.
+            spans.setdefault(row_a, []).append((col_a, None))
+            for row in range(row_a + 1, row_b):
+                spans.setdefault(row, []).append((0, None))
+            spans.setdefault(row_b, []).append((0, col_b))
+    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
+        return None
+    return spans
+
+
+def _match_is_inside_a_string(spans, lineno: int, start: int, end: int) -> bool:
+    """Целиком ли совпадение ``[start, end)`` лежит внутри токена STRING."""
+    for col_a, col_b in spans.get(lineno, ()):
+        if col_a <= start and (col_b is None or end <= col_b):
+            return True
+    return False
 
 
 # ── AuditViolation dataclass ──────────────────────────────────────────────────
@@ -298,6 +338,20 @@ class ArchitectureAudit:
         is interrupted mid-write. The safe pattern is:
             tmp → write → os.replace(tmp, target)
 
+        Предмет правила — ЗОВ, а не ТЕКСТ (ADR-1088). Прежняя редакция
+        объявляла, что пропускает «string literals / docstrings», но мерила
+        это началом строки (``startswith('\"\"\"')``), поэтому строка ВНУТРИ
+        многострочного литерала считалась кодом. Замер 2026-11-24: из 7
+        доложенных нарушений **3** лежали внутри литерала — проза докстринга
+        `monitoring/decision_reproducibility.py` (она ОБЪЯСНЯЕТ опасность
+        такой записи) и два отрезка исходника плагина, который прибор
+        `spa_core/tests/_mtime_clock_door.py` выкладывает в одноразовое дерево.
+        Теперь вопрос задаётся ТОКЕНАМИ, и исходов три (инв. #17):
+        попадание в коде = нарушение · попадание внутри литерала = НЕ
+        нарушение (это текст) · поток токенов не разобран = нарушение с
+        НАЗВАННОЙ причиной, fail-CLOSED, потому что ответа нет ни в одну
+        сторону. Замер поверхности: 2301 файл, не токенизируется 0.
+
         Returns:
             List of AuditViolation with severity="WARNING".
         """
@@ -306,6 +360,8 @@ class ArchitectureAudit:
         for fpath, lines in self._iter_py_files(
             self._base_dir, skip_tests=True, skip_pycache=True
         ):
+            spans = _string_token_spans("\n".join(lines))
+
             for lineno, line in enumerate(lines, 1):
                 # Skip comment lines and string literals / docstrings
                 stripped = line.strip()
@@ -314,7 +370,8 @@ class ArchitectureAudit:
                 if stripped.startswith('"""') or stripped.startswith("'''"):
                     continue
 
-                if not _DIRECT_WRITE_OPEN.search(line):
+                match = _DIRECT_WRITE_OPEN.search(line)
+                if match is None:
                     continue
 
                 # Check surrounding context (±5 lines) for atomic-write hints
@@ -322,16 +379,38 @@ class ArchitectureAudit:
                 end = min(len(lines), lineno + 5)
                 context = "\n".join(lines[start:end])
 
-                if "tmp" not in context.lower() and "os.replace" not in context:
+                if "tmp" in context.lower() or "os.replace" in context:
+                    continue
+
+                if spans is None:
                     violations.append(AuditViolation(
                         rule="atomic_writes",
                         file=self._rel(fpath),
                         line=lineno,
                         message=(
-                            "Direct open(path, 'w') without atomic tmp+os.replace pattern"
+                            f"{_UNPARSED}: поток токенов файла не разобран — "
+                            "зов это или текст внутри литерала, не измерено"
                         ),
                         severity="WARNING",
                     ))
+                    continue
+
+                if _match_is_inside_a_string(
+                    spans, lineno, match.start(), match.end()
+                ):
+                    # Текст внутри литерала зовом не является — ни докстринг,
+                    # ни исходник, который модуль выкладывает другим деревом.
+                    continue
+
+                violations.append(AuditViolation(
+                    rule="atomic_writes",
+                    file=self._rel(fpath),
+                    line=lineno,
+                    message=(
+                        "Direct open(path, 'w') without atomic tmp+os.replace pattern"
+                    ),
+                    severity="WARNING",
+                ))
 
         return violations
 
