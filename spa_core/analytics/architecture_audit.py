@@ -230,6 +230,36 @@ class ArchitectureAudit:
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
+    def _is_test_file(self, fpath: Path, walk_root: Path) -> tuple[bool, str]:
+        """ОДНА дверь вопроса «это тест?» — и она спрашивает о МЕСТЕ, не только об имени.
+
+        Прежняя редакция объявляла ``skip_tests`` как «тесты я не смотрю», а решала
+        вопрос ``fname.startswith("test_")`` — то есть отвечала об ИМЕНИ. Соврать так
+        можно в обе стороны, и первая сторона стоила красного ``main``: замер на
+        вершине ``cd9610c40`` (состояние ДО ADR-1088) — правило ``atomic_writes``
+        доложило **7** нарушений при потолке 5, и **2** из них были строки ТЕКСТА
+        внутри исходника плагина, который прибор ``spa_core/tests/_mtime_clock_door.py``
+        выкладывает в одноразовое дерево. Помощник в каталоге тестов — тест, как бы он
+        ни назывался; таких помощников в ``spa_core/tests/`` **64** (замер 24.11).
+
+        Вопрос задаётся о пути, ВЗЯТОМ ОТНОСИТЕЛЬНО корня, а не об абсолютном: иначе
+        дерево, лежащее по пути с компонентом ``tests`` (``/private/tmp/tests/…``),
+        пропустило бы ВЕСЬ репозиторий молча — та же ловушка «литерал пути = слабая
+        дверь», только наоборот.
+
+        Исходы различимы (инв. #17): ответ дан по пути от корня репозитория · по пути
+        от корня обхода (файл вне репозитория) · место не установлено, и тогда
+        отвечает ТОЛЬКО имя — третий исход НАЗВАН, а не выдан за первые два.
+        """
+        for base, basis in ((self._repo_root, "repo"), (walk_root, "root")):
+            try:
+                rel = fpath.relative_to(base)
+            except ValueError:
+                continue
+            in_tests_tree = "tests" in rel.parent.parts
+            return (in_tests_tree or rel.name.startswith("test_")), basis
+        return fpath.name.startswith("test_"), "name-only"
+
     def _iter_py_files(
         self,
         root: Path,
@@ -237,6 +267,7 @@ class ArchitectureAudit:
         skip_pycache: bool = True,
     ):
         """Yield (filepath, lines) for each .py file under root."""
+        root = Path(root)
         for dirpath, dirs, files in os.walk(root):
             dirs[:] = sorted(
                 d for d in dirs
@@ -246,9 +277,9 @@ class ArchitectureAudit:
             for fname in sorted(files):
                 if not fname.endswith(".py"):
                     continue
-                if skip_tests and fname.startswith("test_"):
-                    continue
                 fpath = Path(dirpath) / fname
+                if skip_tests and self._is_test_file(fpath, root)[0]:
+                    continue
                 try:
                     content = fpath.read_text(encoding="utf-8", errors="replace")
                     yield fpath, content.splitlines()

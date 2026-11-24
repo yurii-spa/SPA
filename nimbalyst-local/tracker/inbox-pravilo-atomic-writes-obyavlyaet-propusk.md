@@ -2,11 +2,15 @@
 trackerStatus:
   type: inbox
 title: Правило atomic_writes объявляет пропуск тестов, а мерит ИМЯ файла — 64 помощника в spa_core/tests/ сканируются
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-24
 twin_key: "sha256:0434f2e4376dc71afab8a88e1bdf07f63150ba4fc7ea3a107063b209738d414f"
 intake_kind: task
+acceptance_probe: test_membership_is_asked_about_place_not_name
+status_trail:
+  - "2026-11-24T14:49:31.886844+00:00 new -> in-progress · queue.set_status · cycle-36309"
+  - "2026-11-24T15:25:08.292903+00:00 in-progress -> done · queue.set_status/closed_by:cycle-1235/evidence:ADR-1090: дверь _is_test_file спрашивает МЕСТО; проба test_membership_is_asked_about_place_not_name = satisfied; перепись scripts/test_membership_door_census.py напечатала население 64/0 и расхождение · cycle-36309"
 ---
 
 ## Что случилось и почему это важно

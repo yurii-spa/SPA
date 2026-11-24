@@ -1,0 +1,105 @@
+{
+  "label": "ADR-1090 / цикл #1235 — дверь «это тест?» спрашивает МЕСТО, и это измерено",
+  "tests": [
+    "spa_core/tests/test_membership_door_census.py",
+    "tests/test_architecture_audit.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01_door_forgets_the_place",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "            in_tests_tree = \"tests\" in rel.parent.parts",
+      "new": "            in_tests_tree = False"
+    },
+    {
+      "name": "M02_walk_bypasses_the_single_door",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "                if skip_tests and self._is_test_file(fpath, root)[0]:",
+      "new": "                if skip_tests and fpath.name.startswith(\"test_\"):"
+    },
+    {
+      "name": "M03_place_asked_of_the_absolute_path",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "        for base, basis in ((self._repo_root, \"repo\"), (walk_root, \"root\")):",
+      "new": "        for base, basis in ((Path(\"/\"), \"repo\"), (walk_root, \"root\")):"
+    },
+    {
+      "name": "M04_basis_is_always_claimed_to_be_the_repo",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "            return (in_tests_tree or rel.name.startswith(\"test_\")), basis",
+      "new": "            return (in_tests_tree or rel.name.startswith(\"test_\")), \"repo\""
+    },
+    {
+      "name": "M05_name_is_no_longer_sufficient",
+      "file": "spa_core/analytics/architecture_audit.py",
+      "old": "            return (in_tests_tree or rel.name.startswith(\"test_\")), basis",
+      "new": "            return in_tests_tree, basis"
+    },
+    {
+      "name": "M06_door_form_asserted_instead_of_measured",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "    if place_skipped and name_skipped:",
+      "new": "    if True:"
+    },
+    {
+      "name": "M07_own_form_credits_any_string_again",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "            if attr not in {\"glob\", \"rglob\"}:",
+      "new": "            if False:"
+    },
+    {
+      "name": "M08_rules_paired_by_method_name",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "        pairs[head.value] = tail.attr",
+      "new": "        pairs[head.value] = tail.attr\n        pairs.setdefault(\"no_llm_in_analytics\", tail.attr)\n        pairs.setdefault(\"no_print_in_modules\", tail.attr)"
+    },
+    {
+      "name": "M09_unimplemented_rule_swallowed",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "        if method is None:",
+      "new": "        if method is None and False:"
+    },
+    {
+      "name": "M10_named_debt_collapsed_into_clean",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "    return 3 if census.unmeasured else 0",
+      "new": "    return 0"
+    },
+    {
+      "name": "M11_missing_audit_module_is_not_a_refusal",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "        raise NotMeasured(f\"модуля аудита нет по пути {module_path}\")",
+      "new": "        return Census(repo_root=str(repo_root), audit_module=str(AUDIT_MODULE_PATH),\n                      door_form=\"PLACE_AND_NAME\", door_form_reason=\"нечего мерить\")"
+    },
+    {
+      "name": "M12_population_read_off_the_divergence",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "    census.misplaced_files = misplaced",
+      "new": "    census.misplaced_files = []"
+    },
+    {
+      "name": "M13_second_direction_dropped",
+      "file": "scripts/test_membership_door_census.py",
+      "old": "    census.name_only_outside_tests = name_outside",
+      "new": "    census.name_only_outside_tests = []"
+    },
+    {
+      "name": "M14_probe_judges_a_tree_it_cannot_break",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if audit_text.count(anchor) != 1:",
+      "new": "    if audit_text.count(anchor) < 0:"
+    },
+    {
+      "name": "M15_probe_stops_requiring_a_live_divergence",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if len(gone) != 1:\n        broken.append(\"расхождение вердикта у живой двери \"",
+      "new": "    if len(gone) < 0:\n        broken.append(\"расхождение вердикта у живой двери \""
+    },
+    {
+      "name": "M16_probe_accepts_a_broken_door_form",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if doc_mut.get(\"door_form\") != \"NAME_ONLY\":",
+      "new": "    if doc_mut.get(\"door_form\") == \"NAME_ONLY\":"
+    }
+  ]
+}

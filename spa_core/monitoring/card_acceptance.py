@@ -21281,12 +21281,196 @@ def test_archive_is_fresh(tmp_path):
         f"известный член внутри предмета")
 
 
+def _probe_test_membership_is_asked_about_place_not_name(
+        arg: str | None = None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: ни одно правило аудита не решает «это тест?» по ИМЕНИ файла.
+
+    Предмет — карточка `inbox-pravilo-atomic-writes-obyavlyaet-propusk` (заказ
+    G1074 п. 2а). Правило `atomic_writes` объявляло у двери
+    `_iter_py_files(skip_tests=True)`, что тесты не смотрит, а дверь спрашивала
+    `fname.startswith("test_")`, то есть отвечала об ИМЕНИ. Цена первой стороны
+    ИЗМЕРЕНА на настоящей аварии: на вершине `cd9610c40` (состояние `main` ДО
+    ADR-1088) правило доложило 7 нарушений при потолке 5, и 2 из семи были
+    строки ТЕКСТА внутри исходника плагина, который прибор
+    `spa_core/tests/_mtime_clock_door.py` выкладывает в одноразовое дерево;
+    спроси дверь о МЕСТЕ — и те два исчезают.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова
+    «place», ни имени двери: она ЗОВЁТ настоящую перепись
+    (`scripts/test_membership_door_census.py`) подпроцессом на ТРЁХ
+    одноразовых деревьях и берёт вердикты ЗНАЧЕНИЯМИ из её `--json`.
+    Подстрокой она не проходит (ADR-333).
+
+    Контроль в обе стороны лежит ВНУТРИ самой проверки:
+
+    * дерево с ЖИВОЙ дверью ⇒ форма двери `PLACE_AND_NAME`, предмет ПУСТ, и
+      расхождение вердикта НЕ ПУСТОЕ: помощник в `tests/`, пишущий файл прямым
+      `open(..., 'w')`, нарушением больше не считается. Порви это звено — и
+      перепись начнёт объявлять починенную дверь находкой;
+    * то же дерево, у которого дверь спрашивает ТОЛЬКО имя (мутация одной
+      строки) ⇒ форма `NAME_ONLY` и предмет из ДВУХ правил. Порви это звено — и
+      перепись перестанет видеть настоящую аварию, оставшись украшением
+      (`.claude/rules/deployment.md`, § «Проверка сторожа сторожей»);
+    * на том же сломанном дереве РАСХОЖДЕНИЕ ВЕРДИКТА равно нулю, а НАСЕЛЕНИЕ
+      равно единице — и это главное, что проба закрепляет: мерить класс
+      расхождением вердикта НЕЛЬЗЯ, потому что у сломанной двери обе сравниваемые
+      формы совпадают, и ответ выходит «чисто» ровно там, где дефект. Поэтому
+      население считается ОТДЕЛЬНО, а «красен сегодня» мерой класса не является
+      (дословно урок § девятой двери, п. 5);
+    * дерево БЕЗ модуля аудита ⇒ третий исход `НЕ ИЗМЕРЕНО` с названной причиной
+      (код 2), а не ноль (инв. #17);
+    * правило, ОБЪЯВЛЕННОЕ в `AUDIT_RULES` и не реализованное, обязано быть
+      НАЗВАНО (код 3 ≠ код 0): два таких правила — `no_llm_in_analytics` и
+      `no_print_in_modules` — печатаются находкой, а не тихим нулём.
+    """
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = (_pathlib.Path(repo_root) if repo_root
+            else _pathlib.Path(REPO_ROOT)).resolve()
+    instrument = root / "scripts" / "test_membership_door_census.py"
+    audit_src = root / "spa_core" / "analytics" / "architecture_audit.py"
+    for path in (instrument, audit_src):
+        if not path.is_file():
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: в дереве нет {path}"
+
+    anchor = '            in_tests_tree = "tests" in rel.parent.parts'
+    audit_text = audit_src.read_text(encoding="utf-8", errors="replace")
+    if audit_text.count(anchor) != 1:
+        return UNMEASURED, (
+            "НЕ ИЗМЕРЕНО: якорь вопроса о МЕСТЕ встречается "
+            f"{audit_text.count(anchor)} раз(а), а не один — сломать дверь нечем, "
+            "и «сцена не построена» не есть «предмет пуст»")
+
+    # Помощник в каталоге тестов, который ПРАВДА пишет файл прямым зовом: ни «tmp»,
+    # ни «os.replace» рядом, иначе правило само его простит и сцена станет слепой.
+    helper = (
+        "def write_report(target, body):\n"
+        "    with open(target, 'w') as fh:\n"
+        "        fh.write(body)\n"
+    )
+
+    def _build(tree: "_pathlib.Path", *, name_only: bool, with_audit: bool = True) -> None:
+        (tree / "scripts").mkdir(parents=True)
+        (tree / "spa_core" / "analytics").mkdir(parents=True)
+        (tree / "spa_core" / "tests").mkdir(parents=True)
+        (tree / "spa_core" / "utils").mkdir(parents=True)
+        (tree / "scripts" / "test_membership_door_census.py").write_text(
+            instrument.read_text(encoding="utf-8"), encoding="utf-8")
+        for pkg in ("spa_core", "spa_core/analytics", "spa_core/utils"):
+            (tree / pkg / "__init__.py").write_text("", encoding="utf-8")
+        (tree / "spa_core" / "utils" / "atomic.py").write_text(
+            "def atomic_save(*a, **k):\n    raise NotImplementedError\n",
+            encoding="utf-8")
+        (tree / "spa_core" / "tests" / "_helper.py").write_text(helper, encoding="utf-8")
+        if with_audit:
+            body = audit_text
+            if name_only:
+                body = body.replace(anchor, "            in_tests_tree = False")
+            (tree / "spa_core" / "analytics" / "architecture_audit.py").write_text(
+                body, encoding="utf-8")
+
+    def _ask(tree: "_pathlib.Path") -> tuple[int, dict]:
+        proc = _sp.run(
+            [sys.executable, str(tree / "scripts" / "test_membership_door_census.py"),
+             "--repo-root", str(tree), "--json"],
+            cwd=str(tree), capture_output=True, text=True, timeout=600)
+        try:
+            return proc.returncode, _json.loads(proc.stdout)
+        except Exception:  # noqa: BLE001 — неразобранный ответ есть ИСХОД
+            return proc.returncode, {}
+
+    broken: list[str] = []
+    try:
+        with _tf.TemporaryDirectory(prefix="spa_membership_probe_") as tmp:
+            live, mutated, headless = (_pathlib.Path(tmp) / n
+                                       for n in ("live", "mutated", "headless"))
+            _build(live, name_only=False)
+            _build(mutated, name_only=True)
+            _build(headless, name_only=False, with_audit=False)
+            rc_live, doc_live = _ask(live)
+            rc_mut, doc_mut = _ask(mutated)
+            rc_none, _doc_none = _ask(headless)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: перепись не ответила на сцене "
+                            f"({type(exc).__name__}: {exc})")
+
+    if not doc_live or not doc_mut:
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: перепись не отдала разбираемый документ "
+                            f"(коды {rc_live}/{rc_mut})")
+
+    # ── живая дверь ──
+    if doc_live.get("door_form") != "PLACE_AND_NAME":
+        broken.append(f"живая дверь доложена как {doc_live.get('door_form')!r}, "
+                      "а не PLACE_AND_NAME")
+    live_subject = [r["rule"] for r in doc_live.get("rows", []) if r["verdict"] == "DOOR_NAME"]
+    if live_subject:
+        broken.append(f"у живой двери предмет НЕ ПУСТ: {sorted(live_subject)} — "
+                      "перепись объявляет починенную дверь находкой")
+    gone = doc_live.get("verdict_divergence", {}).get("disappears_when_place_is_asked") or []
+    if len(gone) != 1:
+        broken.append("расхождение вердикта у живой двери "
+                      f"{len(gone)} вместо 1 — помощник в tests/ с прямой записью "
+                      "вердикта не меняет, то есть ось расхождения СЛЕПА")
+    elif "_helper.py" not in str(gone[0]):
+        broken.append(f"исчезнувшее нарушение не про помощника: {gone[0]}")
+    if rc_live != 3:
+        broken.append(f"код живой сцены {rc_live}, а не 3 (предмет пуст, но два "
+                      "объявленных правила не реализованы и обязаны быть названы)")
+    live_unmeasured = sorted(r["rule"] for r in doc_live.get("rows", [])
+                             if r["verdict"] == "UNMEASURED")
+    if live_unmeasured != ["no_llm_in_analytics", "no_print_in_modules"]:
+        broken.append("нереализованные объявленные правила названы не те: "
+                      f"{live_unmeasured}")
+
+    # ── сломанная дверь: перепись обязана УВИДЕТЬ аварию ──
+    if doc_mut.get("door_form") != "NAME_ONLY":
+        broken.append(f"сломанная дверь доложена как {doc_mut.get('door_form')!r}, "
+                      "а не NAME_ONLY — перепись не видит настоящей аварии")
+    mut_subject = sorted(r["rule"] for r in doc_mut.get("rows", [])
+                         if r["verdict"] == "DOOR_NAME")
+    if mut_subject != ["atomic_writes", "no_hardcoded_secrets"]:
+        broken.append(f"у сломанной двери предмет {mut_subject}, а не оба правила, "
+                      "зовущих дверь")
+    if rc_mut != 1:
+        broken.append(f"код сломанной сцены {rc_mut}, а не 1 (находка)")
+
+    # ── главное: расхождение вердикта у сломанной двери РАВНО НУЛЮ ──
+    mut_div = doc_mut.get("verdict_divergence", {})
+    mut_gone = mut_div.get("disappears_when_place_is_asked") or []
+    mut_came = mut_div.get("appears_when_place_is_asked") or []
+    if mut_gone or mut_came:
+        broken.append("у сломанной двери расхождение вердикта НЕ нулевое "
+                      f"({len(mut_gone)}/{len(mut_came)}) — сцена не воспроизводит "
+                      "причину, по которой население считается отдельно")
+    if len(doc_mut.get("misplaced_files") or []) != 1:
+        broken.append("НАСЕЛЕНИЕ у сломанной двери "
+                      f"{len(doc_mut.get('misplaced_files') or [])} вместо 1 — "
+                      "перепись мерит класс расхождением вердикта, а он тут ноль")
+
+    # ── третий исход ──
+    if rc_none != 2:
+        broken.append(f"дерево БЕЗ модуля аудита дало код {rc_none}, а не 2 — "
+                      "«не измерено» неотличимо от «чисто»")
+
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, (
+        "перепись различает живую дверь (PLACE_AND_NAME, предмет пуст, расхождение 1) "
+        "и ту же дверь, спрашивающую ТОЛЬКО имя (NAME_ONLY, предмет 2 правила, "
+        "расхождение 0 при населении 1); дерево без модуля аудита даёт НЕ ИЗМЕРЕНО "
+        "кодом 2, а два объявленных и не реализованных правила названы кодом 3")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
     "owner_has_the_three_stop_organs":
         _probe_owner_has_the_three_stop_organs,
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
+    "test_membership_is_asked_about_place_not_name":
+        _probe_test_membership_is_asked_about_place_not_name,
     "findings_bridge_has_a_live_writer": _probe_findings_bridge_has_a_live_writer,
     "shadow_record_carries_the_system_action":
         _probe_shadow_record_carries_the_system_action,
