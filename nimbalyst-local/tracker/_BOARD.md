@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T23:53:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-24T01:15:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (06a6dcbf1) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (05fea6b37) · у **35** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1681** · ждёт владельца: **16** · занято сессиями: **14**.
 
@@ -43,7 +43,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-26347` · с 2026-11-23T22:56:48Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-77239` · с 2026-11-24T01:01:33Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (396)
@@ -469,7 +469,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-26347`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-77239`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -634,6 +634,7 @@
 - Код выхода цикла не отличает штатный отказ политики от аварии — 4 прогона подряд с exit=1  ·  `inbox-kod-vyhoda-tsikla-ne-otlichaet-shtatnyi.md` · 2026-08-13
 - Контракт якоря сторожит одну дверь из трёх: gather и release принимают вход вне контракта молча  ·  `inbox-kontrakt-yakorya-storozhit-odnu-dver-iz.md` · 2026-10-15
 - Корневой __init__.py не может доехать до прода НИ ОДНИМ механизмом — и после #275 он там не просто устарел, а противоречив  ·  `inbox-kornevoi-init-py-ne-mozhet-doehat-do-pro.md` · 2026-08-17
+- Край отрезка размеров ОПТИМАЛЕН: цена ПРИЧИНЫ 2 нижней границы — ноль по экономике (ADR-861, замер #978)  ·  `inbox-krai-otrezka-razmerov-tsena-prichiny-2.md` · 2026-10-29
 - Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто  ·  `inbox-kriterii-49-no-regression-prohodyat-li.md` · 2026-09-28
 - Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
 - купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-5.md` · 2026-10-17
@@ -1149,7 +1150,6 @@
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
-- Край отрезка размеров ОПТИМАЛЕН: цена ПРИЧИНЫ 2 нижней границы — ноль по экономике (ADR-861, замер #978)  ·  `inbox-krai-otrezka-razmerov-tsena-prichiny-2.md` · 2026-10-29
 - Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
 - Критерий приёмки спрашивает о ФОРМЕ, а не о ПРЕДМЕТЕ — население класса не измерено  ·  `inbox-kriterii-priemki-sprashivaet-o-forme-a-n.md` · 2026-11-04
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
@@ -1495,50 +1495,17 @@
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
 - Повторяющийся сбой com.spa.capital_shadow: malformed_plist  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-capital-2.md` · 2026-11-01
 - Повторяющийся сбой com.spa.cloudflared: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cloudfla.md` · 2026-11-17
-- Повторяющийся сбой com.spa.cmo_editorial: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cmo-edit.md` · 2026-10-19
-- Повторяющийся сбой com.spa.daily_cycle: exit_nonzero:5  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy-2.md` · 2026-10-19
 - Повторяющийся сбой com.spa.decision_loop: exit_nonzero:-15  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision-2.md` · 2026-10-30
-- Повторяющийся сбой com.spa.decision_loop: exit_nonzero:137  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision.md` · 2026-10-13
-- Повторяющийся сбой com.spa.digest_weekly: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-digest-w.md` · 2026-10-22
 - Повторяющийся сбой com.spa.director_build: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-director.md` · 2026-11-13
-- Повторяющийся сбой com.spa.io_health: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-healt.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_liquidity: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-liqui.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_market_structure: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-marke-2.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_market_regime: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-marke.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_onchain: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-oncha.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_protocol_risk: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-proto.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_quant: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-quant.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_red_team: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-red-t.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_reporting: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-repor.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_stablecoin_yield: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-stabl.md` · 2026-10-19
-- Повторяющийся сбой com.spa.io_yield_quality: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-yield.md` · 2026-10-19
 - Повторяющийся сбой com.spa.monthly_statement: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-monthly-2.md` · 2026-11-06
-- Повторяющийся сбой com.spa.monthly_statement: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-monthly.md` · 2026-10-07
 - Повторяющийся сбой com.spa.novel_edge_rnd: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-novel-ed-2.md` · 2026-10-20
-- Повторяющийся сбой com.spa.orchestrator: exit_nonzero:124  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-2.md` · 2026-10-13
-- Повторяющийся сбой com.spa.orchestrator: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-3.md` · 2026-10-14
-- Повторяющийся сбой com.spa.orchestrator: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr.md` · 2026-10-07
 - Повторяющийся сбой com.spa.research_factory: malformed_plist  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-research-2.md` · 2026-11-01
-- Повторяющийся сбой com.spa.resource_guard: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-2.md` · 2026-10-14
 - Повторяющийся сбой com.spa.resource_guard: ресурсы_мака:_измерено_warn_(память/своп  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-4.md` · 2026-10-27
-- Повторяющийся сбой com.spa.resource_guard: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource.md` · 2026-10-06
 - Повторяющийся сбой com.spa.site_freshness: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-site-fre.md` · 2026-10-06
-- Повторяющийся сбой com.spa.strategy_lab_paper: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-strategy.md` · 2026-10-19
-- Повторяющийся сбой com.spa.swarm_health: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-swarm-he.md` · 2026-10-06
-- Повторяющийся сбой com.spa.telegram_bot: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-3.md` · 2026-10-19
-- Повторяющийся сбой com.spa.telegram_milestone: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-4.md` · 2026-10-19
-- Повторяющийся сбой com.spa.telegram_health: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram.md` · 2026-10-13
-- Повторяющийся сбой com.spa.tier1_digest: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tier1-di.md` · 2026-10-22
 - Повторяющийся сбой com.spa.weekly_backup: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-weekly-b.md` · 2026-11-06
 - Повторяющийся сбой fleet: fleet_parity_drift  ·  `agent-task-povtoryayuschiisya-sboi-fleet-fleet-pari.md` · 2026-10-27
-- Повторяющийся сбой fleet: retired_but_loaded  ·  `agent-task-povtoryayuschiisya-sboi-fleet-retired-bu.md` · 2026-10-06
-- Повторяющийся сбой site_freshness: COMPARISON_NOT_MEASURED  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-c.md` · 2026-10-08
-- Повторяющийся сбой site_freshness: MISSING_ASOF  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-m.md` · 2026-10-08
-- Повторяющийся сбой site_freshness: PUBLISHED_SNAPSHOT_STALE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p-2.md` · 2026-10-07
-- Повторяющийся сбой site_freshness: publication_behind  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p.md` · 2026-10-06
 - Повторяющийся сбой site_freshness: SHELF_UNREADABLE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-s-2.md` · 2026-11-17
 - Повторяющийся сбой site_freshness: SHELF_NOT_DELIVERED  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-s.md` · 2026-10-30
-- Повторяющийся сбой site_freshness: UNAVAILABLE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-u.md` · 2026-10-21
 - Повторяющийся сбой system_health: domains_degraded  ·  `agent-task-povtoryayuschiisya-sboi-system-health-do.md` · 2026-10-06
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
@@ -1634,20 +1601,53 @@
 - Повторяющийся сбой com.spa.autopush: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-autopush.md` · 2026-10-15
 - Повторяющийся сбой com.spa.base_gas_monitor: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-base-gas.md` · 2026-10-15
 - Повторяющийся сбой com.spa.capital_shadow: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-capital.md` · 2026-10-15
+- Повторяющийся сбой com.spa.cmo_editorial: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cmo-edit.md` · 2026-10-19
+- Повторяющийся сбой com.spa.daily_cycle: exit_nonzero:5  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy-2.md` · 2026-10-19
 - Повторяющийся сбой com.spa.daily_cycle: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy.md` · 2026-10-15
+- Повторяющийся сбой com.spa.decision_loop: exit_nonzero:137  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision.md` · 2026-10-13
 - Повторяющийся сбой com.spa.digest_daily: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-digest-d.md` · 2026-10-15
+- Повторяющийся сбой com.spa.digest_weekly: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-digest-w.md` · 2026-10-22
 - Повторяющийся сбой com.spa.golive_freshness: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-golive-f.md` · 2026-10-15
 - Повторяющийся сбой com.spa.investment_cio: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-investme.md` · 2026-10-15
+- Повторяющийся сбой com.spa.io_health: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-healt.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_liquidity: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-liqui.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_market_structure: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-marke-2.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_market_regime: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-marke.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_onchain: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-oncha.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_protocol_risk: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-proto.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_quant: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-quant.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_red_team: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-red-t.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_reporting: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-repor.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_stablecoin_yield: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-stabl.md` · 2026-10-19
+- Повторяющийся сбой com.spa.io_yield_quality: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-yield.md` · 2026-10-19
 - Повторяющийся сбой com.spa.mass_tournament: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-mass-tou.md` · 2026-10-15
+- Повторяющийся сбой com.spa.monthly_statement: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-monthly.md` · 2026-10-07
 - Повторяющийся сбой com.spa.novel_edge_rnd: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-novel-ed.md` · 2026-10-15
+- Повторяющийся сбой com.spa.orchestrator: exit_nonzero:124  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-2.md` · 2026-10-13
+- Повторяющийся сбой com.spa.orchestrator: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-3.md` · 2026-10-14
+- Повторяющийся сбой com.spa.orchestrator: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr.md` · 2026-10-07
 - Повторяющийся сбой com.spa.research_factory: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-research.md` · 2026-10-15
 - Повторяющийся сбой com.spa.resilience: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resilien.md` · 2026-10-15
+- Повторяющийся сбой com.spa.resource_guard: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-2.md` · 2026-10-14
 - Повторяющийся сбой com.spa.resource_cleanup: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-3.md` · 2026-10-15
+- Повторяющийся сбой com.spa.resource_guard: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource.md` · 2026-10-06
 - Повторяющийся сбой com.spa.sky_monitor: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-sky-moni.md` · 2026-10-15
+- Повторяющийся сбой com.spa.strategy_lab_paper: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-strategy.md` · 2026-10-19
+- Повторяющийся сбой com.spa.swarm_health: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-swarm-he.md` · 2026-10-06
 - Повторяющийся сбой com.spa.telegram_milestone: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-2.md` · 2026-10-15
+- Повторяющийся сбой com.spa.telegram_bot: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-3.md` · 2026-10-19
+- Повторяющийся сбой com.spa.telegram_milestone: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-4.md` · 2026-10-19
+- Повторяющийся сбой com.spa.telegram_health: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram.md` · 2026-10-13
+- Повторяющийся сбой com.spa.tier1_digest: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tier1-di.md` · 2026-10-22
 - Повторяющийся сбой com.spa.tier1_governance: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tier1-go.md` · 2026-10-15
 - Повторяющийся сбой com.spa.tournament_engine: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tourname.md` · 2026-10-15
 - Повторяющийся сбой com.spa.work_digest: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-work-dig.md` · 2026-10-15
+- Повторяющийся сбой fleet: retired_but_loaded  ·  `agent-task-povtoryayuschiisya-sboi-fleet-retired-bu.md` · 2026-10-06
+- Повторяющийся сбой site_freshness: COMPARISON_NOT_MEASURED  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-c.md` · 2026-10-08
+- Повторяющийся сбой site_freshness: MISSING_ASOF  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-m.md` · 2026-10-08
+- Повторяющийся сбой site_freshness: PUBLISHED_SNAPSHOT_STALE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p-2.md` · 2026-10-07
+- Повторяющийся сбой site_freshness: publication_behind  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p.md` · 2026-10-06
+- Повторяющийся сбой site_freshness: UNAVAILABLE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-u.md` · 2026-10-21
 - Сторож governance отчитывается «8 ok / 0 failed», не проверяя НИ ОДИН удерживаемый протокол — пересечение с портфелем пустое  ·  `agent-task-storozh-governance-otchityvaetsya-8-ok-0.md` · 2026-08-01
 - Сторож-автоперезапуск telegram_bot: маячок протух — бот перезапускается сам  ·  `agent-telegram-bot-watchdog.md` · 2026-08-21
 - Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03

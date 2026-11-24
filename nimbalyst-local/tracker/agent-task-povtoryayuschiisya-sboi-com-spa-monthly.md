@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой com.spa.monthly_statement: log_missing_(never_ran?)"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-07
 acceptance_probe: "problem_absent:com.spa.monthly_statement.log_missing__never_ran"
@@ -10,6 +10,8 @@ problem_id: com.spa.monthly_statement.log_missing__never_ran
 agent: com.spa.monthly_statement
 cause_code: log_missing_(never_ran?)
 problem_source: agent_health
+status_trail:
+  - "2026-11-24T01:08:00.374553+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:com.spa.monthly_statement.log_missing__never_ran: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> - · cycle-77239"
 ---
 
 ## Что случилось

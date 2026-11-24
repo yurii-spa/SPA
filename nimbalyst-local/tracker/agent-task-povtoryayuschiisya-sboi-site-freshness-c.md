@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой site_freshness: COMPARISON_NOT_MEASURED"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-08
 acceptance_probe: "problem_absent:site_freshness.COMPARISON_NOT_MEASURED"
@@ -10,6 +10,8 @@ problem_id: site_freshness.COMPARISON_NOT_MEASURED
 agent: site_freshness
 cause_code: COMPARISON_NOT_MEASURED
 problem_source: site_freshness
+status_trail:
+  - "2026-11-24T01:08:10.944495+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:site_freshness.COMPARISON_NOT_MEASURED: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir  · cycle-77239"
 ---
 
 ## Что случилось

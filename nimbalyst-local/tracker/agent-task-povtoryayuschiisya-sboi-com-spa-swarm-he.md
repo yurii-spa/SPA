@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой com.spa.swarm_health: exit_nonzero:1"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-06
 acceptance_probe: "problem_absent:com.spa.swarm_health.exit_nonzero_1"
@@ -10,6 +10,8 @@ problem_id: com.spa.swarm_health.exit_nonzero_1
 agent: com.spa.swarm_health
 cause_code: "exit_nonzero:1"
 problem_source: agent_health
+status_trail:
+  - "2026-11-24T01:08:05.581720+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:com.spa.swarm_health.exit_nonzero_1: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <пр · cycle-77239"
 ---
 
 ## Что случилось

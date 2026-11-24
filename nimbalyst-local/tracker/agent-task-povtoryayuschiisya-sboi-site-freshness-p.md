@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой site_freshness: publication_behind"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-06
 acceptance_probe: "problem_absent:site_freshness.publication_behind"
@@ -10,6 +10,8 @@ problem_id: site_freshness.publication_behind
 agent: site_freshness
 cause_code: publication_behind
 problem_source: site_freshness
+status_trail:
+  - "2026-11-24T01:08:13.634784+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:site_freshness.publication_behind: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <прод · cycle-77239"
 ---
 
 ## Что случилось

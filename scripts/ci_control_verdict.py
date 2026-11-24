@@ -149,6 +149,22 @@ DEFAULT_RUNS = 10
 #: что у SLO соседа — класс `no_margin`, ADR-646).
 STALE_AFTER_H = 12.0
 
+#: Окно, в котором ОТМЕНА прогона и СОЗДАНИЕ соседнего прогона той же группы считаются
+#: одним событием — вытеснением заказа. Замер 2026-11-24 по ВСЕМ 400 прогонам
+#: `ci-control` (живой API): отменённых **24**, и у **16** из них другой прогон создан в
+#: пределах 60 с от отмены — чаще в ту же секунду (у прогона 45292542397 отмена
+#: 23:58:36Z против создания 45293308721 в 23:58:35Z). Окно не ноль, потому что обе
+#: отметки ставит GitHub и они дрожат на секунды; окно не минуты, потому что тогда в него
+#: попадал бы любой сосед шестичасового такта. У остальных ВОСЬМИ совпадения в окне нет,
+#: и причина их отмены остаётся НЕ ИЗМЕРЕННОЙ, а не «ручной»: догадка здесь и была бы
+#: ровно тем, против чего написан инв. #17.
+DISPLACEMENT_WINDOW_S = 60.0
+
+#: Исходы :func:`cancellation_cause`. Ни один вердиктом не является — различаются ПРИЧИНЫ
+#: отмены, и у различия есть читатель: вытесненный заказ надо ПОВТОРИТЬ (прогон не шёл
+#: вовсе), а прогон, умерший на своём пределе, повторять бессмысленно.
+CXL_DISPLACED, CXL_NO_NEIGHBOUR, CXL_UNMEASURED = "displaced", "no_neighbour", "unmeasured"
+
 GREEN, RED, INCOMPLETE = "GREEN", "RED", "INCOMPLETE"
 
 
@@ -265,21 +281,128 @@ def run_liveness(run_id: str, *, fetch, now=None) -> dict:
         run = fetch(f"/repos/{REPO}/actions/runs/{run_id}")
     except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
         return {"state": LIVE_UNMEASURED, "status": None, "conclusion": None,
-                "age_h": None,
+                "age_h": None, "lived_s": None, "cancelled_at": None,
                 "why": f"строка прогона {run_id} не прочитана: "
                        f"{type(exc).__name__}: {exc}"}
     if not isinstance(run, dict) or not run.get("status"):
         return {"state": LIVE_UNMEASURED, "status": None, "conclusion": None,
-                "age_h": None,
+                "age_h": None, "lived_s": None, "cancelled_at": None,
                 "why": f"строка прогона {run_id} статуса не несёт — "
                        f"это НЕ «прогон завершён»"}
     status = str(run.get("status"))
     started = _parse_moment(run.get("run_started_at") or run.get("created_at"))
     moment = now if now is not None else dt.datetime.now(dt.timezone.utc)
     age_h = None if started is None else (moment - started).total_seconds() / 3600.0
+    # СРОК ЖИЗНИ завершённого прогона — ДРУГОЕ число, чем «сколько прошло от старта до
+    # сейчас», и до 24.11 печаталось второе под словом первого: прогон 45292542397 жил
+    # 346 с, а причина отсутствия отчёта сообщала «идёт 1.1ч». Число было верное, слово
+    # — нет, и читают строку глазами. `updated_at` у завершённого прогона и есть момент,
+    # когда он кончился (для отменённого — момент отмены).
+    ended = _parse_moment(run.get("updated_at"))
+    lived_s = (None if (started is None or ended is None)
+               else (ended - started).total_seconds())
     return {"state": LIVE_DONE if status == "completed" else LIVE_RUNNING,
             "status": status, "conclusion": run.get("conclusion"), "age_h": age_h,
+            "lived_s": lived_s,
+            "cancelled_at": run.get("updated_at") if status == "completed" else None,
             "why": None}
+
+
+def cancellation_cause(run_id: str, *, fetch, cancelled_at=None) -> dict:
+    """ЧЕМ отменён прогон — вопрос ОТДЕЛЬНЫЙ от «дожил ли он до сводки».
+
+    **Замер 2026-11-24 (цикл #1228), ради которого дверь написана.** Цикл #1227, исполняя
+    свой же порядок «заказывать контрольный прогон КАЖДОЙ доставкой», заказал два прогона
+    с промежутком 2.5 мин: `45292219029` (вершина кода, 23:50:24Z) и `45292542397`
+    (вершина пост-записи, 23:52:50Z). Второй не шёл НИ ОДНОЙ секунды: группа
+    `ci-control` объявлена с `cancel-in-progress: false`, то есть новый прогон не снимает
+    идущий, а становится ОЖИДАЮЩИМ, — и ожидающий в группе GitHub держит РОВНО ОДИН.
+    В 23:58:35Z расписанный прогон `45293308721` (`cron: 23 */6 * * *`) встал в ту же
+    группу, и ожидающий `45292542397` был ОТМЕНЁН в 23:58:36Z, прожив 346 с. Вердикта он
+    не вынес ни в одну сторону, а цикл, его заказавший, записал в заказ номер как якорь
+    дельты — то есть потратил такт на измерение, которого не было.
+
+    Население класса ИЗМЕРЕНО по ВСЕМ 400 прогонам воркфлоу: отменённых **24** (6.0 %),
+    и у **16** из них другой прогон создан в пределах :data:`DISPLACEMENT_WINDOW_S` от
+    отмены. Форма наблюдается КАСКАДОМ — #183 снят созданием #184, #184 созданием #185,
+    #185 созданием #186, — и это ровно «каждый новый заказ убивает предыдущий ожидающий».
+
+    **Почему вопрос задаётся БЕЗ фильтра по ветке.** Группа объявлена строкой
+    `group: ci-control` без `github.ref` в ней, поэтому вытеснить заказ может прогон
+    ЛЮБОЙ ветки. Спросить список с `?branch=main` значило бы ответить на более узкий
+    вопрос и назвать вытеснение «не измеренным» там, где оно измеримо.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17), и ни один не подставляется вместо другого:
+
+    * :data:`CXL_DISPLACED` — в окне от отмены создан прогон той же группы, он НАЗВАН
+      (номер и событие). Заказ не шёл вовсе ⇒ его надо ПОВТОРИТЬ;
+    * :data:`CXL_NO_NEIGHBOUR` — совпадения в окне НЕТ. Это НЕ «отменён рукой»: рука,
+      предел джобы и вытеснение за пределами окна здесь неразличимы, и причина остаётся
+      НЕ ИЗМЕРЕННОЙ;
+    * :data:`CXL_UNMEASURED` — список прогонов не прочитан либо момент отмены не разобран.
+      Подставить сюда любой из двух предыдущих значило бы выдать «не спросили» за ответ.
+    """
+    moment = _parse_moment(cancelled_at)
+    if moment is None:
+        return {"state": CXL_UNMEASURED, "by": [],
+                "why": f"момент отмены прогона {run_id} не прочитан "
+                       f"(`updated_at`: {cancelled_at!r})"}
+    path = f"/repos/{REPO}/actions/workflows/{WORKFLOW_FILE}/runs?per_page=100"
+    try:
+        listing = fetch(path)
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
+        return {"state": CXL_UNMEASURED, "by": [],
+                "why": f"список прогонов `{WORKFLOW_FILE}` не прочитан: "
+                       f"{type(exc).__name__}: {exc}"}
+    rows = (listing or {}).get("workflow_runs")
+    if not isinstance(rows, list):
+        return {"state": CXL_UNMEASURED, "by": [],
+                "why": f"список прогонов `{WORKFLOW_FILE}` строк не несёт — это НЕ "
+                       f"«соседей не было»"}
+    near = []
+    for row in rows:
+        if str(row.get("id")) == str(run_id):
+            continue
+        born = _parse_moment(row.get("created_at"))
+        if born is None:
+            continue
+        if abs((born - moment).total_seconds()) <= DISPLACEMENT_WINDOW_S:
+            near.append({"id": str(row.get("id")), "event": row.get("event"),
+                         "created_at": row.get("created_at")})
+    if near:
+        return {"state": CXL_DISPLACED, "by": near, "why": None}
+    return {"state": CXL_NO_NEIGHBOUR, "by": [],
+            "why": f"в окне ±{DISPLACEMENT_WINDOW_S:.0f} с от отмены прогонов группы "
+                   f"`ci-control` не создавалось"}
+
+
+def _lifetime(live: dict) -> str:
+    """Срок жизни завершённого прогона словом, которое ему соответствует."""
+    lived = live.get("lived_s")
+    return "" if lived is None else f", прожил {lived:.0f} с"
+
+
+def _cancelled_cause(run_id: str, live: dict, *, fetch) -> str:
+    """Строка причины для ОТМЕНЁННОГО прогона — у неё свой адресат и своё действие."""
+    cxl = cancellation_cause(run_id, fetch=fetch,
+                             cancelled_at=live.get("cancelled_at"))
+    head = (f"его нет вовсе — прогон ОТМЕНЁН (`status: completed`, "
+            f"`conclusion: {live['conclusion']}`{_lifetime(live)})")
+    if cxl["state"] == CXL_DISPLACED:
+        who = ", ".join(f"{r['id']} (`{r['event']}`, создан {r['created_at']})"
+                        for r in cxl["by"])
+        return (f"{head}: ЗАКАЗ ВЫТЕСНЕН из группы `ci-control` — в окне "
+                f"±{DISPLACEMENT_WINDOW_S:.0f} с от отмены создан прогон {who}. Группа "
+                f"объявлена `cancel-in-progress: false`, то есть второй заказ, поданный "
+                f"пока прогон группы идёт, становится ОЖИДАЮЩИМ, а ожидающий GitHub "
+                f"держит РОВНО ОДИН и отменяет его ЛЮБЫМ третьим (включая расписанный "
+                f"каждые 6 ч). Вердикта этот прогон не выносил НИ В ОДНУ сторону: "
+                f"заказывать надо ОДИН раз, на ПОСЛЕДНЕЙ вершине доставки, и перечитать, "
+                f"что заказ ЖИВ")
+    if cxl["state"] == CXL_NO_NEIGHBOUR:
+        return (f"{head}, а ЧЕМ отменён — НЕ ИЗМЕРЕНО ({cxl['why']}): рука, предел джобы "
+                f"и вытеснение за пределами окна здесь неразличимы")
+    return (f"{head}, а ЧЕМ отменён — НЕ ИЗМЕРЕНО ({cxl['why']})")
 
 
 def _absence_cause(run_id: str, *, fetch, now=None) -> str:
@@ -296,8 +419,15 @@ def _absence_cause(run_id: str, *, fetch, now=None) -> str:
                 f"отчёт кладётся сводкой, и ждать здесь надо, а не заказывать новый "
                 f"прогон")
     if live["state"] == LIVE_DONE:
+        # «Отменён» и «умер на своём пределе» — РАЗНЫЕ состояния с разным действием
+        # читателя, и до 24.11 они сливались в одно слово «умер раньше сводки»
+        # (цикл #1228). Отменённый прогон не шёл вовсе ⇒ заказ повторяют; умерший
+        # повторять бессмысленно — он дойдёт до того же предела.
+        if str(live.get("conclusion")) == "cancelled":
+            return _cancelled_cause(run_id, live, fetch=fetch)
         return (f"его нет вовсе — прогон умер раньше сводки "
-                f"(`status: completed`, `conclusion: {live['conclusion']}`{age})")
+                f"(`status: completed`, `conclusion: {live['conclusion']}`"
+                f"{_lifetime(live)})")
     return (f"его нет, а ДОЖИЛ ЛИ прогон до сводки — НЕ ИЗМЕРЕНО ({live['why']}): "
             f"«умер» и «ещё идёт» здесь неразличимы, и выдумывать их запрещено")
 

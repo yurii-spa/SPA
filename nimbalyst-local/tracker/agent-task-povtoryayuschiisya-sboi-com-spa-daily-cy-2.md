@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой com.spa.daily_cycle: exit_nonzero:5"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-19
 acceptance_probe: "problem_absent:com.spa.daily_cycle.exit_nonzero_5"
@@ -10,6 +10,8 @@ problem_id: com.spa.daily_cycle.exit_nonzero_5
 agent: com.spa.daily_cycle
 cause_code: "exit_nonzero:5"
 problem_source: agent_health
+status_trail:
+  - "2026-11-24T01:07:51.616302+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:com.spa.daily_cycle.exit_nonzero_5: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <про · cycle-77239"
 ---
 
 ## Что случилось

@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой com.spa.telegram_milestone: stale_log"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-19
 acceptance_probe: "problem_absent:com.spa.telegram_milestone.stale_log"
@@ -10,6 +10,8 @@ problem_id: com.spa.telegram_milestone.stale_log
 agent: com.spa.telegram_milestone
 cause_code: stale_log
 problem_source: agent_health
+status_trail:
+  - "2026-11-24T01:08:07.367961+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:com.spa.telegram_milestone.stale_log: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <п · cycle-77239"
 ---
 
 ## Что случилось

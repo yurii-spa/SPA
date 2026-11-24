@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой site_freshness: PUBLISHED_SNAPSHOT_STALE"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-07
 acceptance_probe: "problem_absent:site_freshness.PUBLISHED_SNAPSHOT_STALE"
@@ -10,6 +10,8 @@ problem_id: site_freshness.PUBLISHED_SNAPSHOT_STALE
 agent: site_freshness
 cause_code: PUBLISHED_SNAPSHOT_STALE
 problem_source: site_freshness
+status_trail:
+  - "2026-11-24T01:08:12.684551+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:site_freshness.PUBLISHED_SNAPSHOT_STALE: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir · cycle-77239"
 ---
 
 ## Что случилось

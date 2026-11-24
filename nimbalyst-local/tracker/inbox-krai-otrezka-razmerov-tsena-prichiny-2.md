@@ -2,11 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Край отрезка размеров ОПТИМАЛЕН: цена ПРИЧИНЫ 2 нижней границы — ноль по экономике (ADR-861, замер #978)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-29
 priority: medium
 acceptance_probe: size_edge_prize_source_is_named
+status_trail:
+  - "2026-11-24T01:08:15.425844+00:00 new -> done · queue.set_status/closed_by:cycle-77239/evidence:проба size_edge_prize_source_is_named: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <прод>/data, ADR-1081) · cycle-77239"
 ---
 
 ## Что измерено

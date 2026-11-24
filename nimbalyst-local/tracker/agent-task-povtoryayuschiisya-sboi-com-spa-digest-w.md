@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой com.spa.digest_weekly: no_run_since_reboot_(>_)_—_missed_first"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-22
 acceptance_probe: "problem_absent:com.spa.digest_weekly.no_run_since_reboot_______missed_first"
@@ -10,6 +10,8 @@ problem_id: com.spa.digest_weekly.no_run_since_reboot_______missed_first
 agent: com.spa.digest_weekly
 cause_code: "no_run_since_reboot_(>_)_—_missed_first"
 problem_source: agent_health
+status_trail:
+  - "2026-11-24T01:07:52.736394+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:com.spa.digest_weekly.no_run_since_reboot_______missed_first: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir  · cycle-77239"
 ---
 
 ## Что случилось

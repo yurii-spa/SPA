@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой site_freshness: UNAVAILABLE"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-21
 acceptance_probe: "problem_absent:site_freshness.UNAVAILABLE"
@@ -10,6 +10,8 @@ problem_id: site_freshness.UNAVAILABLE
 agent: site_freshness
 cause_code: UNAVAILABLE
 problem_source: site_freshness
+status_trail:
+  - "2026-11-24T01:08:14.484274+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:site_freshness.UNAVAILABLE: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <прод>/data, · cycle-77239"
 ---
 
 ## Что случилось

@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Повторяющийся сбой fleet: retired_but_loaded"
-status: backlog
+status: done
 source: problem_store
 created: 2026-10-06
 acceptance_probe: "problem_absent:fleet.retired_but_loaded"
@@ -10,6 +10,8 @@ problem_id: fleet.retired_but_loaded
 agent: fleet
 cause_code: retired_but_loaded
 problem_source: agent_health
+status_trail:
+  - "2026-11-24T01:08:10.050855+00:00 backlog -> done · queue.set_status/closed_by:cycle-77239/evidence:проба problem_absent:fleet.retired_but_loaded: критерий ВЫПОЛНЕН, перемерено 24.11 на карточке origin/main и ЖИВОМ data/ прод-дерева (card_acceptance --tracker-dir <worktree> --data-dir <прод>/data, A · cycle-77239"
 ---
 
 ## Что случилось
