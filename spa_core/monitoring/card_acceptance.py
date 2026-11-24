@@ -21147,6 +21147,140 @@ def _probe_meta_distinguishes_a_stamp_from_the_future(arg: str | None = None,
                        "перепись населения на месте")
 
 
+def _probe_mtime_half_injection_population_is_measured(
+        arg: str | None = None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: население класса «половина инъекции часов через `mtime`» ИЗМЕРЯЕМО.
+
+    Предмет — карточка `inbox-polovina-inektsii-chasov-mtime-stseny-ne` (заказ
+    G1072 п. 2, ADR-1087). Цикл #1232 закрыл ОДИН носитель класса: сцена
+    `test_mission_control_contract.py` пиновала каждую ТЕКСТОВУЮ отметку от
+    якоря, а отметку из `mtime` файла оставляла стенным часам — девять красных
+    имён на `main` при неизменных байтах. Население класса было НЕ ИЗМЕРЕНО, и
+    нулём это не считалось.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни имени
+    прибора, ни слова «mtime»: она ЗОВЁТ настоящий дифференциальный прибор
+    (`spa_core.tests._mtime_clock_door.differential`) на ДВУХ одноразовых
+    сценах, отличающихся РОВНО одной строкой — закрепляет ли сцена отметку
+    файла явными временами (`os.utime`, дословно лечение ADR-1086). Подстрокой
+    она не проходит (ADR-333): вердикты берутся значениями.
+
+    Контроль в обе стороны лежит ВНУТРИ самой проверки:
+
+    * сцена в ФОРМЕ аварии (отметка не закреплена) ⇒ прибор обязан назвать её
+      ЧЛЕНОМ класса, и переход вердикта обязан быть `PASSED → FAILED`. Порви
+      это звено — и прибор перестанет видеть настоящую аварию, оставшись
+      украшением (`.claude/rules/deployment.md`, § «Проверка сторожа сторожей»);
+    * та же сцена с закреплённой отметкой ⇒ кандидатов НОЛЬ. Порви это звено —
+      и прибор станет обвинять ПОЧИНЕННЫЙ код, то есть учить снимать лечение;
+    * известный член класса обязан лежать ВНУТРИ измеренного предмета: форма,
+      потерявшая известного члена, класс не сужает, а ПОДМЕНЯЕТ (дословный урок
+      ADR-1074, где мерка находила 1 из 3 членов и была опровергнута);
+    * предпосылка прибора (канарейка прозрачности, пустая поверхность) даёт
+      ТРЕТИЙ исход с названной причиной — `unmeasured`, а не ноль (инв. #17).
+    """
+    import tempfile as _tf
+
+    root = (_pathlib.Path(repo_root) if repo_root
+            else _pathlib.Path(REPO_ROOT)).resolve()
+    try:
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from spa_core.tests import _mtime_clock_door as door
+    except Exception as exc:  # noqa: BLE001 — ввоз прибора есть предпосылка
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: прибор не ввезён ({type(exc).__name__}: {exc})"
+
+    scene = """
+import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+NOW = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+
+def age_minutes(p, *, now):
+    stamped = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc)
+    return abs((now - stamped).total_seconds()) / 60.0
+
+
+def test_archive_is_fresh(tmp_path):
+    arch = tmp_path / "spa_state.tar.gz"
+    arch.write_text("x")
+{PIN}
+    assert age_minutes(arch, now=NOW) < 1800.0
+"""
+    pin = ('    at = (NOW - timedelta(minutes=10)).timestamp()\n'
+           '    os.utime(arch, (at, at))')
+
+    def _measure(pinned: bool) -> dict:
+        with _tf.TemporaryDirectory(prefix="spa_mtime_probe_") as tmp:
+            tree = _pathlib.Path(tmp) / "tree"
+            (tree / "spa_core" / "tests").mkdir(parents=True)
+            rel = "spa_core/tests/test_scene_under_measure.py"
+            (tree / rel).write_text(scene.replace("{PIN}", pin if pinned else ""),
+                                    encoding="utf-8")
+            work = _pathlib.Path(tmp) / "work"
+            work.mkdir()
+            return door.differential(tree, [rel], shift_days=-400.0,
+                                     workdir=work, timeout_s=600)
+
+    try:
+        unpinned = _measure(False)
+        cured = _measure(True)
+    except Exception as exc:  # noqa: BLE001 — неответ прибора это ИСХОД
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: прибор не ответил на сцене "
+                            f"({type(exc).__name__}: {exc})")
+
+    broken: list[str] = []
+    if unpinned.get("unmeasured"):
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: предпосылка прибора не обеспечена на сцене "
+                            f"аварии — {unpinned['unmeasured']}")
+    if cured.get("unmeasured"):
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: предпосылка прибора не обеспечена на сцене "
+                            f"лечения — {cured['unmeasured']}")
+
+    members = [n for n, v in unpinned.get("verdict", {}).items() if v == door.MEMBER]
+    if len(members) != 1:
+        broken.append("форма аварии 24.11 (отметка не закреплена) НЕ названа членом "
+                      f"класса: вердикты {unpinned.get('verdict')}")
+    else:
+        pair = (unpinned.get("candidates") or {}).get(members[0])
+        if pair is None:
+            broken.append(f"член класса {members[0]!r} назван БЕЗ перехода вердикта — "
+                          "прибор утверждает о классе, не предъявив наблюдения")
+        elif list(pair) != ["PASSED", "FAILED"]:
+            broken.append(f"переход вердикта у члена класса {pair}, а не PASSED→FAILED")
+    if cured.get("candidates"):
+        broken.append("закреплённая отметка названа кандидатом — прибор обвиняет "
+                      f"ПОЧИНЕННЫЙ код: {sorted(cured['candidates'])}")
+
+    try:
+        surface = door.measure_surface(root)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: поверхность не разобрана ({exc})"
+    rows = {v.path: v for v in surface}
+    unm = [v.path for v in surface if v.surface == door.UNMEASURED]
+    if unm:
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: поверхность прочитана не целиком — {unm[:3]}"
+    known = "spa_core/tests/test_mission_control_contract.py"
+    if rows.get(known) is None or rows[known].surface != door.IN_SURFACE:
+        broken.append("известный член класса (сцена ADR-1086) выпал из измеренного "
+                      "предмета — форма ПОДМЕНЯЕТ класс, а не сужает его")
+    subject = [v for v in surface if v.surface == door.IN_SURFACE]
+    bound = subject + [v for v in surface if v.surface == door.NO_READER]
+    if not subject or len(subject) >= len(bound):
+        broken.append(f"ось одного хопа ничего не отсекла: предмет {len(subject)} "
+                      f"при верхней границе {len(bound)}")
+
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, (
+        f"прибор различает форму аварии и её лечение на сценах, отличающихся РОВНО "
+        f"пином отметки (член 1, PASSED→FAILED · у лечения кандидатов 0); предмет "
+        f"{len(subject)} файлов при верхней границе {len(bound)}, НЕ ИЗМЕРЕНО 0, "
+        f"известный член внутри предмета")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -21404,6 +21538,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_launchd_door_has_no_second_site,
     "meta_distinguishes_a_stamp_from_the_future":
         _probe_meta_distinguishes_a_stamp_from_the_future,
+    "mtime_half_injection_population_is_measured":
+        _probe_mtime_half_injection_population_is_measured,
 }
 
 

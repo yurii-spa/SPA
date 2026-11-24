@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-24T08:37:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-24T11:29:58Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (940fb4d4b) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (1538cd383) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1682** · ждёт владельца: **16** · занято сессиями: **14**.
 
@@ -789,6 +789,7 @@
 - Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации  ·  `inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed.md` · 2026-08-26
 - Подключить ТРИ сверки контрактов к сторожу архитектуры — сейчас их никто не зовёт  ·  `inbox-podklyuchit-sverku-kontraktov-k-storozhu.md` · 2026-08-28
 - Подними приоритет inbox-task-portfolio-cio-dynamic-capital-alloc на high. Шесть…  ·  `inbox-podnimi-prioritet-inbox-task-portfolio-c.md` · 2026-08-19
+- Половина инъекции часов: mtime сцены не пинуется — население класса НЕ ИЗМЕРЕНО  ·  `inbox-polovina-inektsii-chasov-mtime-stseny-ne.md` · 2026-11-24
 - Пометка injected-clock — непроверяемая проза: на ней держатся 51 файл, а её никто не сверяет с кодом  ·  `inbox-pometka-injected-clock-neproveryaemaya-p.md` · 2026-09-03
 - Понял, бери все в работу  ·  `inbox-ponyal-beri-vse-v-rabotu.md` · 2026-08-12
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
@@ -1251,7 +1252,6 @@
 - Подключить оси риска ADR-008: проверка написана, но её никто не вызывает (решение владельца — ADR-173)  ·  `inbox-podklyuchit-osi-riska-adr-008-proverka-n.md` · 2026-08-30
 - Подмена реестра может исчезнуть молча внутри теста — квитанция нужна поимённая, а не общая  ·  `inbox-podmena-reestra-mozhet-ischeznut-molcha.md` · 2026-10-03
 - Полносуитный гейт main восемь суток не выносит вердикта вообще: 100 прогонов SPA CI подряд — все cancelled  ·  `inbox-polnosuitnyi-geit-main-vosem-sutok-ne-vy.md` · 2026-10-16
-- Половина инъекции часов: mtime сцены не пинуется — население класса НЕ ИЗМЕРЕНО  ·  `inbox-polovina-inektsii-chasov-mtime-stseny-ne.md` · 2026-11-24
 - Положительный контроль зелен при любом отказе прибора — он не отличает свою аварию от чужой  ·  `inbox-polozhitelnyi-kontrol-zelen-pri-lyubom-o.md` · 2026-10-02
 - Пометить аварийную подстановку в книге и убрать числа отвергнутой аллокации (решение владельца, вариант 1)  ·  `inbox-pometit-avariinuyu-podstanovku-v-knige-i.md` · 2026-09-08
 - Пометка injected-clock без якоря времени: храповик красен на чистом origin/main  ·  `inbox-pometka-injected-clock-bez-yakorya-vreme.md` · 2026-10-16

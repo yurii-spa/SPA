@@ -215,6 +215,7 @@
 | ADR-1084 | ADR-1084 — Запись памяти называет модуль, которого на `origin/main` нет: ложное утверждение о состоянии мира, прочитанное ДО первой строки работы | Accepted | [ADR-1084](ADR-1084-memory-note-names-a-module-that-is-not-on-origin.md) |
 | ADR-1085 | ADR-1085 — Отметка наблюдения ВПЕРЁД судящих часов — третий исход, а не «свежо» | Accepted | [ADR-1085](ADR-1085-future-dated-observation-is-a-third-outcome.md) |
 | ADR-1086 | ADR-1086 — Половина инъекции часов: `now` впрыснут, а отметка наблюдения из `mtime` файла осталась на календаре | Accepted | [ADR-1086](ADR-1086-half-injected-clock-in-the-scene.md) |
+| ADR-1087 | ADR-1087 — Население класса «половина инъекции часов через `mtime`»: прибор, предмет и вилка | Accepted | [ADR-1087](ADR-1087-mtime-half-injected-clock-population.md) |
 
 ## Соглашения
 

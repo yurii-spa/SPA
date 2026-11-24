@@ -1,0 +1,123 @@
+{
+ "title": "ADR-1087 MTIME — дельта цикла #1233: население класса «половина инъекции часов через mtime». Возмущение точное (две единственные двери), канарейка прозрачности до сцен, три исхода у поверхности и у класса, предмет уже верхней границы, известный член внутри предмета",
+ "tests": [
+  "spa_core/tests/test_mtime_clock_door_census.py",
+  "spa_core/tests/test_mtime_door_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "os.utime(p, None) зачтён ПИНОМ — штамп стенными часами выходит из класса",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "        if any(not (isinstance(a, ast.Constant) and a.value is None) for a in explicit):\n            lines.append(node.lineno)",
+   "new": "        lines.append(node.lineno)"
+  },
+  {
+   "name": "плагин НЕ запоминает пинованные пути — прибор обвиняет ПОЧИНЕННЫЙ код",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "        \"    if explicit and k is not None:\\n\"\n        \"        _PINNED.add(k)\\n\"",
+   "new": "        \"    if False:\\n\"\n        \"        _PINNED.add(k)\\n\""
+  },
+  {
+   "name": "корень сдвига снят: сдвигается ЛЮБОЙ путь, включая дерево репозитория",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "        \"def _under(k):\\n\"\n        \"    return any(k == r or k.startswith(r + os.sep) for r in _ROOTS)\\n\"",
+   "new": "        \"def _under(k):\\n\"\n        \"    return True\\n\""
+  },
+  {
+   "name": "вердикт канарейки ИГНОРИРУЕТСЯ — ответ о классе выдаётся при непрозрачной подмене",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    if not canary.get(\"ok\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "кандидаты СТИРАЮТСЯ при сломанной канарейке — «не измерено» неотличимо от «пусто»",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    doc[\"candidates\"] = {n: [base.get(n, \"ABSENT\"), shifted.get(n, \"ABSENT\")]\n                         for n in changed}",
+   "new": "    doc[\"candidates\"] = {} if doc[\"unmeasured\"] else {\n        n: [base.get(n, \"ABSENT\"), shifted.get(n, \"ABSENT\")] for n in changed}"
+  },
+  {
+   "name": "третья ступень (перемер) снята — шумный тест объявляется ЧЛЕНОМ класса",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    for n in changed:\n        returned = again.get(n, \"ABSENT\") == base.get(n, \"ABSENT\")\n        doc[\"verdict\"][n] = MEMBER if returned else NOISY",
+   "new": "    for n in changed:\n        doc[\"verdict\"][n] = MEMBER"
+  },
+  {
+   "name": "пропавшее имя (skipped/исчезло) НЕ считается сменой вердикта — урок #465 снят",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    changed = sorted(n for n in set(base) | set(shifted)\n                     if base.get(n, \"ABSENT\") != shifted.get(n, \"ABSENT\"))",
+   "new": "    changed = sorted(n for n in set(base) & set(shifted)\n                     if base[n] != shifted[n])"
+  },
+  {
+   "name": "требование одноразового дерева снято — долгий прогон живёт в ДЕРЕВЕ ДОСТАВКИ",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    if not ns.run_root:\n        print(\"⚠️ НЕ ИЗМЕРЕНО: --differential требует --run-root (одноразовое дерево): \"",
+   "new": "    if False:\n        print(\"⚠️ НЕ ИЗМЕРЕНО: --differential требует --run-root (одноразовое дерево): \""
+  },
+  {
+   "name": "названное дерево не проверяется на репозиторий — прогон идёт в пустоте и молчит",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    if not (run_root / \"spa_core\").is_dir():",
+   "new": "    if False:"
+  },
+  {
+   "name": "пустая поверхность объявляется ПУСТЫМ классом, а не НЕ ИЗМЕРЕНО",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "    if not files:\n        doc[\"unmeasured\"].append({\"what\": \"поверхность\", \"reason\": \"ни одного файла\"})\n        return doc",
+   "new": "    if not files:\n        return doc"
+  },
+  {
+   "name": "нечитаемый файл глотается молча — «не прочитан» неотличимо от «претензии не заявлял»",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "            except Exception as exc:  # noqa: BLE001 — нечитаемость это ИСХОД\n                out.append(FileVerdict(path=rel, surface=UNMEASURED,\n                                       reason=f\"файл не прочитан: {exc}\"))\n                continue",
+   "new": "            except Exception:  # noqa: BLE001\n                continue"
+  },
+  {
+   "name": "своя копия разбора претензии вместо ЕДИНСТВЕННОЙ двери — две копии разойдутся",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "            if not claims_injected_clock(src):",
+   "new": "            if \"injected-clock\" not in src:"
+  },
+  {
+   "name": "ось одного хопа снята: предмет равен верхней границе, 148 лишних файлов в прогоне",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "            kind = IN_SURFACE if hits else NO_READER",
+   "new": "            kind = IN_SURFACE"
+  },
+  {
+   "name": "ключ пути считается ПОДМЕНЁННОЙ дверью — возврат дефекта рекурсии замера #1233",
+   "file": "spa_core/tests/_mtime_clock_door.py",
+   "old": "        \"        return os.path.abspath(os.fspath(path))\\n\"",
+   "new": "        \"        return os.path.realpath(os.fspath(path))\\n\""
+  },
+  {
+   "name": "проба: нечитаемая поверхность НЕ останавливает вердикт — fail-OPEN инв. #17",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if unm:\n        return UNMEASURED, f\"НЕ ИЗМЕРЕНО: поверхность прочитана не целиком — {unm[:3]}\"",
+   "new": "    if False:\n        return UNMEASURED, f\"НЕ ИЗМЕРЕНО: поверхность прочитана не целиком — {unm[:3]}\""
+  },
+  {
+   "name": "проба: известный член класса НЕ сверяется — форма вправе ПОДМЕНИТЬ класс",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if rows.get(known) is None or rows[known].surface != door.IN_SURFACE:",
+   "new": "    if False:"
+  },
+  {
+   "name": "проба: ось хопа не сверяется — мерка, ничего не отсекающая, зачтена",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not subject or len(subject) >= len(bound):",
+   "new": "    if False:"
+  },
+  {
+   "name": "проба: член класса БЕЗ перехода вердикта зачтён — проза проходит за наблюдение",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if pair is None:\n            broken.append(f\"член класса {members[0]!r} назван БЕЗ перехода вердикта — \"\n                          \"прибор утверждает о классе, не предъявив наблюдения\")\n        elif list(pair) != [\"PASSED\", \"FAILED\"]:",
+   "new": "        if pair is None:\n            pair = [\"PASSED\", \"FAILED\"]\n        if list(pair) != [\"PASSED\", \"FAILED\"]:"
+  },
+  {
+   "name": "проба: обвинение ЛЕЧЕНИЯ не сверяется — прибор вправе краснеть на починенном коде",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if cured.get(\"candidates\"):\n        broken.append(\"закреплённая отметка названа кандидатом — прибор обвиняет \"",
+   "new": "    if False:\n        broken.append(\"закреплённая отметка названа кандидатом — прибор обвиняет \""
+  }
+ ]
+}
