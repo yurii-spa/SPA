@@ -1,0 +1,116 @@
+{
+  "title": "ADR-1084 — запись памяти называет модуль, которого на origin/main нет (цикл #1230)",
+  "tests": [
+    "spa_core/tests/test_memory_named_module_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 ссылка: непрочитанное дерево отдано ПУСТЫМ набором (находкой стала бы КАЖДАЯ запись)",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if done.returncode != 0:\n        return None, (f\"`git ls-tree {ref}` вернул код {done.returncode}: \"\n                      f\"{(done.stderr or '').strip()[:200]}\")",
+      "new": "    if done.returncode != 0:\n        return frozenset(), None"
+    },
+    {
+      "name": "M02 ссылка: ПУСТОЕ дерево выдано за ответ, а не за НЕ ИЗМЕРЕНО",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if not paths:\n        # Пустой набор НЕ выдаётся за ответ: он объявил бы находкой каждую запись.\n        return None, f\"дерево `{ref}` прочитано ПУСТЫМ — ответ о нём не выдаётся\"",
+      "new": "    if not paths:\n        return paths, None"
+    },
+    {
+      "name": "M03 каталог памяти: нечитаемый каталог объявлен ЧИСТЫМ",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if not os.path.isdir(memory_dir):\n        return None, f\"каталог памяти не прочитан: {memory_dir} — не каталог\"",
+      "new": "    if not os.path.isdir(memory_dir):\n        return [], None"
+    },
+    {
+      "name": "M04 каталог памяти: ПУСТОЙ каталог объявлен чистым, а не НЕ ИЗМЕРЕНО",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if not names:\n        return None, f\"в {memory_dir} нет ни одной записи `*.md` — ответ не выдаётся\"",
+      "new": "    if not names:\n        return names, None"
+    },
+    {
+      "name": "M05 запись: недекодируемая запись молча пропущена, вердикт выдан",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if report[\"undecodable\"]:\n        report[\"outcome\"] = OUT_UNMEASURED\n        report[\"why\"] = (f\"{len(report['undecodable'])} запись(ей) не декодируется — \"\n                         f\"вердикт о классе не выдаётся\")\n        return report",
+      "new": "    if False:\n        report[\"outcome\"] = OUT_UNMEASURED\n        report[\"why\"] = (f\"{len(report['undecodable'])} запись(ей) не декодируется — \"\n                         f\"вердикт о классе не выдаётся\")\n        return report"
+    },
+    {
+      "name": "M06 заполнитель: отброшен МОЛЧА, без счёта (молчаливый отсев однажды спрячет находку)",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "        report[\"placeholders_skipped\"] = int(report[\"placeholders_skipped\"]) + len(filler)",
+      "new": "        report[\"placeholders_skipped\"] = int(report[\"placeholders_skipped\"])"
+    },
+    {
+      "name": "M07 заполнитель: отсев спрашивается у СТРОКИ, а не у адреса — заполнитель утаскивает соседа",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "            if PLACEHOLDER.search(hit):",
+      "new": "            if PLACEHOLDER.search(line):"
+    },
+    {
+      "name": "M08 код: НАХОДКИ выданы нулём",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if outcome == OUT_ABSENT:\n        return EXIT_FINDINGS",
+      "new": "    if outcome == OUT_ABSENT:\n        return EXIT_CLEAN"
+    },
+    {
+      "name": "M09 код: НЕ ИЗМЕРЕНО выдано нулём (третий исход слит с успехом)",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if outcome == OUT_UNMEASURED:\n        return EXIT_UNMEASURED",
+      "new": "    if outcome == OUT_UNMEASURED:\n        return EXIT_CLEAN"
+    },
+    {
+      "name": "M10 ось: расширена на `data/` — «нет на origin» там НЕ значит «не существует»",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "NAMED_MODULE = re.compile(r\"(?<![\\w/.-])((?:scripts|spa_core)/[\\w./-]+\\.py)\")",
+      "new": "NAMED_MODULE = re.compile(r\"(?<![\\w/.-])((?:scripts|spa_core|data|docs)/[\\w./-]+)\")"
+    },
+    {
+      "name": "M11 исход: вердикт перевёрнут — находки читаются как чистота",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    report[\"outcome\"] = OUT_ABSENT if report[\"findings\"] else OUT_EXISTS",
+      "new": "    report[\"outcome\"] = OUT_EXISTS"
+    },
+    {
+      "name": "M12 печать: глубина клона и ссылка пропали из отчёта (о чьём дереве ответили — неизвестно)",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    lines.append(\n        f\"  дерево: {report['repo_root']} · ссылка `{report['ref']}` · \"\n        f\"клон {report['clone_depth']} · вопрос: {report['question']}\"\n    )",
+      "new": "    lines.append(\"  дерево прочитано\")"
+    },
+    {
+      "name": "M13 печать: имя отсутствующего модуля не названо — находка непригодна к починке",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "        lines.append(f\"     · {row['note']} → {', '.join(row['absent'])}\")",
+      "new": "        lines.append(f\"     · {row['note']}\")"
+    },
+    {
+      "name": "M14 печать: НЕ ИЗМЕРЕНО без названной причины",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "        lines.append(f\"  ⚠️ НЕ ИЗМЕРЕНО: {report['why']}\")",
+      "new": "        lines.append(\"  ⚠️ НЕ ИЗМЕРЕНО\")"
+    },
+    {
+      "name": "M15 глубина: отказ git объявлен ПОЛНЫМ клоном вместо НЕ ИЗМЕРЕНА",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    if done.returncode != 0:\n        return \"НЕ ИЗМЕРЕНА (git отказал)\"",
+      "new": "    if done.returncode != 0:\n        return \"полный\""
+    },
+    {
+      "name": "M16 объявление: `ABSENT-OK:` БЕЗ причины освобождает («и так понятно» причиной не является)",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "ABSENT_DECLARED = re.compile(r\"ABSENT-OK:[ \\t]*(\\S)\")",
+      "new": "ABSENT_DECLARED = re.compile(r\"ABSENT-OK:\")"
+    },
+    {
+      "name": "M17 объявление: действует на ВСЮ запись — пометка в шапке прячет соседа",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "    for line in text.split(\"\\n\"):\n        line_declares = bool(ABSENT_DECLARED.search(line))",
+      "new": "    for line in text.split(\"\\n\"):\n        line_declares = bool(ABSENT_DECLARED.search(text))"
+    },
+    {
+      "name": "M18 печать: число объявленных отсутствий пропало — объявление стало ТИХОЙ базой (инв. #16)",
+      "file": "scripts/memory_named_module_census.py",
+      "old": "        f\"отсутствий ОБЪЯВЛЕНО с причиной {report['declared_absent']} \"\n        f\"(и те, и другие СОСЧИТАНЫ, а не глотнуты)\"",
+      "new": "        f\"(сосчитано)\""
+    }
+  ]
+}

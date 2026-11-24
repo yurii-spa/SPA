@@ -83,6 +83,7 @@ import datetime as dt
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -991,6 +992,472 @@ def format_report(doc: dict) -> list:
     return lines
 
 
+# ─────────────────── ЗАКАЗ контрольного прогона: своя дверь ──────────────────
+#
+# **Почему дверь понадобилась (замер 2026-11-24, цикл #1228, ADR-1082).** Дверь
+# :func:`cancellation_cause` выше объясняет мёртвый заказ ПОСЛЕ факта, и объяснение её
+# верно: прогон `45292542397` цикла #1227 был ОЖИДАЮЩИМ в группе `ci-control` и отменён
+# приходом расписанного `45293308721`, прожив 346 с и не вынеся вердикта ни в одну
+# сторону. Но вопрос «а что станет с моим заказом, если я подам его СЕЙЧАС» не задавал
+# НИКТО: заказывает прогон `curl` рукой, и гейта у заказа нет. Цена ошибки — такт
+# раннера (≈1–1.6 ч) И якорь дельты следующего цикла, в который уезжает номер прогона,
+# которого не было.
+#
+# **Чего эта дверь НЕ делает.** Она не заказывает прогон вместо человека и не выбирает
+# момент: она отвечает на ОДИН вопрос — «подача сейчас кого-нибудь убьёт?» — и печатает
+# ответ. Отказ её осознанно обходится флагом, и обход ПЕЧАТАЕТСЯ.
+
+#: Исходы :func:`concurrency_declaration`. Объявление группы спрашивается у ФАЙЛА
+#: воркфлоу, а не берётся литералом здесь: поменяй кто-нибудь
+#: `cancel-in-progress` на `true`, и механизм ПЕРЕВЕРНЁТСЯ (новый заказ станет снимать
+#: идущий прогон вместо того, чтобы встать за ним), а совет двери, выведенный из моей
+#: копии, остался бы прежним и уверенным. Вторая копия объявления разошлась бы с первой
+#: молча — класс ADR-220.
+DECL_READ, DECL_ABSENT, DECL_UNMEASURED = "read", "absent", "unmeasured"
+
+#: Статусы прогона, при которых он ЗАНИМАЕТ место в группе. Разделение на две семьи —
+#: предмет замера, а не стиль: ИДУЩИЙ прогон мой заказ не снимает (группа объявлена без
+#: отмены) и заказ встаёт за ним ОЖИДАЮЩИМ, а вот ОЖИДАЮЩИЙ в группе GitHub держит
+#: РОВНО ОДИН, и любой третий его отменяет.
+RUN_BUSY = ("in_progress",)
+RUN_WAITING = ("queued", "pending", "requested", "waiting")
+
+#: Исходы :func:`group_occupancy` — ответ на вопрос «что станет с заказом, поданным
+#: сейчас». Ни один вердиктом о КОДЕ не является; различаются судьбы ЗАКАЗА.
+OCC_FREE, OCC_QUEUED_BEHIND = "free", "queued_behind"
+OCC_WOULD_DISPLACE, OCC_UNMEASURED = "would_displace", "unmeasured"
+
+#: Исходы :func:`order_control_run`.
+ORD_ALIVE, ORD_ORDERED_UNVERIFIED = "alive", "ordered_unverified"
+ORD_REFUSED, ORD_UNMEASURED, ORD_POST_REFUSED = "refused", "unmeasured", "post_refused"
+
+
+def dispatch_post(token: str | None = None):
+    """Дверь ПОДАЧИ заказа. Отдельна от `github_fetch` по предмету, а не по удобству.
+
+    `github_fetch` разбирает JSON ответа; у `workflow_dispatch` успех — HTTP **204 без
+    тела**, и `json.load` на нём падает, то есть читатель чтения на запись не годится
+    (тот же довод, что у :func:`artifact_grab`). Правило добычи токена по-прежнему ОДНО —
+    то, что внутри `github_fetch`; здесь он только принимается входом.
+
+    Возвращает код HTTP. Исключения сети наружу НЕ глотаются: «подали или нет» —
+    вопрос, на который молчание ответом не является.
+    """
+    head = {"Accept": "application/vnd.github+json",
+            "User-Agent": "spa-ci-control-order",
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28"}
+    if token:
+        head["Authorization"] = f"Bearer {token}"
+
+    def post(path: str, payload: dict) -> int:
+        req = urllib.request.Request(
+            "https://api.github.com" + path, method="POST",
+            data=json.dumps(payload).encode("utf-8"), headers=head)
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return int(resp.status)
+
+    return post
+
+
+def _workflow_group(text: str):
+    """`concurrency.group` и `cancel-in-progress` ОДНОГО воркфлоу из его текста.
+
+    Разбор нарочно узкий: `yaml` в рантайме запрещён (инв. #4), а угадывать форму,
+    которой в файле нет, значило бы отвечать «не объявлено» о живом объявлении.
+    Поэтому понимается РОВНО блочная форма (`concurrency:` на нулевом отступе,
+    поля — с отступом), а всё прочее честно возвращает `None` вместо догадки.
+    """
+    lines = text.splitlines()
+    group = cancel = None
+    seen = False
+    for i, line in enumerate(lines):
+        if re.match(r"^concurrency:\s*$", line):
+            seen = True
+            for nxt in lines[i + 1:]:
+                if nxt.strip() and not nxt[:1].isspace():
+                    break
+                m = re.match(r"^\s+group:\s*(\S+)", nxt)
+                if m:
+                    group = m.group(1).strip("'\"")
+                m = re.match(r"^\s+cancel-in-progress:\s*(\S+)", nxt)
+                if m:
+                    cancel = m.group(1).strip("'\"").lower()
+            break
+        if re.match(r"^concurrency:\s*\S", line):
+            # Инлайн-форма (`concurrency: {group: …}`) этим разбором НЕ понимается, и
+            # притворяться, что группы нет, здесь нельзя: это РАЗНЫЕ утверждения.
+            return {"seen": True, "group": None, "cancel": None, "inline": True}
+    return {"seen": seen, "group": group, "cancel": cancel, "inline": False}
+
+
+def concurrency_declaration(root=ROOT) -> dict:
+    """Что воркфлоу говорит О СВОЕЙ ГРУППЕ — и КТО ЕЩЁ объявил ту же группу.
+
+    Второй вопрос не косметика: строка `group: ci-control` не поминает `github.ref`,
+    поэтому вытеснить заказ вправе прогон ЛЮБОЙ ветки И ЛЮБОГО воркфлоу, объявившего то
+    же имя. Спроси занятость только у своего файла — и чужой сосед по группе остался бы
+    невидимым, а ответ «свободно» был бы ответом о более узком вопросе.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17): объявление ПРОЧИТАНО · группы в файле НЕТ (тогда
+    вытеснять нечему, и это не «не измерено») · файл не прочитан либо форма не разобрана
+    ⇒ НЕ ИЗМЕРЕНО с названной причиной.
+    """
+    wf_dir = Path(root) / ".github" / "workflows"
+    mine = wf_dir / WORKFLOW_FILE
+    try:
+        text = mine.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return {"state": DECL_UNMEASURED, "group": None, "cancel_in_progress": None,
+                "crons": [], "sharers": [],
+                "why": f"воркфлоу {mine} не прочитан: {type(exc).__name__}: {exc}"}
+    own = _workflow_group(text)
+    if own["inline"]:
+        return {"state": DECL_UNMEASURED, "group": None, "cancel_in_progress": None,
+                "crons": [], "sharers": [],
+                "why": f"в {WORKFLOW_FILE} блок `concurrency` объявлен инлайн-формой — "
+                       f"этим разбором она не понимается; «группы нет» тут было бы "
+                       f"догадкой, а не замером"}
+    crons = [m.group(1).strip().strip("'\"")
+             for m in re.finditer(r"^\s*-\s*cron:\s*(.+?)\s*(?:#.*)?$", text,
+                                  re.MULTILINE)]
+    if not own["seen"] or not own["group"]:
+        return {"state": DECL_ABSENT, "group": None, "cancel_in_progress": None,
+                "crons": crons, "sharers": [],
+                "why": f"{WORKFLOW_FILE} группы `concurrency` не объявляет — "
+                       f"вытеснять заказ в ней нечему"}
+    group = own["group"]
+    sharers, unread = [], []
+    try:
+        candidates = sorted(p for p in wf_dir.iterdir()
+                            if p.suffix in (".yml", ".yaml"))
+    except OSError as exc:
+        return {"state": DECL_UNMEASURED, "group": group,
+                "cancel_in_progress": own["cancel"], "crons": crons, "sharers": [],
+                "why": f"каталог {wf_dir} не перечислен: {type(exc).__name__}: {exc} — "
+                       f"кто ЕЩЁ объявил группу `{group}`, НЕ ИЗМЕРЕНО"}
+    for path in candidates:
+        try:
+            other = _workflow_group(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as exc:
+            unread.append(f"{path.name}: {type(exc).__name__}")
+            continue
+        if other["inline"]:
+            unread.append(f"{path.name}: инлайн-форма `concurrency`")
+            continue
+        if other["group"] == group:
+            sharers.append(path.name)
+    if unread:
+        # Нечитаемый сосед — НЕ «соседей нет»: пустая строка здесь совпала бы с
+        # честным нулём и превратила «не прочитали» в «расхождения нет».
+        return {"state": DECL_UNMEASURED, "group": group,
+                "cancel_in_progress": own["cancel"], "crons": crons,
+                "sharers": sharers,
+                "why": f"соседи по группе `{group}` НЕ ИЗМЕРЕНЫ: "
+                       f"{'; '.join(unread)}"}
+    return {"state": DECL_READ, "group": group, "cancel_in_progress": own["cancel"],
+            "crons": crons, "sharers": sharers, "why": None}
+
+
+def next_cron_moment(expr: str, now):
+    """Ближайший момент расписания СТРОГО позже `now`, либо `None` — «не разобрано».
+
+    Понимаются ровно те поля, которые объявлены в `ci-control.yml` (минута числом, час
+    числом, списком или `*/N`, остальные три поля `*`). Шире разбирать нечем: полный
+    cron в stdlib не живёт, а притворяться, что «такта нет», когда форма просто не
+    понята, значило бы отдать читателю тишину под видом замера.
+    """
+    parts = (expr or "").split()
+    if len(parts) != 5:
+        return None
+    minute, hour, dom, mon, dow = parts
+    if (dom, mon, dow) != ("*", "*", "*"):
+        return None
+    try:
+        minutes = [int(minute)] if minute != "*" else list(range(60))
+    except ValueError:
+        return None
+    if hour == "*":
+        hours = list(range(24))
+    elif hour.startswith("*/"):
+        try:
+            step = int(hour[2:])
+        except ValueError:
+            return None
+        if step <= 0:
+            return None
+        hours = list(range(0, 24, step))
+    else:
+        try:
+            hours = sorted(int(h) for h in hour.split(","))
+        except ValueError:
+            return None
+    if not hours or not minutes or max(hours) > 23 or max(minutes) > 59:
+        return None
+    base = now.astimezone(dt.timezone.utc).replace(second=0, microsecond=0)
+    for day in (0, 1):
+        for h in hours:
+            for m in sorted(minutes):
+                cand = (base + dt.timedelta(days=day)).replace(hour=h, minute=m)
+                if cand > now:
+                    return cand
+    return None
+
+
+def group_occupancy(*, fetch, decl, now=None) -> dict:
+    """ЧТО СТАНЕТ С ЗАКАЗОМ, поданным сейчас, — вопрос к живому API.
+
+    Четыре исхода РАЗЛИЧИМЫ (инв. #17), и ни один не подставляется вместо другого:
+
+    * :data:`OCC_FREE` — в группе нет ни идущего, ни ожидающего ⇒ заказ пойдёт сразу;
+    * :data:`OCC_QUEUED_BEHIND` — идущий ЕСТЬ, ожидающего нет ⇒ заказ встанет
+      ОЖИДАЮЩИМ и доживёт до своей очереди, пока в группу не придёт третий. Это НЕ
+      отказ, а названное предупреждение: ближайший известный третий — расписанный
+      прогон, и его момент НАЗЫВАЕТСЯ;
+    * :data:`OCC_WOULD_DISPLACE` — ожидающий в группе УЖЕ есть ⇒ подача ОТМЕНИТ его.
+      Отказ: чужой якорь дельты стои́т такта раннера;
+    * :data:`OCC_UNMEASURED` — список прогонов не прочитан, статус не объявлен или
+      незнаком. Подставить сюда «свободно» значило бы выдать «не спросили» за ответ.
+
+    **Чего этот замер НЕ различает, и это названо.** `status: queued` у GitHub носят И
+    прогон, ждущий СВОБОДНОГО МЕСТА В ГРУППЕ, И прогон, ждущий РАННЕРА; по строке
+    прогона они неразличимы. Ответ поэтому fail-CLOSED: любой ожидающий читается как
+    держатель единственного ожидающего места. Ошибка здесь уходит в сторону лишнего
+    отказа (ждать 6 ч вместо подачи), а не в сторону убитого чужого замера.
+    """
+    if decl["state"] == DECL_UNMEASURED:
+        return {"state": OCC_UNMEASURED, "running": [], "waiting": [],
+                "next_scheduled": None, "why": decl["why"]}
+    if decl["state"] == DECL_ABSENT:
+        return {"state": OCC_FREE, "running": [], "waiting": [],
+                "next_scheduled": None, "why": decl["why"]}
+    moment = now if now is not None else dt.datetime.now(dt.timezone.utc)
+    files = decl["sharers"] or [WORKFLOW_FILE]
+    running, waiting = [], []
+    for wf in files:
+        path = f"/repos/{REPO}/actions/workflows/{wf}/runs?per_page=50"
+        try:
+            listing = fetch(path)
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError,
+                ValueError) as exc:
+            return {"state": OCC_UNMEASURED, "running": running, "waiting": waiting,
+                    "next_scheduled": None,
+                    "why": f"список прогонов `{wf}` не прочитан: "
+                           f"{type(exc).__name__}: {exc}"}
+        rows = (listing or {}).get("workflow_runs")
+        if not isinstance(rows, list):
+            return {"state": OCC_UNMEASURED, "running": running, "waiting": waiting,
+                    "next_scheduled": None,
+                    "why": f"список прогонов `{wf}` строк не несёт — это НЕ "
+                           f"«в группе пусто»"}
+        for row in rows:
+            status = row.get("status")
+            if status == "completed":
+                continue
+            who = {"id": str(row.get("id")), "status": status,
+                   "event": row.get("event"), "head_sha": row.get("head_sha"),
+                   "workflow": wf, "created_at": row.get("created_at")}
+            if status in RUN_BUSY:
+                running.append(who)
+            elif status in RUN_WAITING:
+                waiting.append(who)
+            else:
+                return {"state": OCC_UNMEASURED, "running": running,
+                        "waiting": waiting, "next_scheduled": None,
+                        "why": f"прогон {who['id']} воркфлоу `{wf}` несёт статус "
+                               f"{status!r}, которого нет ни в одной объявленной "
+                               f"семье — занимает ли он место в группе, НЕ ИЗМЕРЕНО"}
+    upcoming = [c for c in (next_cron_moment(e, moment) for e in decl["crons"]) if c]
+    nxt = min(upcoming).isoformat() if upcoming else None
+    if waiting:
+        return {"state": OCC_WOULD_DISPLACE, "running": running, "waiting": waiting,
+                "next_scheduled": nxt, "why": None}
+    if running:
+        return {"state": OCC_QUEUED_BEHIND, "running": running, "waiting": [],
+                "next_scheduled": nxt, "why": None}
+    return {"state": OCC_FREE, "running": [], "waiting": [], "next_scheduled": nxt,
+            "why": None}
+
+
+def _order_identity(sha: str, *, fetch, since) -> dict:
+    """ЧЕЙ прогон родился от подачи — спрашивается у API, а не выводится из HTTP 204.
+
+    204 говорит «подача принята», и это ДРУГОЕ утверждение, чем «прогон с моей sha
+    существует и жив»: между ними GitHub создаёт строку, и до её появления ответа нет.
+    Поэтому ненайденный прогон здесь — НЕ ИЗМЕРЕНО, а не «подача провалилась».
+    """
+    path = f"/repos/{REPO}/actions/workflows/{WORKFLOW_FILE}/runs?per_page=20"
+    try:
+        listing = fetch(path)
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
+        return {"run": None, "why": f"список прогонов после подачи не прочитан: "
+                                    f"{type(exc).__name__}: {exc}"}
+    rows = (listing or {}).get("workflow_runs")
+    if not isinstance(rows, list):
+        return {"run": None, "why": "список прогонов после подачи строк не несёт"}
+    mine = []
+    for row in rows:
+        if row.get("event") != "workflow_dispatch":
+            continue
+        if str(row.get("head_sha")) != str(sha):
+            continue
+        born = _parse_moment(row.get("created_at"))
+        if born is None or born < since:
+            continue
+        mine.append(row)
+    if not mine:
+        return {"run": None,
+                "why": f"прогона `workflow_dispatch` на sha {sha[:9]}, созданного после "
+                       f"{since.isoformat()}, в списке ПОКА нет — строка появляется не "
+                       f"мгновенно; это НЕ «подача провалилась»"}
+    row = max(mine, key=lambda r: r.get("created_at") or "")
+    return {"run": _run_row(row), "why": None}
+
+
+def order_control_run(sha: str, *, fetch, post=None, root=ROOT,
+                      branch: str = DEFAULT_BRANCH, now=None,
+                      allow_displace: bool = False) -> dict:
+    """Заказать контрольный прогон, СПРОСИВ сперва, кого подача убьёт.
+
+    `post=None` — режим одного вопроса (ничего не подаётся): так гейт зовут, когда надо
+    узнать состояние группы, а не заказывать.
+    """
+    moment = now if now is not None else dt.datetime.now(dt.timezone.utc)
+    decl = concurrency_declaration(root)
+    occ = group_occupancy(fetch=fetch, decl=decl, now=moment)
+    doc = {"sha": sha, "branch": branch, "declaration": decl, "occupancy": occ,
+           "asked_at": moment.isoformat(), "allow_displace": allow_displace,
+           "posted": None, "http": None, "identity": None}
+
+    if occ["state"] == OCC_UNMEASURED:
+        doc["state"] = ORD_UNMEASURED
+        doc["why"] = (f"занятость группы НЕ ИЗМЕРЕНА ({occ['why']}) — подавать заказ "
+                      f"вслепую значит мерить то, чего может не быть")
+        return doc
+    # `cancel-in-progress: true` ПЕРЕВОРАЧИВАЕТ механизм: заказ стал бы снимать ИДУЩИЙ
+    # прогон, а не вставать за ним. Совет двери, выведенный из прежнего объявления, был
+    # бы уверенным и неверным — поэтому состояние названо отдельно и отказывает.
+    cancels = str(decl.get("cancel_in_progress") or "").lower() == "true"
+    if cancels and occ["running"] and not allow_displace:
+        doc["state"] = ORD_REFUSED
+        doc["why"] = (f"группа `{decl['group']}` объявлена `cancel-in-progress: true`, и "
+                      f"в ней ИДЁТ прогон {occ['running'][0]['id']} — подача СНЯЛА БЫ "
+                      f"его. Это не то состояние, из которого писалась эта дверь: "
+                      f"объявление воркфлоу изменилось, перечитай ADR-1082")
+        return doc
+    if occ["state"] == OCC_WOULD_DISPLACE and not allow_displace:
+        who = ", ".join(f"{r['id']} (`{r['status']}`, `{r['event']}`, "
+                        f"sha {str(r['head_sha'])[:9]})" for r in occ["waiting"])
+        doc["state"] = ORD_REFUSED
+        doc["why"] = (f"в группе `{decl['group']}` УЖЕ ждёт {who}: ожидающего GitHub "
+                      f"держит РОВНО ОДНОГО, и подача ОТМЕНИЛА БЫ его, не вынеся "
+                      f"вердикта ни в одну сторону (ADR-1082). Ждать освобождения "
+                      f"либо осознанно обойти флагом")
+        return doc
+    if post is None:
+        doc["state"] = occ["state"]
+        doc["why"] = "режим вопроса: заказ НЕ подавался"
+        return doc
+
+    payload = {"ref": branch, "inputs": {"sha": sha}}
+    path = f"/repos/{REPO}/actions/workflows/{WORKFLOW_FILE}/dispatches"
+    try:
+        code = post(path, payload)
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+        doc["state"] = ORD_POST_REFUSED
+        doc["why"] = (f"подача ОТКАЗАНА: {type(exc).__name__}: {exc}. ПОЛНАЯ sha идёт "
+                      f"во ВХОД `inputs.sha`, в `ref` — ВЕТКА: sha в `ref` даёт HTTP "
+                      f"422 и прогон не стартует вовсе")
+        return doc
+    doc["posted"], doc["http"] = True, code
+    if code != 204:
+        doc["state"] = ORD_POST_REFUSED
+        doc["why"] = f"подача вернула HTTP {code}, а успех `workflow_dispatch` — 204"
+        return doc
+    ident = _order_identity(sha, fetch=fetch, since=moment)
+    doc["identity"] = ident
+    if ident["run"] is None:
+        doc["state"] = ORD_ORDERED_UNVERIFIED
+        doc["why"] = ident["why"]
+        return doc
+    live = run_liveness(ident["run"]["id"], fetch=fetch, now=moment)
+    doc["liveness"] = live
+    if live["state"] == LIVE_RUNNING:
+        doc["state"] = ORD_ALIVE
+        doc["why"] = None
+        return doc
+    if live["state"] == LIVE_DONE:
+        doc["state"] = ORD_ORDERED_UNVERIFIED
+        doc["why"] = (f"прогон {ident['run']['id']} УЖЕ завершён "
+                      f"(`conclusion: {live['conclusion']}`) в тот же миг, когда подан —"
+                      f" якорем дельты его брать НЕЛЬЗЯ, пока причина не названа")
+        return doc
+    doc["state"] = ORD_ORDERED_UNVERIFIED
+    doc["why"] = f"живость заказанного прогона НЕ ИЗМЕРЕНА ({live['why']})"
+    return doc
+
+
+def format_order(doc: dict) -> list:
+    """Строки ответа двери. Выбор и обход ПЕЧАТАЮТСЯ — молчащий обход хуже ошибки."""
+    decl, occ = doc["declaration"], doc["occupancy"]
+    out = [f"заказ контрольного прогона: sha {doc['sha'][:9]} · ветка {doc['branch']}"]
+    if decl["state"] == DECL_READ:
+        out.append(f"  объявление воркфлоу: группа `{decl['group']}` · "
+                   f"cancel-in-progress: {decl['cancel_in_progress']} · "
+                   f"соседей по группе: {len(decl['sharers'])} "
+                   f"({', '.join(decl['sharers']) or '—'})")
+    else:
+        out.append(f"  объявление воркфлоу: {decl['state'].upper()} — {decl['why']}")
+    out.append(f"  группа: {occ['state'].upper()} · идёт {len(occ['running'])} · "
+               f"ждёт {len(occ['waiting'])}"
+               + (f" · ближайший расписанный {occ['next_scheduled']}"
+                  if occ["next_scheduled"] else " · расписание НЕ РАЗОБРАНО"))
+    for row in occ["running"] + occ["waiting"]:
+        out.append(f"    • {row['id']} `{row['status']}` `{row['event']}` "
+                   f"sha {str(row['head_sha'])[:9]} ({row['workflow']})")
+    if doc["allow_displace"]:
+        out.append("  ⚠️ ОБХОД ОБЪЯВЛЕН: --allow-displace — отказ двери снят рукой")
+    state = doc.get("state")
+    if state == ORD_ALIVE:
+        out.append(f"  ✅ ЗАКАЗАН и ЖИВ: {doc['identity']['run']['id']} "
+                   f"(`{doc['liveness']['status']}`), HTTP {doc['http']}")
+    elif state == ORD_REFUSED:
+        out.append(f"  ⛔ ОТКАЗ: {doc['why']}")
+    elif state == ORD_UNMEASURED:
+        out.append(f"  ⛔ НЕ ИЗМЕРЕНО: {doc['why']}")
+    elif state == ORD_POST_REFUSED:
+        out.append(f"  ⛔ ПОДАЧА НЕ ПРИНЯТА: {doc['why']}")
+    elif state == ORD_ORDERED_UNVERIFIED:
+        out.append(f"  ⚠️ подан, но НЕ ПОДТВЕРЖДЁН: {doc['why']}")
+    else:
+        out.append(f"  вопрос задан, заказ не подавался: {occ['state'].upper()}")
+    return out
+
+
+def order_exit_code(doc: dict) -> int:
+    """Пять исходов различимы КОДОМ, а не только строкой (инв. #17).
+
+    0 — заказан и жив (а в режиме вопроса — группа свободна) · 1 — подан, но личность
+    или живость НЕ ПОДТВЕРЖДЕНА, якорем брать нельзя · 2 — НЕ ИЗМЕРЕНО до подачи,
+    заказ НЕ подавался · 3 — ОТКАЗ: подача убила бы чужой замер · 4 — подача не
+    принята API.
+    """
+    state = doc.get("state")
+    if state == ORD_ALIVE or state == OCC_FREE:
+        return 0
+    if state == ORD_ORDERED_UNVERIFIED:
+        return 1
+    if state == ORD_UNMEASURED:
+        return 2
+    if state == ORD_REFUSED:
+        return 3
+    if state == ORD_POST_REFUSED:
+        return 4
+    # Режим вопроса, группа занята: это не ошибка и не «чисто» — заказ ВСТАНЕТ за
+    # идущим (1) либо ОТМЕНИЛ БЫ ожидающего (3).
+    return 3 if state == OCC_WOULD_DISPLACE else 1
+
+
 def run(root=ROOT, *, now=None, fetch=None, grab=None, branch: str = DEFAULT_BRANCH,
         runs: int = DEFAULT_RUNS) -> dict:
     """ОДИН замер и документ. Ни файла, ни гейта такта — оба у того, КТО ПОЗВАЛ.
@@ -1065,7 +1532,37 @@ def main(argv=None) -> int:
                     help="сколько строк списка прогонов прочитать")
     ap.add_argument("--repo-root", default=str(ROOT),
                     help="дерево, о котором спрашивается происхождение зова")
+    ap.add_argument("--order-run", metavar="SHA",
+                    help="ЗАКАЗАТЬ контрольный прогон на ПОЛНОЙ sha — но только "
+                         "спросив сперва, кого подача убьёт (ADR-1083). Коды: 0 "
+                         "заказан и жив · 1 подан, но не подтверждён · 2 НЕ "
+                         "ИЗМЕРЕНО (не подавался) · 3 ОТКАЗ · 4 подача не принята")
+    ap.add_argument("--order-check", metavar="SHA",
+                    help="тот же вопрос БЕЗ подачи: что станет с заказом, поданным "
+                         "сейчас. Ничего не заказывает")
+    ap.add_argument("--allow-displace", action="store_true",
+                    help="осознанно обойти отказ двери заказа: «да, я отменяю "
+                         "ожидающий прогон группы». ПЕЧАТАЕТСЯ")
     args = ap.parse_args(argv)
+
+    if args.order_run or args.order_check:
+        sha = args.order_run or args.order_check
+        try:
+            fetch = github_fetch()
+        except (RuntimeError, OSError) as exc:
+            print(f"⛔ НЕ ИЗМЕРЕНО: заказ не спрошен: {type(exc).__name__}: {exc}",
+                  file=sys.stderr)
+            return 2
+        post = dispatch_post(_keychain_token()) if args.order_run else None
+        doc = order_control_run(sha, fetch=fetch, post=post, root=args.repo_root,
+                                branch=args.branch,
+                                allow_displace=args.allow_displace)
+        if args.json:
+            print(json.dumps(doc, ensure_ascii=False, default=str))
+        else:
+            for line in format_order(doc):
+                print(line)
+        return order_exit_code(doc)
 
     if args.delta:
         try:

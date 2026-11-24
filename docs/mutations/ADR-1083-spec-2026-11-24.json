@@ -1,0 +1,146 @@
+{
+ "title": "ADR-1083 — дверь ЗАКАЗА контрольного прогона (цикл #1229)",
+ "tests": [
+  "spa_core/tests/test_ci_control_dispatch_door.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 занятость: ожидающий в группе не делает заказ вытесняющим",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if waiting:\n        return {\"state\": OCC_WOULD_DISPLACE, \"running\": running, \"waiting\": waiting,",
+   "new": "    if False:\n        return {\"state\": OCC_WOULD_DISPLACE, \"running\": running, \"waiting\": waiting,"
+  },
+  {
+   "name": "M02 занятость: мёртвый API читается как СВОБОДНО (fail-OPEN)",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "            return {\"state\": OCC_UNMEASURED, \"running\": running, \"waiting\": waiting,\n                    \"next_scheduled\": None,\n                    \"why\": f\"список прогонов `{wf}` не прочитан: \"",
+   "new": "            return {\"state\": OCC_FREE, \"running\": running, \"waiting\": waiting,\n                    \"next_scheduled\": None,\n                    \"why\": f\"список прогонов `{wf}` не прочитан: \""
+  },
+  {
+   "name": "M03 занятость: незнакомый статус молча пропущен",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "            elif status in RUN_WAITING:\n                waiting.append(who)\n            else:",
+   "new": "            elif status in RUN_WAITING:\n                waiting.append(who)\n            elif False:"
+  },
+  {
+   "name": "M04 занятость: спрошен только СВОЙ воркфлоу, а не все соседи по группе",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    files = decl[\"sharers\"] or [WORKFLOW_FILE]",
+   "new": "    files = [WORKFLOW_FILE]"
+  },
+  {
+   "name": "M05 занятость: список без строк подставлен пустым",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        rows = (listing or {}).get(\"workflow_runs\")",
+   "new": "        rows = (listing or {}).get(\"workflow_runs\") or []"
+  },
+  {
+   "name": "M06 заказ: отказ при вытеснении снят — подача идёт поверх ожидающего",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if occ[\"state\"] == OCC_WOULD_DISPLACE and not allow_displace:",
+   "new": "    if False:"
+  },
+  {
+   "name": "M07 заказ: НЕ ИЗМЕРЕНО не держит подачу — заказ уходит вслепую",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if occ[\"state\"] == OCC_UNMEASURED:\n        doc[\"state\"] = ORD_UNMEASURED",
+   "new": "    if False:\n        doc[\"state\"] = ORD_UNMEASURED"
+  },
+  {
+   "name": "M08 заказ: перевёрнутый механизм (cancel-in-progress: true) не судится",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if cancels and occ[\"running\"] and not allow_displace:",
+   "new": "    if False:"
+  },
+  {
+   "name": "M09 подача: ПОЛНАЯ sha уехала в `ref` вместо входа `inputs.sha`",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    payload = {\"ref\": branch, \"inputs\": {\"sha\": sha}}",
+   "new": "    payload = {\"ref\": sha, \"inputs\": {}}"
+  },
+  {
+   "name": "M10 заказ: ненайденный прогон объявлен ЖИВЫМ",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if ident[\"run\"] is None:\n        doc[\"state\"] = ORD_ORDERED_UNVERIFIED",
+   "new": "    if ident[\"run\"] is None:\n        doc[\"state\"] = ORD_ALIVE"
+  },
+  {
+   "name": "M11 заказ: ЗАВЕРШЁННЫЙ прогон принят якорем дельты",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if live[\"state\"] == LIVE_RUNNING:\n        doc[\"state\"] = ORD_ALIVE",
+   "new": "    if live[\"state\"] in (LIVE_RUNNING, LIVE_DONE):\n        doc[\"state\"] = ORD_ALIVE"
+  },
+  {
+   "name": "M12 подача: ответ не 204 принят за успех",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if code != 204:",
+   "new": "    if False:"
+  },
+  {
+   "name": "M13 объявление: нечитаемый воркфлоу объявлен «группы нет»",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        return {\"state\": DECL_UNMEASURED, \"group\": None, \"cancel_in_progress\": None,\n                \"crons\": [], \"sharers\": [],\n                \"why\": f\"воркфлоу {mine} не прочитан:",
+   "new": "        return {\"state\": DECL_ABSENT, \"group\": None, \"cancel_in_progress\": None,\n                \"crons\": [], \"sharers\": [],\n                \"why\": f\"воркфлоу {mine} не прочитан:"
+  },
+  {
+   "name": "M14 объявление: непонятая инлайн-форма объявлена «группы нет»",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if own[\"inline\"]:\n        return {\"state\": DECL_UNMEASURED,",
+   "new": "    if own[\"inline\"]:\n        return {\"state\": DECL_ABSENT,"
+  },
+  {
+   "name": "M15 объявление: нечитаемый сосед по группе молча пропущен",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if unread:",
+   "new": "    if False:"
+  },
+  {
+   "name": "M16 объявление: честное «группы нет» выдано за НЕ ИЗМЕРЕНО (обратная сторона)",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if not own[\"seen\"] or not own[\"group\"]:\n        return {\"state\": DECL_ABSENT,",
+   "new": "    if not own[\"seen\"] or not own[\"group\"]:\n        return {\"state\": DECL_UNMEASURED,"
+  },
+  {
+   "name": "M17 расписание: неразобранная форма достраивается догадкой вместо None",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if len(parts) != 5:\n        return None",
+   "new": "    if len(parts) != 5:\n        parts = (parts + [\"*\"] * 5)[:5]\n        minute, hour, dom, mon, dow = parts"
+  },
+  {
+   "name": "M18 расписание: ближайший момент перестал быть СТРОГО позже now",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "                if cand > now:",
+   "new": "                if cand >= now:"
+  },
+  {
+   "name": "M19 код: «подан, но не подтверждён» выдан за успех",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if state == ORD_ORDERED_UNVERIFIED:\n        return 1",
+   "new": "    if state == ORD_ORDERED_UNVERIFIED:\n        return 0"
+  },
+  {
+   "name": "M20 код: ОТКАЗ выдан за успех",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if state == ORD_REFUSED:\n        return 3",
+   "new": "    if state == ORD_REFUSED:\n        return 0"
+  },
+  {
+   "name": "M21 печать: осознанный обход перестал ПЕЧАТАТЬСЯ",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        out.append(\"  ⚠️ ОБХОД ОБЪЯВЛЕН: --allow-displace — отказ двери снят рукой\")",
+   "new": "        pass"
+  },
+  {
+   "name": "M22 единственность: имя воркфлоу набрано вторым литералом",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    mine = wf_dir / WORKFLOW_FILE",
+   "new": "    mine = wf_dir / \"ci-control.yml\""
+  },
+  {
+   "name": "M23 разбор cron: ведущий отступ строки расписания перестал допускаться",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "r\"^\\s*-\\s*cron:\\s*(.+?)\\s*(?:#.*)?$\"",
+   "new": "r\"^-\\s*cron:\\s*(.+?)\\s*(?:#.*)?$\""
+  }
+ ]
+}
