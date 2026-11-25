@@ -230,6 +230,7 @@
 | ADR-1099 | ADR-1099 — Конструктор класса стал РАЗРЕШИМЫМ получателем: население за границей ОБЪЕКТА измеряется, а не числится нулём | Accepted | [ADR-1099](ADR-1099-a-constructor-is-a-resolvable-receiver.md) |
 | ADR-1100 | ADR-1100 — Унаследованные методы СУДЯТСЯ: третий исход остался у НЕРАЗРЕШИМОЙ базы, а не у границы меры | Accepted | [ADR-1100](ADR-1100-inherited-methods-are-judged.md) |
 | ADR-1101 | ADR-1101 — Конструктор, которого класс НЕ ОБЪЯВЛЯЛ, не судится: подпись собирается вместе с полями баз | Accepted | [ADR-1101](ADR-1101-the-constructor-must-be-declared.md) |
+| ADR-1102 | ADR-1102 — Пол TVL судится по числу БЕЗ закреплённого пула, и по одному пулу ДВАЖДЫ | Accepted | [ADR-1102](ADR-1102-live-tvl-without-a-pinned-pool-and-one-pool-two-keys.md) |
 
 ## Соглашения
 

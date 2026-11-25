@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-25T11:13:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-25T12:53:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1690** · ждёт владельца: **16** · занято сессиями: **14**.
+> Всего карточек: **1691** · ждёт владельца: **16** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -450,7 +450,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (984)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (985)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1268,6 +1268,7 @@
 - Потерю ТЕЛА записи цикла не ловит ничто — граница класса ADR-714, и население класса НЕ ИЗМЕРЕНО  ·  `inbox-poteryu-tela-zapisi-tsikla-ne-lovit-nich.md` · 2026-10-13
 - Потолок числа позиций объявлен, а у двери КНИГИ читателя нет (max_protocols, замер #973)  ·  `inbox-potolok-chisla-pozitsii-obyavlen-a-u-dve.md` · 2026-10-29
 - Потолок неиспользуемых импортов считает ВЕСЬ репозиторий, а защищает от массового импорта — 2337 против 2284 при 805 файлах с одним  ·  `inbox-potolok-neispolzuemyh-importov-schitaet.md` · 2026-11-17
+- Поверхность решения штампует TVL live на НЕзакреплённом пуле — и один пул судится дважды  ·  `inbox-poverhnost-resheniya-shtampuet-tvl-live.md` · 2026-11-25
 - Поверхность владельца зовёт флот просроченным 25 минут каждого часа — порог 35 минут против часового писателя  ·  `inbox-poverhnost-vladeltsa-zovet-flot-prosroch.md` · 2026-10-08
 - Повтор просьбы владельца неотличим от повторного приёма того же сообщения: личности сообщения не несёт ни одна карточка  ·  `inbox-povtor-prosby-vladeltsa-neotlichim-ot-po.md` · 2026-10-30
 - Поздний «принято» воскрешает карточку, закрытую замером — и предъявляет агенту ОТМЕНЁННУЮ разрушительную команду  ·  `inbox-pozdnii-prinyato-voskreshaet-kartochku-z.md` · 2026-08-30
