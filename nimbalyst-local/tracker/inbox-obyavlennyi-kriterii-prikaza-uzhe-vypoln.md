@@ -6,6 +6,7 @@ status: new
 source: nimbalyst
 created: 2026-11-25
 priority: high
+intake_kind: task
 ---
 
 ## Что случилось
