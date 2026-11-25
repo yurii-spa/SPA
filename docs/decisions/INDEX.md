@@ -226,6 +226,7 @@
 | ADR-1095 | ADR-1095 — Отвергнутый ключ GitHub не имеет права быть хуже отсутствия ключа: публичная ось читается без него | Accepted | [ADR-1095](ADR-1095-rejected-key-is-worse-than-no-key.md) |
 | ADR-1096 | ADR-1096 — Мера потребления отчёта тир-куратора судит РОЛЬ вхождения, а не класс файла | Accepted | [ADR-1096](ADR-1096-tier-consumption-measure-judges-role-not-file-class.md) |
 | ADR-1097 | ADR-1097 — Население класса «имя-данные, дошедшее до диска окольно»: ИЗМЕРЕНО и ПУСТО, с одним названным ближним промахом | Accepted | [ADR-1097](ADR-1097-data-name-leak-population-is-measured.md) |
+| ADR-1098 | ADR-1098 — «ИЗМЕРЕННЫЙ ноль» меры утечки имени-данных держался на ОДНОМ хопе: за ним НЕ ИЗМЕРЕНО, и это теперь СКАЗАНО | Accepted | [ADR-1098](ADR-1098-value-handed-further-than-one-hop.md) |
 
 ## Соглашения
 

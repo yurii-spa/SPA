@@ -1,0 +1,99 @@
+{
+  "label": "ADR-1098-c1243",
+  "why": "Мера «значение отдано ДАЛЬШЕ ОДНОГО хопа». Мутации рвут каждое звено: сам обход дороги, различение «ИЗМЕРЕННЫЙ ноль ↔ НЕ ИЗМЕРЕНО» по КАЖДОЙ из четырёх причин, бюджет хопов как ВХОД, контекст модуля следующего хопа, замыкание значения внутри получателя, предпочтение наблюдения, прошедшего дорогу, и отказ при бюджете меньше одного хопа. Предмет класса (reaches_report) не расширен ни одной мутацией — рвётся только честность третьего исхода, и каждая мутация уводит ответ в сторону «чисто».",
+  "tests": [
+    "spa_core/tests/test_tier_data_name_leak.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 дорога не проходится вовсе — ответ только о теле первого получателя (ADR-1097)",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    verdict, why = _verdict_in_scope(scope, names, where)\n    if verdict != \"local_only\":\n        return verdict, why\n    local = _closure(scope, names)",
+      "new": "    verdict, why = _verdict_in_scope(scope, names, where)\n    if verdict != \"local_only\" or True:\n        return verdict, why\n    local = _closure(scope, names)"
+    },
+    {
+      "name": "M02 исчерпанный бюджет хопов выдаётся за ИЗМЕРЕННЫЙ ноль",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if hops_left <= 0:\n        return (UNMEASURED,\n                f\"{where}: значение отдано ДАЛЬШЕ ({told}) — бюджет хопов \"",
+      "new": "    if hops_left <= 0:\n        return (\"local_only\",\n                f\"{where}: значение отдано ДАЛЬШЕ ({told}) — бюджет хопов \""
+    },
+    {
+      "name": "M03 имя получателя, в которого мера не заглянула, из причины убрано",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    told = \", \".join(sorted({_call_name(c) or \"<?>\" for c in onward}))",
+      "new": "    told = \"\""
+    },
+    {
+      "name": "M04 неразрешимый получатель следующего хопа выдаётся за ИЗМЕРЕННЫЙ ноль",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if func is None or sub is None:\n            results.append((UNMEASURED,\n                            f\"{where} → {who}: получатель следующего хопа НЕ \"",
+      "new": "        if func is None or sub is None:\n            results.append((\"local_only\",\n                            f\"{where} → {who}: получатель следующего хопа НЕ \""
+    },
+    {
+      "name": "M05 неразрешимый ПАРАМЕТР получателя выдаётся за ИЗМЕРЕННЫЙ ноль",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if param is None:\n            results.append((UNMEASURED,\n                            f\"{where} → {who}: параметр получателя, принявший \"",
+      "new": "        if param is None:\n            results.append((\"local_only\",\n                            f\"{where} → {who}: параметр получателя, принявший \""
+    },
+    {
+      "name": "M06 ЦИКЛ передач выдаётся за ИЗМЕРЕННЫЙ ноль",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if step in visited:\n            results.append((UNMEASURED,\n                            f\"{where} → {who}: ЦИКЛ передач — этот получатель \"",
+      "new": "        if step in visited:\n            results.append((\"local_only\",\n                            f\"{where} → {who}: ЦИКЛ передач — этот получатель \""
+    },
+    {
+      "name": "M07 дорога, у которой нет конца, не распознаётся — память вместо вердикта",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        results.append(_follow(func, {param}, f\"{where} → {who}\", sub,\n                               hops_left - 1, visited | {step}))",
+      "new": "        results.append(_follow(func, {param}, f\"{where} → {who}\", sub,\n                               hops_left - 1, frozenset()))"
+    },
+    {
+      "name": "M08 следующий хоп судится ввозами ПЕРВОГО модуля, а не своего",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        results.append(_follow(func, {param}, f\"{where} → {who}\", sub,\n                               hops_left - 1, visited | {step}))",
+      "new": "        results.append(_follow(func, {param}, f\"{where} → {who}\", ctx,\n                               hops_left - 1, visited | {step}))"
+    },
+    {
+      "name": "M09 бюджет не убывает — объявленный предел перестаёт быть входом",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "                               hops_left - 1, visited | {step}))\n    results.sort(key=lambda r: VERDICT_ORDER.index(r[0]))",
+      "new": "                               hops_left, visited | {step}))\n    results.sort(key=lambda r: VERDICT_ORDER.index(r[0]))"
+    },
+    {
+      "name": "M10 внутри получателя спрашивается ИМЯ ПАРАМЕТРА, а не замыкание значения",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    onward = _receivers(scope, local, ctx.imported, ctx.defs)",
+      "new": "    onward = _receivers(scope, names, ctx.imported, ctx.defs)"
+    },
+    {
+      "name": "M11 ИЗМЕРЕННЫЙ ноль больше не говорит, ЧТО именно измерено",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        return verdict, (f\"{why}; и значение НИКОМУ не отдано дальше — \"\n                         f\"ИЗМЕРЕННЫЙ ноль, проверенный обходом\")",
+      "new": "        return verdict, why"
+    },
+    {
+      "name": "M12 при равном вердикте вперёд снова ставится наблюдение своей области",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    ordered = sorted(verdicts, key=lambda f: (VERDICT_ORDER.index(f.verdict),\n                                              0 if f.hop != \"self\" else 1))",
+      "new": "    ordered = sorted(verdicts, key=lambda f: VERDICT_ORDER.index(f.verdict))"
+    },
+    {
+      "name": "M13 бюджет меньше одного хопа молча отвечает вместо отказа",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if max_hops < 1:\n        raise TierDataNameLeakUnmeasured(",
+      "new": "    if False:\n        raise TierDataNameLeakUnmeasured("
+    },
+    {
+      "name": "M14 глубина по умолчанию возвращена к слепоте ADR-1097",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "DEFAULT_MAX_HOPS: int = 3",
+      "new": "DEFAULT_MAX_HOPS: int = 1"
+    },
+    {
+      "name": "M15 передача УМОЛЧАНИЕМ параметра больше не проходит дорогу (живая находка tier_touch)",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "            verdict, why = _follow(\n                func, {param}, f\"умолчанием в {getattr(func, 'name', '?')!r}\",\n                ctx, max_hops - 1,\n                frozenset({(ctx.key, getattr(func, \"name\", \"?\"), param)}))",
+      "new": "            verdict, why = _verdict_in_scope(\n                func, {param}, f\"умолчанием в {getattr(func, 'name', '?')!r}\")"
+    }
+  ]
+}

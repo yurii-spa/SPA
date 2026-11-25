@@ -118,6 +118,34 @@ CLASS_VERDICT = "reaches_report"
 #: Вердикт третьего исхода (инв. #17).
 UNMEASURED = "unmeasured"
 
+#: Сколько ПЕРЕДАЧ значения мера проходит, прежде чем ответить третьим исходом.
+#: Число есть ЗАМЕР живой поверхности (ADR-1098, цикл #1243), а не вкус: ответ о
+#: всех трёх модулях поверхности УСТАНАВЛИВАЕТСЯ на глубине 2 и не меняется ни на
+#: 3, ни на 4 (сводка дословно одна: `local_only` 1 · `selects_path` 1 ·
+#: `unmeasured` 1), поэтому взят запас ОДИН хоп над точкой установления.
+#: Глубина 1 даёт ТОТ ЖЕ вердикт при ДРУГОЙ причине — «бюджет хопов исчерпан»
+#: вместо названного неразрешимого получателя, — и это и есть честная форма
+#: ответа ADR-1097, который на той же глубине печатал `local_only`, то есть
+#: ИЗМЕРЕННЫЙ ноль, не заглянув в следующего получателя.
+DEFAULT_MAX_HOPS: int = 3
+
+
+@dataclass
+class _Ctx:
+    """Модуль, в котором живёт судимая область: его разбор, ввозы и разрешитель.
+
+    Без него второй хоп судился бы ввозами ПЕРВОГО модуля: помощник чужого
+    модуля, зовущий своего соседа, читался бы как неразрешимый, и настоящий
+    вердикт спрятался бы за третьим исходом — тот же дефект, что первая
+    редакция меры допустила на `open(...)` (ADR-1097, дефект 3).
+    """
+
+    key: str
+    defs: dict
+    imported: dict
+    resolve: Optional[Callable[[str], Optional[str]]] = None
+    cache: Optional[dict] = None
+
 
 class TierDataNameLeakUnmeasured(Exception):
     """Исходник не разобран ⇒ поток НЕ ИЗМЕРЕН (это не «чисто»)."""
@@ -555,13 +583,24 @@ def data_name_flows(
     *,
     resolve: Optional[Callable[[str], Optional[str]]] = None,
     token: str = MODULE_TOKEN,
+    max_hops: int = DEFAULT_MAX_HOPS,
 ) -> tuple[Flow, ...]:
     """Судьба КАЖДОГО имени-данные в исходнике. Третий исход поднимается сам.
 
-    `resolve(name)` отдаёт исходник чужого модуля по имени ввоза — один хоп. Он
+    `resolve(name)` отдаёт исходник чужого модуля по имени ввоза. Он
     отсутствует либо вернул `None` ⇒ вердикт `unmeasured` с названной причиной:
     подставить `local_only` значило бы выдать непрочитанное за «не утекает».
+
+    `max_hops` — сколько ПЕРЕДАЧ значения мера проходит. Это ВХОД, а не
+    константа внутри: `max_hops=1` воспроизводит глубину ADR-1097 и показывает,
+    что та печатала `local_only` там, где значение отдано дальше (ADR-1098).
+    Предел ≤ 0 — не «мерить нечего», а отказ: мера, которой не дали ни одного
+    хопа, ответила бы о первом получателе, не заглянув в него.
     """
+    if max_hops < 1:
+        raise TierDataNameLeakUnmeasured(
+            f"бюджет хопов {max_hops} меньше одного — мерить нечем; это НЕ "
+            f"«утечек нет» (инв. #17)")
     try:
         found = mentions(text)
     except TierReportConsumptionUnmeasured as exc:
@@ -573,6 +612,7 @@ def data_name_flows(
     parents = _parents(tree)
     defs = _local_defs(tree)
     imported = _imported_modules(tree)
+    ctx = _Ctx("<self>", defs, imported, resolve, {})
     out: list = []
     for mention in data:
         node = _constant_at(tree, mention.line, token)
@@ -583,8 +623,8 @@ def data_name_flows(
             continue
         binding, owner = _binding_of(node, parents)
         if binding is None and isinstance(owner, ast.Call):
-            out.append(_flow_for_direct_call(mention, owner, node, parents,
-                                             defs, imported, resolve))
+            out.append(_flow_for_direct_call(mention, owner, node, ctx,
+                                             max_hops))
             continue
         if binding is None:
             out.append(Flow(mention.token, mention.line, None, UNMEASURED,
@@ -603,11 +643,13 @@ def data_name_flows(
             verdicts.append(Flow(mention.token, mention.line, binding, verdict,
                                  why, getattr(scope, "name", None), "self"))
             for call in _receivers(scope, local, imported, defs):
-                verdicts.append(_handover(mention, binding, call, local, defs,
-                                          imported, resolve))
+                verdicts.append(_handover(mention, binding, call, local, ctx,
+                                          max_hops))
         for func, param in _default_crossings(tree, module_names):
-            verdict, why = _verdict_in_scope(
-                func, {param}, f"умолчанием в {getattr(func, 'name', '?')!r}")
+            verdict, why = _follow(
+                func, {param}, f"умолчанием в {getattr(func, 'name', '?')!r}",
+                ctx, max_hops - 1,
+                frozenset({(ctx.key, getattr(func, "name", "?"), param)}))
             verdicts.append(Flow(mention.token, mention.line, binding, verdict,
                                  why, getattr(func, "name", None),
                                  "local:default"))
@@ -635,35 +677,113 @@ def _imported_modules(tree: ast.AST) -> dict:
     return out
 
 
-def _resolve_callee(call: ast.Call, defs: dict, imported: dict,
+def _ctx_for_source(key: str, source: str,
                     resolve: Optional[Callable[[str], Optional[str]]],
-                    ) -> tuple[Optional[ast.AST], Optional[dict], str]:
-    """Получатель зова: тело функции, карта родителей и ГДЕ он измерен."""
+                    cache: dict) -> "_Ctx":
+    """Контекст чужого модуля: его разбор, его ввозы, тот же разрешитель."""
+    tree = _parse(source)
+    return _Ctx(key, _local_defs(tree), _imported_modules(tree), resolve, cache)
+
+
+def _resolve_callee(call: ast.Call, ctx: "_Ctx",
+                    ) -> tuple[Optional[ast.AST], Optional["_Ctx"], str]:
+    """Получатель зова: тело функции, КОНТЕКСТ его модуля и ГДЕ он измерен.
+
+    Контекст возвращается вместе с телом не для удобства: следующий хоп обязан
+    спрашивать ввозы ТОГО модуля, в котором лежит получатель. Разбор чужого
+    модуля кэшируется по имени — иначе глубина перечитывала бы один и тот же
+    исходник на каждой ветке дороги.
+    """
     name = _call_name(call)
-    if name in defs:
-        return defs[name], None, "local"
-    module = imported.get(name)
+    if name in ctx.defs:
+        return ctx.defs[name], ctx, "local"
+    module = ctx.imported.get(name)
     if module is None and isinstance(call.func, ast.Attribute):
         base = call.func.value
         if isinstance(base, ast.Name):
-            module = imported.get(base.id)
-    if module is None or resolve is None:
+            module = ctx.imported.get(base.id)
+    if module is None or ctx.resolve is None:
         return None, None, "unresolved"
-    source = resolve(module)
-    if not source:
+    cache = ctx.cache if ctx.cache is not None else {}
+    if module in cache:
+        sub = cache[module]
+    else:
+        source = ctx.resolve(module)
+        sub = None
+        if source:
+            try:
+                sub = _ctx_for_source(f"import:{module}", source,
+                                      ctx.resolve, cache)
+            except TierDataNameLeakUnmeasured:
+                sub = None
+        cache[module] = sub
+    if sub is None:
         return None, None, "unresolved"
-    try:
-        tree = _parse(source)
-    except TierDataNameLeakUnmeasured:
-        return None, None, "unresolved"
-    func = _local_defs(tree).get(name)
+    func = sub.defs.get(name)
     if func is None:
         return None, None, "unresolved"
-    return func, _parents(tree), f"import:{module}"
+    return func, sub, f"import:{module}"
 
 
-def _flow_for_direct_call(mention, call, node, parents, defs, imported,
-                          resolve) -> Flow:
+def _follow(scope: ast.AST, names: set, where: str, ctx: "_Ctx",
+            hops_left: int, visited: frozenset) -> tuple[str, str]:
+    """Что область делает со значением — И КУДА отдаёт его ДАЛЬШЕ.
+
+    ADR-1097 судил тело получателя ОДНИМ вопросом «собрана ли здесь дорога к
+    отчёту», и когда ответом было «нет», печатал `local_only` — то есть
+    ИЗМЕРЕННЫЙ ноль. Замер 25.11 (ADR-1098) показал цену: `tier_touch
+    .tier_touches` отдаёт свой параметр `modules` ТРЕТЬЕМУ помощнику
+    `_module_matches`, и прежняя мера объявила «не утекает», в этого помощника
+    не заглянув. Ответ совпал с правдой СЛУЧАЙНО.
+
+    Поэтому `local_only` теперь означает РОВНО «ни дороги, ни двери, и значение
+    НИКОМУ не отдано», и это проверено обходом. Отдано дальше, а бюджет хопов
+    исчерпан либо получатель неразрешим ⇒ третий исход с названной причиной
+    (инв. #17), а не тишина.
+    """
+    verdict, why = _verdict_in_scope(scope, names, where)
+    if verdict != "local_only":
+        return verdict, why
+    local = _closure(scope, names)
+    onward = _receivers(scope, local, ctx.imported, ctx.defs)
+    if not onward:
+        return verdict, (f"{why}; и значение НИКОМУ не отдано дальше — "
+                         f"ИЗМЕРЕННЫЙ ноль, проверенный обходом")
+    told = ", ".join(sorted({_call_name(c) or "<?>" for c in onward}))
+    if hops_left <= 0:
+        return (UNMEASURED,
+                f"{where}: значение отдано ДАЛЬШЕ ({told}) — бюджет хопов "
+                f"исчерпан, НЕ ИЗМЕРЕНО (прежняя редакция печатала здесь "
+                f"`local_only`, ничего не измерив)")
+    results: list = []
+    for call in onward:
+        func, sub, _hop = _resolve_callee(call, ctx)
+        who = _call_name(call) or "<?>"
+        if func is None or sub is None:
+            results.append((UNMEASURED,
+                            f"{where} → {who}: получатель следующего хопа НЕ "
+                            f"РАЗРЕШЁН — НЕ ИЗМЕРЕНО"))
+            continue
+        param = _param_for(func, call, local)
+        if param is None:
+            results.append((UNMEASURED,
+                            f"{where} → {who}: параметр получателя, принявший "
+                            f"значение, НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО"))
+            continue
+        step = (sub.key, getattr(func, "name", "?"), param)
+        if step in visited:
+            results.append((UNMEASURED,
+                            f"{where} → {who}: ЦИКЛ передач — этот получатель "
+                            f"уже судился на этой дороге, НЕ ИЗМЕРЕНО"))
+            continue
+        results.append(_follow(func, {param}, f"{where} → {who}", sub,
+                               hops_left - 1, visited | {step}))
+    results.sort(key=lambda r: VERDICT_ORDER.index(r[0]))
+    return results[0]
+
+
+def _flow_for_direct_call(mention, call, node, ctx: "_Ctx",
+                          max_hops: int) -> Flow:
     """Контейнер стои́т АРГУМЕНТОМ зова прямо на месте — получатель один.
 
     Привязки у такого вхождения нет: литерал передан на месте
@@ -675,36 +795,46 @@ def _flow_for_direct_call(mention, call, node, parents, defs, imported,
     Нашёл её `pyflakes`, а не тест: дыра покрытия названа и закрыта сценой
     `ADirectCallArgument`.
     """
-    func, foreign, hop = _resolve_callee(call, defs, imported, resolve)
+    func, sub, hop = _resolve_callee(call, ctx)
     receiver = _call_name(call) or None
-    if func is None:
+    if func is None or sub is None:
         return Flow(mention.token, mention.line, None, UNMEASURED,
-                    f"получатель {receiver!r} НЕ РАЗРЕШЁН (один хоп) — "
+                    f"получатель {receiver!r} НЕ РАЗРЕШЁН (первый хоп) — "
                     f"НЕ ИЗМЕРЕНО", receiver, hop)
     param = _param_by_identity(func, call, node) or "<аргумент>"
-    verdict, why = _verdict_in_scope(func, {param}, f"получатель {receiver!r}")
+    verdict, why = _follow(func, {param}, f"получатель {receiver!r}", sub,
+                           max_hops - 1,
+                           frozenset({(sub.key, getattr(func, "name", "?"),
+                                       param)}))
     return Flow(mention.token, mention.line, None, verdict, why, receiver, hop)
 
 
-def _handover(mention, binding, call, names, defs, imported, resolve) -> Flow:
-    """Передача значения помощнику: разрешить его и судить ЕГО тело.
+def _handover(mention, binding, call, names, ctx: "_Ctx",
+              max_hops: int) -> Flow:
+    """Передача значения помощнику: разрешить его и судить ЕГО тело — И ДАЛЬШЕ.
 
     Неразрешимый помощник — третий исход с названной причиной, а не «не
-    утекает»: исходника у него нет, и выдумать его поведение нечем.
+    утекает»: исходника у него нет, и выдумать его поведение нечем. Тело,
+    отдающее значение ТРЕТЬЕМУ, судится по той же дороге до предела
+    `max_hops`, а исчерпанный предел тоже есть третий исход (ADR-1098).
     """
-    func, _foreign, hop = _resolve_callee(call, defs, imported, resolve)
+    func, sub, hop = _resolve_callee(call, ctx)
     receiver = _call_name(call) or None
-    if func is None:
+    if func is None or sub is None:
         return Flow(mention.token, mention.line, binding, UNMEASURED,
-                    f"получатель {receiver!r} НЕ РАЗРЕШЁН (один хоп) — "
+                    f"получатель {receiver!r} НЕ РАЗРЕШЁН (первый хоп) — "
                     f"НЕ ИЗМЕРЕНО", receiver, hop)
     param = _param_for(func, call, names)
     if param is None:
         return Flow(mention.token, mention.line, binding, UNMEASURED,
                     f"параметр получателя {receiver!r}, принявший значение, "
                     f"НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО", receiver, hop)
-    verdict, why = _verdict_in_scope(func, {param}, f"получатель {receiver!r}")
-    return Flow(mention.token, mention.line, binding, verdict, why, receiver, hop)
+    verdict, why = _follow(func, {param}, f"получатель {receiver!r}", sub,
+                           max_hops - 1,
+                           frozenset({(sub.key, getattr(func, "name", "?"),
+                                       param)}))
+    return Flow(mention.token, mention.line, binding, verdict, why, receiver,
+                hop)
 
 
 #: Порядок строгости: класс ВЫШЕ контекста, контекст выше ближнего промаха, а
@@ -714,8 +844,16 @@ VERDICT_ORDER: tuple = (CLASS_VERDICT, "reaches_fs", UNMEASURED,
 
 
 def _worst_of(verdicts: list) -> Flow:
-    """Худший исход, и СВОДКА всех — чтобы измеренное не прятал неизмеренное."""
-    ordered = sorted(verdicts, key=lambda f: VERDICT_ORDER.index(f.verdict))
+    """Худший исход, и СВОДКА всех — чтобы измеренное не прятал неизмеренное.
+
+    При РАВНОМ вердикте вперёд ставится наблюдение, прошедшее ПО ДОРОГЕ
+    (передача помощнику), а не наблюдение своей области. Причина не косметика:
+    `local_only` значит «и значение НИКОМУ не отдано», и это утверждение имеет
+    право делать только тот, кто дорогу прошёл. Своя область о передаче не
+    знает — её ответ был бы верным про себя и немым про класс (ADR-1098).
+    """
+    ordered = sorted(verdicts, key=lambda f: (VERDICT_ORDER.index(f.verdict),
+                                              0 if f.hop != "self" else 1))
     tally: dict = {}
     for flow in ordered:
         tally[flow.verdict] = tally.get(flow.verdict, 0) + 1

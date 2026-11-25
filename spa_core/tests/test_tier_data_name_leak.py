@@ -377,3 +377,276 @@ class ADirectCallArgument(unittest.TestCase):
                 '    return eat(("tier_curator",))\n')
         self.assertEqual(leak.data_name_flows(text, resolve=None)[0].verdict,
                          leak.UNMEASURED)
+
+
+#: Сцена ДВУХ передач: помощник отдаёт полученное ТРЕТЬЕМУ, и только тот
+#: что-то с ним делает. Прежняя мера (ADR-1097) судила РОВНО первого
+#: получателя и на эту сцену отвечала `local_only` — ИЗМЕРЕННЫЙ ноль.
+_TWO_HOP = '''
+NAMES = ("tier_curator", "other")
+
+
+def _deep(bag):
+{deep}
+
+
+def _helper(items):
+    return _deep(items)
+
+
+def run():
+    return _helper(NAMES)
+'''
+
+#: Та же сцена, но передач ТРИ — чтобы «мера видит два хопа» не прошло за
+#: «мера идёт до конца дороги»: предел объявлен входом и обязан быть виден.
+_THREE_HOP = '''
+NAMES = ("tier_curator", "other")
+
+
+def _deeper(sack):
+{deeper}
+
+
+def _deep(bag):
+    return _deeper(bag)
+
+
+def _helper(items):
+    return _deep(items)
+
+
+def run():
+    return _helper(NAMES)
+'''
+
+_LEAKS = ('    for it in bag:\n'
+          '        open("data/" + it + "_report.json").read()\n')
+_LEAKS_DEEPER = ('    for it in sack:\n'
+                 '        open("data/" + it + "_report.json").read()\n')
+
+
+class ValueHandedFurtherThanOneHop(unittest.TestCase):
+    """Предмет ADR-1098: ADR-1097 печатал `local_only`, не заглянув дальше.
+
+    Замер 25.11 на живом дереве: `tier_touch.tier_touches` отдаёт свой параметр
+    `modules` ТРЕТЬЕМУ помощнику (`_module_matches`) и конструктору `Touch`, а
+    прежняя мера объявила про него «не утекает» (3 наблюдения `local_only`).
+    Ответ совпал с правдой СЛУЧАЙНО: в получателя никто не смотрел.
+
+    Контроль здесь двусторонний И ДИФФЕРЕНЦИАЛЬНЫЙ: одна и та же сцена при
+    `max_hops=1` обязана дать ТРЕТИЙ ИСХОД (честная форма прежнего ответа), а
+    при глубине по умолчанию — НАЙТИ члена класса.
+    """
+
+    def test_a_leak_two_hops_away_is_a_member(self):
+        text = _TWO_HOP.format(deep=_LEAKS)
+        self.assertEqual(verdict(text), leak.CLASS_VERDICT)
+
+    def test_the_SAME_scene_at_one_hop_is_unmeasured_NOT_local_only(self):
+        text = _TWO_HOP.format(deep=_LEAKS)
+        flow = leak.data_name_flows(text, max_hops=1)[0]
+        self.assertEqual(
+            flow.verdict, leak.UNMEASURED,
+            "глубина ADR-1097 обязана ПРИЗНАТЬ, что дальше не смотрела: "
+            "`local_only` здесь был бы ИЗМЕРЕННЫМ нулём, которого никто не "
+            f"мерил — получено {flow.verdict!r}: {flow.why}")
+        self.assertIn("отдано ДАЛЬШЕ", flow.why)
+
+    def test_a_harmless_second_hop_is_a_measured_zero(self):
+        text = _TWO_HOP.format(deep='    return sorted(bag)\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only")
+        self.assertIn(
+            "НИКОМУ не отдано", flow.why,
+            "ИЗМЕРЕННЫЙ ноль обязан сказать, ЧТО именно измерено: отсутствие "
+            "следующей передачи проверено обходом, а не предположено")
+
+    def test_the_value_RENAMED_inside_the_receiver_is_still_followed(self):
+        """Второй хоп обязан спрашивать ЗАМЫКАНИЕ тела, а не имя параметра.
+
+        Спроси он имя параметра — переупаковка `rows = list(bag)` оборвала бы
+        дорогу, и мера ответила бы `local_only`: дефект 1 первой редакции
+        (ADR-1097), только на хоп дальше.
+        """
+        text = _TWO_HOP.format(deep='    rows = list(bag)\n'
+                                    '    return _deeper(rows)\n') + (
+            '\n\ndef _deeper(sack):\n'
+            '    for it in sack:\n'
+            '        open("data/" + it + "_report.json").read()\n')
+        self.assertEqual(verdict(text), leak.CLASS_VERDICT)
+
+    def test_the_third_outcome_NAMES_the_receiver_it_did_not_enter(self):
+        text = _TWO_HOP.format(deep=_LEAKS)
+        flow = leak.data_name_flows(text, max_hops=1)[0]
+        self.assertIn(
+            "_deep", flow.why,
+            "«не измерено» без имени получателя нечем ни проверить, ни "
+            f"довести до конца: {flow.why}")
+
+    def test_a_leak_three_hops_away_is_a_member_at_the_default_depth(self):
+        text = _THREE_HOP.format(deeper=_LEAKS_DEEPER)
+        self.assertEqual(verdict(text), leak.CLASS_VERDICT)
+
+    def test_the_SAME_scene_at_two_hops_is_unmeasured(self):
+        text = _THREE_HOP.format(deeper=_LEAKS_DEEPER)
+        flow = leak.data_name_flows(text, max_hops=2)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         "предел — ВХОД, и исчерпан он или нет, обязано быть "
+                         f"видно: {flow.why}")
+
+    def test_a_parameter_DEFAULT_also_walks_the_road_further(self):
+        """Живая находка 25.11 пришла ИМЕННО этой дорогой.
+
+        `tier_touch.TIER_CANON_MODULES` входит в чужое тело УМОЛЧАНИЕМ
+        параметра, и это тело отдаёт полученное дальше. Суди умолчание одним
+        вопросом «что делает ЭТО тело» — и класс снова прячется за словом
+        `local_only`.
+        """
+        text = ('MODS = ("tier_curator", "other")\n'
+                'def _deep(bag):\n'
+                '    for it in bag:\n'
+                '        open("data/" + it + "_report.json").read()\n'
+                'def eat(x, mods=MODS):\n'
+                '    return _deep(mods)\n')
+        self.assertEqual(verdict(text), leak.CLASS_VERDICT)
+
+    def test_the_depth_is_a_named_measurement_not_a_taste(self):
+        self.assertGreaterEqual(
+            leak.DEFAULT_MAX_HOPS, 2,
+            "глубина 1 воспроизводит слепоту ADR-1097 — ответ о живой "
+            "поверхности устанавливается на глубине 2")
+
+    def test_a_budget_below_one_hop_refuses_instead_of_answering_clean(self):
+        text = _TWO_HOP.format(deep=_LEAKS)
+        with self.assertRaises(leak.TierDataNameLeakUnmeasured):
+            leak.data_name_flows(text, max_hops=0)
+
+
+class TheNextHopIsJudgedByITSOwnModule(unittest.TestCase):
+    """Второй хоп обязан спрашивать ввозы ТОГО модуля, где лежит получатель.
+
+    Спроси он ввозы ПЕРВОГО модуля — помощник чужого модуля, зовущий своего
+    соседа, читался бы как неразрешимый, и утечка спряталась бы за третьим
+    исходом. Это дословно дефект 3 первой редакции меры (ADR-1097), только на
+    хоп дальше.
+    """
+
+    _MAIN = ('from helpers import eat\n'
+             'NAMES = ("tier_curator", "other")\n'
+             'def run():\n'
+             '    return eat(NAMES)\n')
+    _HELPERS = ('from deeper import dig\n'
+                'def eat(items):\n'
+                '    return dig(items)\n')
+
+    def test_a_leak_behind_TWO_imports_is_a_member(self):
+        deeper = ('def dig(bag):\n'
+                  '    for it in bag:\n'
+                  '        open("data/" + it + "_report.json").read()\n')
+        got = verdict(self._MAIN, resolve=_resolver(helpers=self._HELPERS,
+                                                    deeper=deeper))
+        self.assertEqual(got, leak.CLASS_VERDICT)
+
+    def test_the_same_road_with_a_harmless_end_is_a_measured_zero(self):
+        deeper = 'def dig(bag):\n    return sorted(bag)\n'
+        got = verdict(self._MAIN, resolve=_resolver(helpers=self._HELPERS,
+                                                    deeper=deeper))
+        self.assertEqual(got, "local_only")
+
+    def test_the_THIRD_hop_needs_the_SECOND_module_imports(self):
+        """Различающая сцена: утечка лежит за ТРЕТЬИМ модулем.
+
+        Дорога из двух модулей М08 не убивает — её последнее звено есть сама
+        дверь, и чьи ввозы спрашивал предыдущий хоп, на вердикт не влияет.
+        Сцена-близнец с ТРЕМЯ модулями отличается от неё РОВНО тем звеном,
+        которое мерит: `sink` разрешается только ввозами `deeper`. Мутация
+        «спрашивать ввозы первого модуля» на первой сцене ВЫЖИЛА и была дырой
+        СЦЕНЫ, а не кода (мутационный прогон #1243, M08).
+        """
+        deeper = ('from deepest import sink\n'
+                  'def dig(bag):\n'
+                  '    return sink(bag)\n')
+        deepest = ('def sink(sack):\n'
+                   '    for it in sack:\n'
+                   '        open("data/" + it + "_report.json").read()\n')
+        got = verdict(self._MAIN, resolve=_resolver(helpers=self._HELPERS,
+                                                    deeper=deeper,
+                                                    deepest=deepest))
+        self.assertEqual(got, leak.CLASS_VERDICT)
+
+    def test_an_unreadable_second_module_is_unmeasured_not_clean(self):
+        flow = leak.data_name_flows(
+            self._MAIN, resolve=_resolver(helpers=self._HELPERS))[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"исходника второго хопа нет — выдумать его поведение "
+                         f"нечем: {flow.why}")
+
+
+class TheRoadStopsWithoutLying(unittest.TestCase):
+    """Дорога, у которой нет конца, обязана СКАЗАТЬ это, а не замкнуться."""
+
+    def test_a_cycle_of_handovers_is_unmeasured_with_a_named_cause(self):
+        text = ('NAMES = ("tier_curator",)\n'
+                'def _a(bag):\n'
+                '    return _b(bag)\n'
+                'def _b(bag):\n'
+                '    return _a(bag)\n'
+                'def run():\n'
+                '    return _a(NAMES)\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED)
+        self.assertIn("ЦИКЛ передач", flow.why)
+
+    def test_an_unresolvable_PARAM_of_the_next_receiver_is_unmeasured(self):
+        """Получатель разрешён, а КАКОЙ его параметр принял значение — нет.
+
+        Третий исход здесь обязан быть своим: мера нашла тело, но не нашла в
+        нём величину, и судить это тело ей нечем. `local_only` был бы
+        ИЗМЕРЕННЫМ нулём про область, которую она не прочла. Мутация M05 прогона
+        #1243 выжила ровно потому, что такой сцены не было.
+        """
+        text = _TWO_HOP.format(deep='    return _third(0, bag)\n') + (
+            '\n\ndef _third(a):\n'
+            '    return a\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED)
+        self.assertIn("параметр получателя", flow.why)
+
+    def test_a_constructor_of_an_unresolvable_class_is_unmeasured(self):
+        """Живая находка 25.11: `Touch(hit, …)` в `tier_touch`.
+
+        Класс телом-функцией не является, разрешать его нечем, и что он делает
+        с полученной величиной — вопрос ДРУГОГО класса (`self.writer.save(x)`,
+        ADR-1097). Назвать это `local_only` значило бы объявить измеренным то,
+        чего мера не видела.
+        """
+        text = _TWO_HOP.format(deep='    return Box(bag)\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED)
+        self.assertIn("НЕ РАЗРЕШЁН", flow.why)
+
+
+class TheLiveThirdOutcomeIsNamed(unittest.TestCase):
+    """«НЕ ИЗМЕРЕНО» на живом дереве обязано быть НАЗВАННЫМ, а не числом.
+
+    ADR-1097 объявил по этой поверхности «НЕ ИЗМЕРЕНО 0». Замер ADR-1098 на
+    той же поверхности той же дверью даёт **1**, и ноль был следствием
+    глубины, а не свойством дерева. Сторож держит не число (оно будет меняться
+    вместе с деревом), а ФОРМУ ответа: у каждого третьего исхода назван и
+    получатель, и причина.
+    """
+
+    def test_every_live_unmeasured_flow_names_its_cause(self):
+        silent = []
+        for rel, src in LiveCensus()._surface():
+            for flow in leak.data_name_flows(src,
+                                             resolve=LiveCensus._resolve):
+                if flow.verdict != leak.UNMEASURED:
+                    continue
+                if not flow.why or "НЕ ИЗМЕРЕНО" not in flow.why:
+                    silent.append(f"{rel}:{flow.line} {flow.why!r}")
+        self.assertEqual(
+            silent, [],
+            "третий исход без названной причины неотличим от «не утекает» "
+            "(инв. #17):\n  " + "\n  ".join(silent))
