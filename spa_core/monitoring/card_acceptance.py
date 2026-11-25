@@ -854,7 +854,9 @@ def _probe_lead_channel_wiring(arg: str | None) -> tuple[str, str]:
 ADAPTER_STATUS_MAX_AGE_H = 24.0
 
 
-def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
+def _probe_adapter_status_live_apy(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None) -> tuple[str, str]:
     """Критерий: у ключа `arg` в `data/adapter_status.json` есть ЖИВОЕ APY.
 
     Разбор именно артефакта, а не адаптера: карточки этого класса спрашивают «доехал ли
@@ -874,8 +876,17 @@ def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = 
     """
     if not arg:
         return UNMEASURED, "пробе нужен ключ адаптера (acceptance_probe: adapter_status_live_apy:<key>)"
-    path = os.path.join(REPO_ROOT, "data", "adapter_status.json")
-    rel = os.path.relpath(path, REPO_ROOT)
+    #: Каталог — ВХОД (`data_dir`), как и часы: иначе проба отвечает о дереве
+    #: МОДУЛЯ под заголовком про дерево, которое назвал читатель (ADR-1107).
+    #: Умолчание не меняется ни одним вызовом — своё дерево, как и прежде.
+    root = data_dir or os.path.join(REPO_ROOT, "data")
+    path = os.path.join(root, "adapter_status.json")
+    try:
+        rel = os.path.relpath(path, REPO_ROOT)
+    except (OSError, ValueError):
+        rel = path
+    if rel.startswith(os.pardir):
+        rel = path
     try:
         with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
@@ -19084,7 +19095,94 @@ def _probe_findings_bridge_has_a_live_writer(arg: str | None, now=None) -> tuple
                            f"находкам шага 0-офис не заводит никто")
 
 
-def _probe_apy_name_carries_one_kind(arg: str | None, now=None) -> tuple[str, str]:
+def _apy_census_section(
+        section: str, *, now: "datetime | None" = None,
+        data_dir: str | None = None) -> "tuple[str | None, object]":
+    """Секция `section` из `analytics_summary.json` НАЗВАННОГО дерева чисел.
+
+    Возврат — `(None, секция)`, когда судить есть о чём, и `(UNMEASURED, причина)`,
+    когда нечем. Вердикта «не выполнен» отсюда не выходит НИ ОДНОГО: все исходы
+    здесь про то, ЕСТЬ ли предмет, а не каков он — смешать «критерий не выполнен»
+    с «мерить было нечем» значило бы изготовить находку из неизмеренного.
+
+    **Каталог — ВХОД (`data_dir`), ровно по той же причине, по которой входом
+    сделаны часы.** Иначе проба отвечает о дереве МОДУЛЯ под заголовком про
+    дерево, которое назвал читатель, — та самая «половина инъекции»
+    (`.claude/rules/deployment.md`). Замер 2026-11-25 (цикл #1252, ADR-1107):
+    обязательный шаг 0-офис обязан ходить из ОДНОРАЗОВОГО worktree (§ «БАЙТЫ,
+    КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ», п. 1) и передаёт прод-каталог `--data-dir`; три
+    пробы `analytics_summary.json` этого входа не объявляли, читали ЗАМОРОЖЕННУЮ
+    в git копию возрастом 3787.8 ч и отвечали `unmeasured` — при живом артефакте
+    14.2 ч (предел 24 ч) в НАЗВАННОМ каталоге, со всеми тремя секциями на месте.
+    Критерий §5 голодающего приказа владельца «Portfolio CIO» был поэтому
+    структурно неизмерим ни одним циклом, соблюдающим правила: «долгий прогон не
+    живёт в дереве доставки» и «протухло ⇒ unmeasured» верны ПОРОЗНЬ, а вместе
+    давали вечное молчание — условие отсрочки держалось самим молчанием.
+
+    **Дверь ОДНА на три пробы.** Прежде этот пролог лежал тремя дословными
+    копиями, и доставить вход в одну, забыв две, означало бы оставить второй
+    сайт того же дефекта (`.claude/rules/deployment.md`, урок ADR-1074).
+    Останавливается дверь сразу за `status == "ERROR"`: дальше пробы расходятся
+    по существу (одна судит `verdict == "UNMEASURED"` сама по себе, две — только
+    вместе с пустыми `opportunities`), и затащить это различие внутрь значило бы
+    поменять вердикты под видом переноса.
+
+    Прочитанное дерево НАЗЫВАЕТСЯ в пояснении, когда оно чужое: молча подставить
+    своё хуже ошибки — читатель не узнает, о чьих числах ему ответили
+    (§ поправка #1031 того же правила).
+    """
+    root = data_dir or os.path.join(REPO_ROOT, "data")
+    path = os.path.join(root, "analytics_summary.json")
+    try:
+        rel = os.path.relpath(path, REPO_ROOT)
+    except (OSError, ValueError):
+        rel = path
+    if rel.startswith(os.pardir):
+        rel = path
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > APY_CENSUS_MAX_AGE_H:
+        return UNMEASURED, (
+            f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — прочитано дерево чисел "
+            f"{os.path.abspath(root)}; живой каталог НАЗЫВАЕТСЯ входом "
+            f"`--data-dir`, а не переходом сессии в прод-дерево")
+
+    sections = doc.get("sections")
+    if not isinstance(sections, dict):
+        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
+    sec = sections.get(section)
+    if sec is None:
+        return UNMEASURED, (f"цикл ещё не производил секцию {section} в {rel} "
+                            "— доставка кода и его работа в проде суть два события")
+    if not isinstance(sec, dict):
+        return UNMEASURED, (f"секция {section} в {rel} не разобрана "
+                            f"({type(sec).__name__})")
+    if sec.get("status") == "ERROR":
+        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    return None, sec
+
+
+def _probe_apy_name_carries_one_kind(arg: str | None, now=None,
+                                    data_dir: str | None = None) -> tuple[str, str]:
     """Критерий §5 приказа владельца «Portfolio CIO»: у каждого числа, названного
     «APY», ОБЪЯВЛЕН род — и это проверил ЖИВОЙ ЦИКЛ, а не тест.
 
@@ -19108,45 +19206,9 @@ def _probe_apy_name_carries_one_kind(arg: str | None, now=None) -> tuple[str, st
 
     Время — вход (`now`), а не окружение.
     """
-    path = os.path.join(REPO_ROOT, "data", "analytics_summary.json")
-    rel = os.path.relpath(path, REPO_ROOT)
-    try:
-        with open(path, encoding="utf-8") as fh:
-            doc = json.load(fh)
-    except FileNotFoundError:
-        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
-    except (OSError, ValueError) as exc:
-        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
-        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
-
-    stamp = doc.get("generated_at")
-    if not stamp:
-        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
-    try:
-        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
-    except ValueError:
-        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
-        made = made.replace(tzinfo=timezone.utc)
-    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > APY_CENSUS_MAX_AGE_H:
-        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
-                            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — мерить надо из дерева "
-                            "с живым data/")
-
-    sections = doc.get("sections")
-    if not isinstance(sections, dict):
-        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
-    sec = sections.get("apy_name_census")
-    if sec is None:
-        return UNMEASURED, (f"цикл ещё не производил секцию apy_name_census в {rel} "
-                            "— доставка кода и его работа в проде суть два события")
-    if not isinstance(sec, dict):
-        return UNMEASURED, (f"секция apy_name_census в {rel} не разобрана "
-                            f"({type(sec).__name__})")
-    if sec.get("status") == "ERROR":
-        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    verdict, sec = _apy_census_section("apy_name_census", now=now, data_dir=data_dir)
+    if verdict is not None:
+        return verdict, str(sec)
     if sec.get("verdict") == "UNMEASURED":
         return UNMEASURED, ("перепись сама доложила НЕ ИЗМЕРЕНО: "
                             + "; ".join(sec.get("unmeasured") or ["причина не названа"]))
@@ -19314,7 +19376,9 @@ def _probe_release_stage_is_declared_and_matches_behaviour(
                        f"({rf['by_field']})")
 
 
-def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tuple[str, str]:
+def _probe_conservative_expected_apy_published(
+        arg: str | None, now=None,
+        data_dir: str | None = None) -> tuple[str, str]:
     """Критерий §10/§11 приказа владельца «Portfolio CIO»: ЖИВОЙ ЦИКЛ печатает
     Conservative Expected APY, и у каждого непроизведённого числа НАЗВАНА причина.
 
@@ -19344,46 +19408,10 @@ def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tup
 
     Время — вход (`now`), а не окружение.
     """
-    path = os.path.join(REPO_ROOT, "data", "analytics_summary.json")
-    rel = os.path.relpath(path, REPO_ROOT)
-    try:
-        with open(path, encoding="utf-8") as fh:
-            doc = json.load(fh)
-    except FileNotFoundError:
-        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
-    except (OSError, ValueError) as exc:
-        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
-        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
-
-    stamp = doc.get("generated_at")
-    if not stamp:
-        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
-    try:
-        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
-    except ValueError:
-        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
-        made = made.replace(tzinfo=timezone.utc)
-    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > APY_CENSUS_MAX_AGE_H:
-        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
-                            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — мерить надо из дерева "
-                            "с живым data/")
-
-    sections = doc.get("sections")
-    if not isinstance(sections, dict):
-        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
-    sec = sections.get("conservative_expected_apy")
-    if sec is None:
-        return UNMEASURED, (f"цикл ещё не производил секцию conservative_expected_apy "
-                            f"в {rel} — доставка кода и его работа в проде суть "
-                            "два события")
-    if not isinstance(sec, dict):
-        return UNMEASURED, (f"секция conservative_expected_apy в {rel} не разобрана "
-                            f"({type(sec).__name__})")
-    if sec.get("status") == "ERROR":
-        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    verdict, sec = _apy_census_section("conservative_expected_apy", now=now,
+                                      data_dir=data_dir)
+    if verdict is not None:
+        return verdict, str(sec)
     if sec.get("verdict") == "UNMEASURED" and not sec.get("opportunities"):
         return UNMEASURED, ("секция сама доложила НЕ ИЗМЕРЕНО: "
                             + "; ".join(sec.get("unmeasured") or ["причина не названа"]))
@@ -19432,7 +19460,8 @@ def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tup
                        f"{sec.get('haircut_from_blind_axes_pp')} пп")
 
 
-def _probe_marginal_apy_ladder_published(arg: str | None, now=None) -> tuple[str, str]:
+def _probe_marginal_apy_ladder_published(arg: str | None, now=None,
+                                         data_dir: str | None = None) -> tuple[str, str]:
     """Критерий §12 приказа владельца «Portfolio CIO»: ЖИВОЙ ЦИКЛ печатает
     ставку НА ЛЕСТНИЦЕ своего размера, и СЕМЬ осей §12 названы поимённо.
 
@@ -19465,46 +19494,10 @@ def _probe_marginal_apy_ladder_published(arg: str | None, now=None) -> tuple[str
 
     Время — вход (`now`), а не окружение.
     """
-    path = os.path.join(REPO_ROOT, "data", "analytics_summary.json")
-    rel = os.path.relpath(path, REPO_ROOT)
-    try:
-        with open(path, encoding="utf-8") as fh:
-            doc = json.load(fh)
-    except FileNotFoundError:
-        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
-    except (OSError, ValueError) as exc:
-        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
-        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
-
-    stamp = doc.get("generated_at")
-    if not stamp:
-        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
-    try:
-        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
-    except ValueError:
-        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
-        made = made.replace(tzinfo=timezone.utc)
-    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > APY_CENSUS_MAX_AGE_H:
-        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
-                            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — мерить надо из дерева "
-                            "с живым data/")
-
-    sections = doc.get("sections")
-    if not isinstance(sections, dict):
-        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
-    sec = sections.get("marginal_apy_ladder")
-    if sec is None:
-        return UNMEASURED, (f"цикл ещё не производил секцию marginal_apy_ladder "
-                            f"в {rel} — доставка кода и его работа в проде суть "
-                            "два события")
-    if not isinstance(sec, dict):
-        return UNMEASURED, (f"секция marginal_apy_ladder в {rel} не разобрана "
-                            f"({type(sec).__name__})")
-    if sec.get("status") == "ERROR":
-        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    verdict, sec = _apy_census_section("marginal_apy_ladder", now=now,
+                                      data_dir=data_dir)
+    if verdict is not None:
+        return verdict, str(sec)
     if sec.get("verdict") == "UNMEASURED" and not sec.get("opportunities"):
         return UNMEASURED, ("секция сама доложила НЕ ИЗМЕРЕНО: "
                             + "; ".join(sec.get("unmeasured") or ["причина не названа"]))
@@ -23594,7 +23587,24 @@ def report_lines(result: dict) -> list[str]:
                            f"{r['card']}{where_from}{_caveat} — {r['detail']}. "
                            f"Перемерить и закрыть, а не делать заново")
         elif r["verdict"] == UNMEASURED:
-            out.append(f"   [НЕ ИЗМЕРЕНО] {r['card']}{where_from}: {r['detail']}")
+            # ТА ЖЕ оговорка, что и у находки выше, и ветка здесь важнее
+            # (ADR-1107). «Не измерено» с пояснением, винящим ДЕРЕВО, читается
+            # как «сегодня мерить нечем» — а значит это ровно обратное: вход,
+            # который вызывающий НАЗВАЛ, до пробы не дошёл. Замер 2026-11-25
+            # (цикл #1252): строка критерия §5 голодающего приказа «Portfolio
+            # CIO» советовала «мерить из дерева с живым data/» при уже
+            # названном `--data-dir` прод-дерева — то есть приглашала к
+            # ЕДИНСТВЕННОМУ действию, которое запрещено
+            # (`.claude/rules/deployment.md`, § «БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ
+            # КОДОМ», п. 1), и всё равно не было причиной. Причина у строки
+            # ЛЕЖАЛА и была верна — её просто никто не печатал: раздел
+            # докладывал одно ЧИСЛО («НЕ ИЗМЕРЕНО 16»), а какие это 16, не
+            # говорил нигде. Счётчик — не имя.
+            _rt = r.get("row_trees") or {}
+            _caveat = ("" if _rt.get("state") == ROW_SAME
+                       else f" [дерево ЧИСЕЛ НЕ ИЗМЕРЕНО: {_rt.get('reason')}]")
+            out.append(f"   [НЕ ИЗМЕРЕНО] {r['card']}{where_from}{_caveat}: "
+                       f"{r['detail']}")
     return out
 
 

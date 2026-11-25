@@ -17,19 +17,23 @@
 носителей ДВА в ОДНОЙ строке, поэтому вопрос другой: не «о чьём дереве вердикт»,
 а «из скольких деревьев он собран».
 
-Время и личность процесса здесь не предмет — литеральных дат и pid в файле нет.
-Только stdlib.
+Личность процесса здесь не предмет — литеральных pid в файле нет. Литеральная
+ДАТА с ADR-1107 есть ОДНА — якорь `_A1107`, и она объявлена пометкой у своего
+раздела: обе стороны сравнения от якоря ПРОИСХОДЯТ, сам якорь уезжает в пробу
+аргументом `now=`. Только stdlib.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
 
 import ast
 import json
+import datetime as _dt
 import os
 import pathlib
 import tempfile
 import shutil
 import unittest
+import unittest.mock
 
 from spa_core.monitoring import card_acceptance as ca
 
@@ -223,9 +227,27 @@ class ThirdOutcomesAreDistinguishable(unittest.TestCase):
         self.assertIn("НЕ «деревья совпали»", lines[0])
 
     def test_the_numbers_tree_of_a_probe_without_the_door(self):
-        # `adapter_status_live_apy` дверь `data_dir` не объявляет — замер #1227.
-        nt = ca.probe_numbers_tree("adapter_status_live_apy", data_dir="/tmp/d")
-        self.assertEqual(nt["state"], ca.NUMBERS_UNMEASURED)
+        # ОБРАЗЕЦ БЕРЁТСЯ ЗАМЕРОМ РЕЕСТРА, а не вписывается именем.
+        # Прежняя редакция называла `adapter_status_live_apy` (замер #1227) — и
+        # ADR-1107 дал этой пробе дверь, после чего тест покраснел НЕ на своём
+        # предмете: вопрос «беcдверная проба ⇒ третий исход» остался верен, а
+        # устарел ОБРАЗЕЦ. Поправить образец именем следующей жертвы значило бы
+        # подписаться на то же падение в третий раз, поэтому он измеряется.
+        #
+        # Класс ОПУСТЕЛ ⇒ падать ГРОМКО, а не скипать: «не измерено»,
+        # выданное за «прошло», — ровно тот fail-OPEN, против которого написан
+        # § «ЛИЧНОСТЬ ПРОЦЕССА» в `.claude/rules/deployment.md`.
+        doorless = sorted(n for n in ca.PROBES
+                          if "data_dir" not in ca.probe_tree_inputs(n))
+        self.assertTrue(
+            doorless,
+            "в реестре НЕ ОСТАЛОСЬ проб без двери `data_dir` — у этого теста "
+            "больше нет предмета. Это не повод его чинить: снять его вместе с "
+            "записью в журнал, иначе зелёный вердикт перестанет что-либо "
+            "значить")
+        nt = ca.probe_numbers_tree(doorless[0], data_dir="/tmp/d")
+        self.assertEqual(nt["state"], ca.NUMBERS_UNMEASURED,
+                         f"образец {doorless[0]!r}")
         self.assertTrue(nt["reason"])
 
     def test_the_numbers_tree_of_a_probe_with_the_door(self):
@@ -402,6 +424,186 @@ class TheProbeIsRegisteredWithControlsBothWays(unittest.TestCase):
         self.assertEqual(verdict, ca.NOT_SATISFIED, detail)
         self.assertIn("data_dir", detail)
         self.assertIs(ca.audit, real, "подмена двери пережила сцену")
+
+
+# ---------------------------------------------------------------------------
+# ADR-1107 — названный каталог чисел ДОХОДИТ до проб `analytics_summary.json`,
+# а «не измерено» больше не винит дерево вместо себя.
+#
+# FROZEN-DATE-OK: injected-clock — якорь `_A1107` объявлен литералом, обе стороны
+# сравнения от него ПРОИСХОДЯТ (отметка сцены = `_A1107 - timedelta(...)`), и сам
+# якорь уезжает в пробу аргументом `now=`. Подпроцессов пробы не поднимают, то
+# есть второй двери к часам нет (§ «ИНЪЕКЦИЯ ЧАСОВ КОНЧАЕТСЯ НА ГРАНИЦЕ
+# ПОДПРОЦЕССА», `.claude/rules/deployment.md`).
+# ---------------------------------------------------------------------------
+
+_A1107 = _dt.datetime(2026, 11, 25, 21, 0, tzinfo=_dt.timezone.utc)
+
+#: Секция, целая по существу: род объявлен у всех найденных путей.
+_WHOLE_APY_SECTION = {
+    "paths_found": 3,
+    "paths_declared": 3,
+    "undeclared": [],
+    "findings": [],
+    "unmeasured": [],
+}
+
+
+def _numbers_tree(root: pathlib.Path, *, age_h: float,
+                  section=_WHOLE_APY_SECTION) -> pathlib.Path:
+    """Дерево с `data/analytics_summary.json` заданного ВОЗРАСТА. Часы — вход."""
+    data = root / "data"
+    data.mkdir(parents=True, exist_ok=True)
+    doc = {
+        "generated_at": (_A1107 - _dt.timedelta(hours=age_h)).isoformat(),
+        "sections": {} if section is None else {"apy_name_census": section},
+    }
+    (data / "analytics_summary.json").write_text(
+        json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    return data
+
+
+class TheNamedNumbersTreeReachesTheApyProbes(unittest.TestCase):
+    """Положительный контроль АВАРИИ 2026-11-25, цикл #1252.
+
+    Замер того дня: обязательный шаг 0-офис обязан ходить из ОДНОРАЗОВОГО
+    worktree, и он передаёт прод-каталог `--data-dir`. Три пробы
+    `analytics_summary.json` этого входа не объявляли, поэтому читали
+    ЗАМОРОЖЕННУЮ в git копию возрастом 3787.8 ч и отвечали `unmeasured` — при
+    живом артефакте 14.2 ч в НАЗВАННОМ каталоге, со всеми тремя секциями на
+    месте. Критерий §5 голодающего приказа владельца «Portfolio CIO» (`in-progress`
+    2300 ч) был структурно неизмерим ЛЮБЫМ циклом, соблюдающим правила.
+
+    Сцена ниже и есть та авария: два дерева, разница между ними ровно одна —
+    какое НАЗВАНО, — и вердикт обязан от этого меняться.
+    """
+
+    def setUp(self):
+        self._tmp = pathlib.Path(tempfile.mkdtemp(prefix="adr1107_"))
+        self.addCleanup(shutil.rmtree, self._tmp, True)
+        self.stale = self._tmp / "worktree"
+        self.fresh = self._tmp / "prod"
+        _numbers_tree(self.stale, age_h=ca.APY_CENSUS_MAX_AGE_H + 3763.8)
+        self.fresh_data = _numbers_tree(self.fresh, age_h=14.2)
+
+    def _ask(self, name, **kw):
+        return ca.PROBES[name](None, now=_A1107, **kw)
+
+    def test_the_module_tree_alone_is_unmeasured(self):
+        """Обратная половина: своё дерево протухло ⇒ `unmeasured`, НЕ `satisfied`."""
+        for name in ("apy_name_carries_one_kind",):
+            with unittest.mock.patch.object(ca, "REPO_ROOT", str(self.stale)):
+                verdict, why = self._ask(name)
+            self.assertEqual(verdict, ca.UNMEASURED, why)
+            self.assertIn("протух", why)
+
+    def test_the_named_tree_turns_the_same_contour_into_a_verdict(self):
+        """ТОТ ЖЕ контур, те же часы — назван другой каталог, и вердикт ЕСТЬ."""
+        with unittest.mock.patch.object(ca, "REPO_ROOT", str(self.stale)):
+            verdict, why = self._ask("apy_name_carries_one_kind",
+                                     data_dir=str(self.fresh_data))
+        self.assertEqual(verdict, ca.SATISFIED, why)
+
+    def test_the_stale_answer_names_the_tree_it_read(self):
+        """Молча подставить своё дерево хуже ошибки: читатель обязан узнать, о
+        чьих числах ему ответили (§ поправка #1031)."""
+        with unittest.mock.patch.object(ca, "REPO_ROOT", str(self.stale)):
+            _verdict, why = self._ask("apy_name_carries_one_kind")
+        self.assertIn(str(self.stale / "data"), why,
+                      "пояснение не называет дерево, которое прочитано")
+        self.assertIn("--data-dir", why,
+                      "пояснение не называет настоящее лечение — вход, а не "
+                      "переход сессии в прод-дерево")
+
+    def test_the_old_advice_that_invited_the_forbidden_action_is_gone(self):
+        """Прежний совет приглашал к ЕДИНСТВЕННОМУ запрещённому действию."""
+        with unittest.mock.patch.object(ca, "REPO_ROOT", str(self.stale)):
+            _verdict, why = self._ask("apy_name_carries_one_kind")
+        self.assertNotIn("мерить надо из дерева с живым data/", why)
+
+    def test_all_three_sibling_probes_declare_the_door(self):
+        """Починка ОДНОЙ из трёх оставила бы второй сайт того же дефекта."""
+        for name in ("apy_name_carries_one_kind",
+                     "conservative_expected_apy_published",
+                     "marginal_apy_ladder_published",
+                     "adapter_status_live_apy"):
+            self.assertIn("data_dir", ca.probe_tree_inputs(name),
+                          f"проба {name} не объявляет каталог чисел входом — "
+                          f"названное читателем дерево до неё НЕ ДОЙДЁТ")
+
+    def test_the_door_is_one_not_three_copies(self):
+        """Три дословные копии пролога расходятся молча (ADR-220)."""
+        mod = _REPO / "spa_core" / "monitoring" / "card_acceptance.py"
+        text = mod.read_text(encoding="utf-8")
+        self.assertIn("def _apy_census_section(", text,
+                      "единственной двери чтения секции нет")
+        self.assertEqual(
+            text.count('"data", "analytics_summary.json"'), 0,
+            "рядом с дверью остался прямой зов `REPO_ROOT/data/"
+            "analytics_summary.json` — это и есть вторая копия")
+
+    def test_an_unknown_probe_is_unmeasured_not_named(self):
+        """Обратная половина мерки дерева: имени нет ⇒ третий исход."""
+        res = ca.probe_numbers_tree("такой пробы нет",
+                                    data_dir=str(self.fresh_data))
+        self.assertEqual(res["state"], ca.NUMBERS_UNMEASURED)
+        self.assertTrue(res["reason"])
+
+
+class TheUnmeasuredRowNamesItsOwnIgnorance(unittest.TestCase):
+    """Причина у строки ЛЕЖАЛА и была верна — её просто никто не печатал.
+
+    Замер 2026-11-25: раздел докладывал одно ЧИСЛО («у строк: … НЕ ИЗМЕРЕНО 16»),
+    а какие это шестнадцать — не говорил нигде. Оговорка при этом существовала и
+    печаталась ТОЛЬКО на ветке находки, где и без неё громко; на ветке
+    `unmeasured`, где строка читается как «сегодня мерить нечем», её не было.
+    """
+
+    def _result(self, row_state, reason=""):
+        return {
+            "tracker_dir": "/t",
+            "data_dir": "/prod/data",
+            "scanned": 1,
+            "counts": {"declared": 1, "declared_open": 1, "declared_closed": 0,
+                       "satisfied_but_open": 0, "not_satisfied": 0,
+                       "unmeasured": 1},
+            "origin": {},
+            "trees": {"state": ca.TREES_SAME, "statuses": "/t"},
+            "rows": [{
+                "card": "inbox-предмет",
+                "status": "in-progress",
+                "open": True,
+                "probe": "проба",
+                "verdict": ca.UNMEASURED,
+                "detail": "артефакт протух",
+                "seconds": 0.1,
+                "origin_source": None,
+                "from_origin": False,
+                "row_trees": {"state": row_state, "reason": reason},
+            }],
+        }
+
+    def test_the_row_says_the_named_tree_never_arrived(self):
+        lines = ca.report_lines(self._result(
+            ca.ROW_UNMEASURED,
+            "проба 'x' не объявляет `data_dir` входом — какое дерево она "
+            "прочтёт, измерить нечем"))
+        hit = [l for l in lines if "[НЕ ИЗМЕРЕНО] inbox-предмет" in l]
+        self.assertEqual(len(hit), 1, lines)
+        self.assertIn("дерево ЧИСЕЛ НЕ ИЗМЕРЕНО", hit[0])
+        self.assertIn("не объявляет `data_dir` входом", hit[0])
+
+    def test_a_row_from_one_tree_gets_no_caveat(self):
+        """Обратная половина: приписка у КАЖДОЙ строки утопила бы её в шуме."""
+        lines = ca.report_lines(self._result(ca.ROW_SAME))
+        hit = [l for l in lines if "[НЕ ИЗМЕРЕНО] inbox-предмет" in l]
+        self.assertEqual(len(hit), 1, lines)
+        self.assertNotIn("дерево ЧИСЕЛ НЕ ИЗМЕРЕНО", hit[0])
+
+    def test_the_detail_is_not_lost_under_the_caveat(self):
+        lines = ca.report_lines(self._result(ca.ROW_UNMEASURED, "причина"))
+        hit = next(l for l in lines if "[НЕ ИЗМЕРЕНО] inbox-предмет" in l)
+        self.assertIn("артефакт протух", hit)
 
 
 if __name__ == "__main__":
