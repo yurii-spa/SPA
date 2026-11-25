@@ -2,15 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-25T12:53:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-25T14:36:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1691** · ждёт владельца: **16** · занято сессиями: **14**.
+> Всего карточек: **1692** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает** · _critical_  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md`
+- **Включить агента-мост: починку доставили 30.10, а он до сих пор выключен — 27 суток без замеров** · _critical_  ·  `own-vklyuchit-agenta-mosta-on-pochinen-i-vyklyuchen.md`
 - **Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх**  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md`
 - **Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет**  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md`
 - **Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)**  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md`
@@ -46,10 +47,11 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-93227` · с 2026-11-24T16:47:55Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (397)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (398)
 
 ### · needs-owner
 - Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md` · 2026-11-24
+- Включить агента-мост: починку доставили 30.10, а он до сих пор выключен — 27 суток без замеров  ·  `own-vklyuchit-agenta-mosta-on-pochinen-i-vyklyuchen.md` · 2026-11-25
 - Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md` · 2026-11-19
 - Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
 - Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md` · 2026-11-09
