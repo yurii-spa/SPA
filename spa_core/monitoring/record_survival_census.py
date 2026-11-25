@@ -91,6 +91,7 @@ import os
 import statistics
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -308,8 +309,50 @@ def workflow_source_from_git(repo_root: Path) -> Callable[[str], Tuple[Optional[
 
 # ───────────────────────────── вход: сеть ─────────────────────────────────
 
+#: Коды, которыми GitHub ОТВЕРГАЕТ предъявленный ключ. Сетевые сбои и `404` сюда не
+#: входят намеренно: они не про ключ, и повтор без него ответил бы на другой вопрос.
+KEY_REJECTED_CODES: Tuple[int, ...] = (401, 403)
+
+#: Исходы ОДНОГО чтения двери. Различимы все три (инв. #17), и ни один не подставляется
+#: вместо другого: ответ дан ПО КЛЮЧУ · ответ дан АНОНИМНО (ключ отвергнут, ресурс
+#: публичный) · не измерено (поднимается исключение с НАЗВАННЫМИ обеими попытками).
+DOOR_BY_KEY, DOOR_ANONYMOUS = "by_key", "anonymous"
+
+
 def github_fetch(token: Optional[str] = None) -> Callable[[str], Any]:
-    """Читатель API. Отсутствие токена — исключение, а не пустой ответ."""
+    """Читатель API. Отсутствие токена — исключение, а не пустой ответ.
+
+    **ОТВЕРГНУТЫЙ ключ ХУЖЕ отсутствия ключа, и это ИЗМЕРЕНО** (цикл #1240, ADR-1095,
+    живой API при мёртвом `GITHUB_PAT_SPA`):
+
+    =====================  ==============  ==============
+    ось                    МЁРТВЫЙ ключ    БЕЗ ключа
+    =====================  ==============  ==============
+    вердикт прогона        HTTP 401        **HTTP 200**
+    список артефактов      HTTP 401        **HTTP 200**
+    ZIP артефакта          HTTP 401        HTTP 401
+    =====================  ==============  ==============
+
+    Репозиторий ПУБЛИЧНЫЙ (`CLAUDE.md`: «Репо публичное: fetch без токена»), поэтому
+    дверь, цепляющая отвергнутый ключ безусловно, своими руками превращает публично
+    читаемый ответ в «НЕ ИЗМЕРЕНО: HTTP 401». Цена названа заказом G1078 п. 2: вердикт
+    прогона `45473114837` простоял НЕ ИЗМЕРЕННЫМ сутки, хотя `status=completed`,
+    `conclusion=failure` читались без ключа всё это время. Это ровно тот класс, против
+    которого написан инв. #17: сторож ответил на СВОЙ вопрос («годен ли мой ключ»)
+    вместо нужного («каков вердикт прогона»).
+
+    Поэтому ключ, **отвергнутый** GitHub, снимается и чтение повторяется ОДИН раз
+    анонимно. Выбор двери ЗАПИСЫВАЕТСЯ и подлежит ПЕЧАТИ (`fetch.door`,
+    `fetch.anonymous_paths`): молча подставить анонимный ответ хуже ошибки — читатель
+    не узнает, что его ключ мёртв, и отзыв прав выглядел бы как здоровье.
+
+    **Чего это НЕ закрывает.** Байты артефакта анонимно отвечают тем же `401` (замерено
+    выше), поэтому ИМЕНА падений остаются неизмеримыми без ключа, и повтора у двери
+    байтов нет намеренно — он не купил бы ни одного наблюдения. Отсутствие ключа тоже
+    остаётся исключением: полный вердикт требует ZIP, а менять этот контракт значило бы
+    переписать его сторожей (инв. #16). Починка возвращает те оси, что ПУБЛИЧНЫ, —
+    живость и исход прогона, — а не вердикт целиком.
+    """
     tok = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_PAT_SPA")
     if not tok:
         tok = _token_from_keychain()
@@ -318,15 +361,57 @@ def github_fetch(token: Optional[str] = None) -> Callable[[str], Any]:
                           "нет ни в GITHUB_TOKEN, ни в GITHUB_PAT_SPA, "
                           "ни в Keychain GITHUB_PAT_SPA")
 
-    def fetch(path: str) -> Any:
-        req = urllib.request.Request(
-            API_ROOT + path,
-            headers={"Authorization": f"Bearer {tok}",
-                     "Accept": "application/vnd.github+json",
-                     "User-Agent": "spa-record-survival-census"})
+    def _read(path: str, *, with_key: bool) -> Any:
+        head = {"Accept": "application/vnd.github+json",
+                "User-Agent": "spa-record-survival-census"}
+        if with_key:
+            head["Authorization"] = f"Bearer {tok}"
+        req = urllib.request.Request(API_ROOT + path, headers=head)
         with urllib.request.urlopen(req, timeout=120) as resp:
             return json.load(resp)
 
+    def fetch(path: str) -> Any:
+        try:
+            answer = _read(path, with_key=True)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in KEY_REJECTED_CODES:
+                raise
+            # Ключ ПРЕДЪЯВЛЕН и ОТВЕРГНУТ. Ресурс может быть публичным — спросить без
+            # ключа есть ОТДЕЛЬНОЕ наблюдение, а не вторая попытка того же.
+            try:
+                answer = _read(path, with_key=False)
+            except (urllib.error.HTTPError, urllib.error.URLError, OSError) as anon:
+                # НЕ ИЗМЕРЕНО. Называются ОБЕ попытки: сказать только про анонимную
+                # значило бы скрыть, что ключ отвергнут, а только про ключ — выдать
+                # приватный ресурс за сбой ключа.
+                raise ConfigError(
+                    "GITHUB_PAT_SPA",
+                    f"{path} не прочитан НИ ОДНОЙ дверью: по ключу HTTP {exc.code}, "
+                    f"анонимно {type(anon).__name__}: {anon}") from anon
+            # ВЫБОР ДВЕРИ ПЕЧАТАЕТСЯ, и печатается ЗДЕСЬ — у самой двери, а не у
+            # каждого из её потребителей: второй копии правила не бывает (та же
+            # причина, по которой токен добывается одним правилом). В `stderr`,
+            # чтобы не попасть в `--json` на `stdout`. Печать — на ПЕРВОМ анонимном
+            # ответе; остальные пути лежат в `fetch.anonymous_paths`.
+            if fetch.door != DOOR_ANONYMOUS:
+                print(f"⚠️  ключ GitHub ОТВЕРГНУТ (HTTP {exc.code}) — ответ дан "
+                      f"АНОНИМНО, публичной осью. Это НЕ «ключ здоров»: имена "
+                      f"падений и байты артефактов без ключа неизмеримы "
+                      f"(первый путь: {path})", file=sys.stderr)
+            fetch.door = DOOR_ANONYMOUS
+            fetch.key_rejected = f"HTTP {exc.code}"
+            if path not in fetch.anonymous_paths:
+                fetch.anonymous_paths.append(path)
+            return answer
+        if fetch.door is None:
+            fetch.door = DOOR_BY_KEY
+        return answer
+
+    #: Какая дверь ответила. `None` — ещё ни одного чтения: «не спрашивали» и «ответил
+    #: ключ» — разные утверждения, и ноль здесь был бы подстановкой.
+    fetch.door = None
+    fetch.key_rejected = None
+    fetch.anonymous_paths = []
     return fetch
 
 

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-24T22:49:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-25T00:29:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1688** · ждёт владельца: **16** · занято сессиями: **14**.
+> Всего карточек: **1689** · ждёт владельца: **16** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -450,7 +450,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (982)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (983)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1371,6 +1371,7 @@
 - Сторож срока годности: сцена кладёт 40 прогонов, а прибор видит «такт не наблюдён» — красный тест, не наш  ·  `inbox-storozh-sroka-godnosti-stsena-kladet-40.md` · 2026-10-12
 - Сторож столкновений прогонов опознаёт pytest ПОДСТРОКОЙ — ложный красный на гейте приёмки  ·  `inbox-storozh-stolknovenii-progonov-opoznaet-p.md` · 2026-10-06
 - Сторож сторожа краснеет на чистом origin — путь в вердикте стал абсолютным, а утверждение ждёт относительный  ·  `inbox-storozh-storozha-krasneet-na-chistom-ori.md` · 2026-10-16
+- Сторож тира судит подстрокой: имя куратора в ДАННЫХ читается как потребление отчёта  ·  `inbox-storozh-tira-sudit-podstrokoi-imya-kurat.md` · 2026-11-25
 - Сторож запрета utcnow проходит вхолостую при пустом списке каталогов  ·  `inbox-storozh-zapreta-utcnow-prohodit-vholostu.md` · 2026-09-19
 - Сторож запрета utcnow судит ТЕКСТОМ: он красен на main из-за докстроки, объясняющей то же правило  ·  `inbox-storozh-zapreta-utcnow-sudit-tekstom-on.md` · 2026-10-03
 - Сторож здоровья флота пишет OK выгруженному дневному циклу — узнаёт о пропуске только через сутки  ·  `inbox-storozh-zdorovya-flota-pishet-ok-vygruzh.md` · 2026-09-29

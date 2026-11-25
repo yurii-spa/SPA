@@ -223,6 +223,7 @@
 | ADR-1092 | ADR-1092 — Сторож запрета LLM принял строку сцены за ввоз SDK: решение переходит к ЕДИНСТВЕННОЙ двери на AST | Accepted | [ADR-1092](ADR-1092-llm-watchdog-asks-one-ast-door.md) |
 | ADR-1093 | ADR-1093 — Единственный ключ GitHub истёк: доставка остановлена, а сторож срока не был услышан | Accepted | [ADR-1093](ADR-1093-github-token-expired-guard-unheard.md) |
 | ADR-1094 | ADR-1094 — Сторож ключа доставки спрашивает СОСТОЯНИЕ у GitHub, а не календарь у своей записи | Accepted | [ADR-1094](ADR-1094-pat-guard-asks-github-for-token-state.md) |
+| ADR-1095 | ADR-1095 — Отвергнутый ключ GitHub не имеет права быть хуже отсутствия ключа: публичная ось читается без него | Accepted | [ADR-1095](ADR-1095-rejected-key-is-worse-than-no-key.md) |
 
 ## Соглашения
 
