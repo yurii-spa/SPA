@@ -232,6 +232,7 @@
 | ADR-1101 | ADR-1101 — Конструктор, которого класс НЕ ОБЪЯВЛЯЛ, не судится: подпись собирается вместе с полями баз | Accepted | [ADR-1101](ADR-1101-the-constructor-must-be-declared.md) |
 | ADR-1102 | ADR-1102 — Пол TVL судится по числу БЕЗ закреплённого пула, и по одному пулу ДВАЖДЫ | Accepted | [ADR-1102](ADR-1102-live-tvl-without-a-pinned-pool-and-one-pool-two-keys.md) |
 | ADR-1103 | ADR-1103 — Инжест ответа владельца не есть СОСТОЯВШЕЕСЯ действие: прибор спрашивает живой флот | Accepted | [ADR-1103](ADR-1103-ingested-answer-is-not-a-performed-owner-action.md) |
+| ADR-1104 | ADR-1104 — Работа, которой нельзя уехать на origin, не имела ВТОРОЙ копии: одиннадцать коммитов в одном объектном складе | Accepted | [ADR-1104](ADR-1104-work-that-cannot-reach-origin-needs-a-second-copy.md) |
 
 ## Соглашения
 

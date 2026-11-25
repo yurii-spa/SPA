@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-25T14:36:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-25T16:17:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1692** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1693** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -452,7 +452,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (985)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (986)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1318,6 +1318,7 @@
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
 - resource_health.json объявлен consumer_required, а шаг 0-офис не упоминает его ни разу (ADR-858)  ·  `inbox-resource-health-json-obyavlen-consumer-r.md` · 2026-10-29
+- Резерв неотправленной работы зовётся рукой цикла — ступени у него нет  ·  `inbox-rezerv-neotpravlennoi-raboty-zovetsya-ru.md` · 2026-11-25
 - Род «больше» несёт два смысла: шум отчёта и прорыв защитной отсечки — население подрода не измерено  ·  `inbox-rod-bolshe-neset-dva-smysla-shum-otcheta.md` · 2026-11-07
 - «Род записи НЕ ОБЪЯВЛЕН у 4» — утверждение о дрейфе прод-копии очереди, а не о сессиях: 668 карточек из 1569 в проде нет вовсе  ·  `inbox-rod-zapisi-obyavlyaetsya-polem-kind-a-ch.md` · 2026-11-03
 - Рост ленты лечится только строкой УПЛОТНЕНИЯ — накапливающие списки причин переснять нельзя  ·  `inbox-rost-lenty-lechitsya-tolko-strokoi-uplot.md` · 2026-10-23
