@@ -1,0 +1,86 @@
+{
+  "title": "ADR-1100 (#1245): унаследованные методы судятся — третий исход остаётся у НЕРАЗРЕШИМОЙ базы",
+  "tests": [
+    "spa_core/tests/test_tier_data_name_leak.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 цепочка баз не перечисляется вовсе — состояние ДО ADR-1100 (судятся только свои методы)",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        for dotted in _base_names(node):\n            base, bctx = _resolve_base(dotted, nctx)",
+      "new": "        for dotted in []:\n            base, bctx = _resolve_base(dotted, nctx)"
+    },
+    {
+      "name": "M02 неразрешимая база НЕ объявляется третьим исходом — чужая база выдана за измеренный ноль",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if fields and unresolved_bases:\n        results.append((\n            UNMEASURED,",
+      "new": "    if False and unresolved_bases:\n        results.append((\n            UNMEASURED,"
+    },
+    {
+      "name": "M03 измеренный ноль не объявляется — обойдённое поле становится третьим исходом",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if fields and not read_by and not unresolved_bases:\n        results.append((\n            \"local_only\",",
+      "new": "    if False and not read_by and not unresolved_bases:\n        results.append((\n            \"local_only\","
+    },
+    {
+      "name": "M04 обход НЕ транзитивен — база базы остаётся несудимой",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "            queue.append((base, bctx))\n    return out, unresolved",
+      "new": "            (queue.append((base, bctx)) if node is cls else None)\n    return out, unresolved"
+    },
+    {
+      "name": "M05 защита от цикла съедает ВЕСЬ обход — методов не собирается ни одного",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        step = (nctx.key, node.name)\n        if step in seen:",
+      "new": "        step = (nctx.key, node.name)\n        if True:"
+    },
+    {
+      "name": "M06 база ищется ТОЛЬКО в своём модуле — ввезённая база неразрешима",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    sub, _hop = _module_ctx_for(name, parts[0] if len(parts) > 1 else None, ctx)\n    if sub is None:",
+      "new": "    sub, _hop = (None, \"unresolved\")\n    if sub is None:"
+    },
+    {
+      "name": "M07 ввоз по ВЛАДЕЛЬЦУ имени снят — база через точку (`helpers.Base`) неразрешима",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    module = ctx.imported.get(name)\n    if module is None and owner:\n        module = ctx.imported.get(owner)",
+      "new": "    module = ctx.imported.get(name)\n    if False and owner:\n        module = ctx.imported.get(owner)"
+    },
+    {
+      "name": "M08 вердикт не называет КЛАСС-владельца читателя поля",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        label = (f\"{where}.{method.name}\" if owner == cls.name\n                 else f\"{where}.{owner}.{method.name}\")",
+      "new": "        label = f\"{where}.{method.name}\""
+    },
+    {
+      "name": "M09 третий исход не НАЗЫВАЕТ базу, о которой молчит",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "            f\"НЕ РАЗРЕШЕНЫ ({', '.join(unresolved_bases)}) — что делают с полем \"",
+      "new": "            f\"НЕ РАЗРЕШЕНЫ () — что делают с полем \""
+    },
+    {
+      "name": "M10 чужую базу закрывает любой безвредный СВОЙ метод (fail-OPEN инв. #17)",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if fields and unresolved_bases:",
+      "new": "    if fields and not read_by and unresolved_bases:"
+    },
+    {
+      "name": "M11 своя модульная база не спрашивается — разрешается только через ввоз",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if len(parts) == 1 and name in ctx.classes:\n        return ctx.classes[name], ctx",
+      "new": "    if False and name in ctx.classes:\n        return ctx.classes[name], ctx"
+    },
+    {
+      "name": "M12 методы базы собираются, но дорога по ним не идёт — читатель найден и не пройден",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "            read_by.append((field, method, mctx, owner))",
+      "new": "            read_by.append((field, method, mctx, owner)) if owner == cls.name else None"
+    },
+    {
+      "name": "M13 `object` попадает в перечень баз — измеренный ноль становится НЕ ИЗМЕРЕНО у любого класса",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if dotted and dotted.split(\".\")[-1] != \"object\":",
+      "new": "        if dotted:"
+    }
+  ]
+}

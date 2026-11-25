@@ -871,12 +871,25 @@ def _module_ctx(call: ast.Call, ctx: "_Ctx") -> tuple:
     функция и класс разрешаются по РАЗНЫМ правилам ввоза — то есть мера пускала
     бы через себя ровно то, из-за чего понадобилась.
     """
-    name = _call_name(call)
+    owner = None
+    if (isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)):
+        owner = call.func.value.id
+    return _module_ctx_for(_call_name(call), owner, ctx)
+
+
+def _module_ctx_for(name: str, owner: Optional[str], ctx: "_Ctx") -> tuple:
+    """Та же половина разрешения ввоза, но спрошенная ИМЕНЕМ, а не зовом.
+
+    Третьему потребителю (:func:`_resolve_base` — базовый класс объявлен ИМЕНЕМ,
+    зова у него нет) понадобилось ровно то же правило. Своя копия означала бы,
+    что база разрешается иначе, чем конструктор и функция, и тогда вердикт
+    зависел бы от того, каким путём мера дошла до класса (дефект, закрытый
+    ADR-1099 п. 2 внутри одного хопа).
+    """
     module = ctx.imported.get(name)
-    if module is None and isinstance(call.func, ast.Attribute):
-        base = call.func.value
-        if isinstance(base, ast.Name):
-            module = ctx.imported.get(base.id)
+    if module is None and owner:
+        module = ctx.imported.get(owner)
     if module is None or ctx.resolve is None:
         return None, "unresolved"
     cache = ctx.cache if ctx.cache is not None else {}
@@ -911,6 +924,62 @@ def _resolve_class(call: ast.Call, ctx: "_Ctx") -> tuple:
     return cls, sub, hop
 
 
+def _resolve_base(dotted: str, ctx: "_Ctx") -> tuple:
+    """Базовый класс по его имени в коде: объявление и КОНТЕКСТ его модуля.
+
+    Спрашивается ТОЙ ЖЕ половиной разрешения ввоза, что конструктор и функция
+    (:func:`_module_ctx_for`). «База НЕ РАЗРЕШЕНА» и «базу судить нечем» —
+    разные утверждения, и до 25.11 мера печатала их одной строкой: база,
+    лежащая в ТОМ ЖЕ модуле, объявлялась неподсудной наравне с чужой.
+    """
+    parts = dotted.split(".")
+    name = parts[-1]
+    if len(parts) == 1 and name in ctx.classes:
+        return ctx.classes[name], ctx
+    sub, _hop = _module_ctx_for(name, parts[0] if len(parts) > 1 else None, ctx)
+    if sub is None:
+        return None, None
+    cls = sub.classes.get(name)
+    if cls is None:
+        return None, None
+    return cls, sub
+
+
+def _class_methods(cls: ast.ClassDef, ctx: "_Ctx") -> tuple:
+    """Методы класса И его РАЗРЕШИМЫХ баз, плюс имена баз, разрешить которые нечем.
+
+    Унаследованный метод читает поле `self.X` ровно так же, как свой, и
+    невидимость его для меры была границей МЕРЫ, а не свойством кода. Замер
+    25.11 (цикл #1245) показал, что эта граница схлопывала ТРИ разных состояния
+    в один вердикт с одним текстом: настоящего ЧЛЕНА класса (метод базы собирает
+    путь к отчёту из поля), честную неразрешимость чужой базы и измеренный ноль.
+    Первое из трёх — утечка, о которой мера молчала.
+
+    Обход транзитивный (база базы — тоже база) и защищён от цикла: пара
+    «модуль + имя класса» судится один раз.
+    """
+    out: list = []
+    unresolved: list = []
+    seen: set = set()
+    queue: list = [(cls, ctx)]
+    while queue:
+        node, nctx = queue.pop(0)
+        step = (nctx.key, node.name)
+        if step in seen:
+            continue
+        seen.add(step)
+        for method in _methods(node):
+            out.append((method, nctx, node.name))
+        for dotted in _base_names(node):
+            base, bctx = _resolve_base(dotted, nctx)
+            if base is None or bctx is None:
+                if dotted not in unresolved:
+                    unresolved.append(dotted)
+                continue
+            queue.append((base, bctx))
+    return out, unresolved
+
+
 def _into_object(cls: ast.ClassDef, call: ast.Call, names: set,
                  node: Optional[ast.AST], ctx: "_Ctx", hops_left: int,
                  visited: frozenset, where: str) -> tuple:
@@ -925,6 +994,14 @@ def _into_object(cls: ast.ClassDef, call: ast.Call, names: set,
     внутри функции прослеживается по имени параметра, и с тем же признанным
     огрублением: `self.token` и `other.token` для неё одно имя. Огрубление
     ошибается в сторону НАХОДКИ, а не в сторону «чисто».
+
+    Судятся методы ЭТОГО класса И его РАЗРЕШИМЫХ баз (:func:`_class_methods`).
+    Прежняя редакция перечисляла только свои и отвечала третьим исходом
+    «унаследованные методы мерой НЕ СУДЯТСЯ» — один вердикт с одним текстом на
+    ТРИ разных состояния, и одним из трёх был настоящий ЧЛЕН класса (метод
+    базы, собирающий путь к отчёту из поля). Неразрешимая база остаётся третьим
+    исходом и теперь НАЗЫВАЕТСЯ поимённо — она отвечает на свой вопрос, а не за
+    базу, лежащую в том же модуле.
     """
     init = _init_of(cls)
     param, refusal = _ctor_param(cls, init, call, names, node)
@@ -944,35 +1021,34 @@ def _into_object(cls: ast.ClassDef, call: ast.Call, names: set,
     else:
         # Сгенерированный конструктор: поле зовётся так же, как параметр.
         fields = [param]
+    methods, unresolved_bases = _class_methods(cls, ctx)
     read_by: list = []
     for field in sorted(set(fields)):
-        for method in _methods(cls):
+        for method, mctx, owner in methods:
             if method is init:
                 continue
             if not any(_mentions_name(stmt, field)
                        for stmt in _own_statements(method)):
                 continue
-            read_by.append((field, method))
-    for field, method in read_by:
-        results.append(_follow(method, {field},
-                               f"{where}.{method.name}", ctx,
+            read_by.append((field, method, mctx, owner))
+    for field, method, mctx, owner in read_by:
+        label = (f"{where}.{method.name}" if owner == cls.name
+                 else f"{where}.{owner}.{method.name}")
+        results.append(_follow(method, {field}, label, mctx,
                                hops_left - 1, visited))
-    if fields and not read_by:
-        bases = _base_names(cls)
-        if bases:
-            results.append((
-                UNMEASURED,
-                f"{where}: величина легла в поле "
-                f"{', '.join(sorted(set(fields)))}, его не читает ни один "
-                f"СВОЙ метод класса, а унаследованные методы (базовые классы: "
-                f"{', '.join(bases)}) мерой НЕ СУДЯТСЯ — НЕ ИЗМЕРЕНО"))
-        else:
-            results.append((
-                "local_only",
-                f"{where}: величина легла в поле "
-                f"{', '.join(sorted(set(fields)))}, и НИ ОДИН метод класса её "
-                f"не читает (базовых классов нет) — ИЗМЕРЕННЫЙ ноль, "
-                f"проверенный обходом"))
+    where_fields = ", ".join(sorted(set(fields)))
+    if fields and unresolved_bases:
+        results.append((
+            UNMEASURED,
+            f"{where}: величина легла в поле {where_fields}, а базовые классы "
+            f"НЕ РАЗРЕШЕНЫ ({', '.join(unresolved_bases)}) — что делают с полем "
+            f"их методы, мерой не судится, НЕ ИЗМЕРЕНО"))
+    if fields and not read_by and not unresolved_bases:
+        results.append((
+            "local_only",
+            f"{where}: величина легла в поле {where_fields}, и НИ ОДИН метод "
+            f"класса ни его РАЗРЕШИМЫХ баз её не читает — ИЗМЕРЕННЫЙ ноль, "
+            f"проверенный обходом"))
     if not results:
         return (UNMEASURED,
                 f"{where}: конструктор {cls.name!r} разрешён, но ни одного "

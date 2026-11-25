@@ -741,14 +741,173 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         self.assertIn("ни `__init__`, ни объявленных полей", flow.why)
         self.assertIn("НЕ ИЗМЕРЕНО", flow.why)
 
-    def test_an_unread_field_under_a_BASE_class_is_the_THIRD_outcome(self):
-        """Унаследованные методы мерой НЕ СУДЯТСЯ — и это СКАЗАНО, а не скрыто."""
+    def test_an_unread_field_under_an_UNRESOLVABLE_base_is_the_THIRD_outcome(self):
+        """Третий исход остаётся там, где база РЕАЛЬНО неразрешима — и назван.
+
+        ⚠️ Предмет теста ИЗМЕНЁН осознанно (цикл #1245, инв. #16, запись в
+        `docs/journal/2026-W48.md`). Прежняя редакция ставила базу `class Base`
+        в ТОТ ЖЕ модуль и требовала третьего исхода — то есть закрепляла
+        СЛЕПОТУ меры как её верность. ADR-1099 п. 6 сам назвал это ложью:
+        «граница меры и неразрешимость — разные утверждения». База, лежащая
+        рядом, разрешима, и её методы обязаны судиться; неподсудной остаётся
+        ЧУЖАЯ база, и ровно её сцена здесь теперь и стои́т.
+        """
         text = ctor_scene('    token: str\n', bases="(Base)",
-                          extra='class Base:\n    pass\n\n')
+                          extra='from far.away import Base\n\n')
         flow = leak.data_name_flows(text)[0]
         self.assertEqual(flow.verdict, leak.UNMEASURED,
-                         f"невидимый унаследованный метод выдан за ноль: {flow.why}")
-        self.assertIn("НЕ СУДЯТСЯ", flow.why)
+                         f"неразрешимая база выдана за ноль: {flow.why}")
+        self.assertIn("НЕ РАЗРЕШЕНЫ", flow.why)
+        self.assertIn("Base", flow.why,
+                      "третий исход не НАЗЫВАЕТ базу, о которой молчит")
+
+    def test_an_unread_field_under_a_RESOLVABLE_base_is_a_measured_zero(self):
+        """Обратная половина пары: отличие РОВНО в разрешимости базы.
+
+        Сцена отличается от предыдущей одной строкой — база объявлена рядом
+        вместо ввоза из недостижимого модуля. Ответ обязан СМЕНИТЬСЯ: иначе
+        мера снова отвечала бы о СЕБЕ, а не о коде.
+        """
+        text = ctor_scene('    token: str\n', bases="(Base)",
+                          extra='class Base:\n'
+                                '    def unrelated(self):\n'
+                                '        return 1\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"разрешимая база выдана за НЕ ИЗМЕРЕНО: {flow.why}")
+        self.assertIn("РАЗРЕШИМЫХ баз", flow.why)
+
+    def test_a_field_read_ONLY_by_an_INHERITED_method_is_a_member(self):
+        """НЕСУЩИЙ контроль: утечка, о которой мера молчала до 25.11.
+
+        Поле не читает ни один СВОЙ метод класса — его читает метод БАЗЫ, и
+        именно он собирает путь к отчёту. Прежняя редакция отвечала на эту
+        сцену `unmeasured` тем же текстом, что и на две сцены выше: ТРИ разных
+        состояния схлопывались в один вердикт, и одним из трёх был ЧЛЕН класса.
+        """
+        text = ctor_scene('    token: str\n', bases="(Base)",
+                          extra='class Base:\n'
+                                '    def dump(self):\n'
+                                '        open(self.token + "_report.json")\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"утечка через унаследованный метод не видна: {flow.why}")
+        self.assertIn("Base.dump", flow.why,
+                      "вердикт не называет, ГДЕ живёт читатель поля")
+
+    def test_the_SAME_inherited_method_doing_nothing_is_NOT_a_member(self):
+        """Различающая половина предыдущей: член даёт СОДЕРЖАНИЕ метода базы.
+
+        Без неё «есть база ⇒ член» было бы неотличимо от «метод базы собирает
+        путь»: мутация, объявляющая членом любой класс с базой, прошла бы.
+        """
+        text = ctor_scene('    token: str\n', bases="(Base)",
+                          extra='class Base:\n'
+                                '    def dump(self):\n'
+                                '        return len(self.token)\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"безвредный метод базы объявлен членом: {flow.why}")
+
+    def test_a_base_OF_A_BASE_is_judged_too(self):
+        """Обход транзитивен: дед читает поле так же, как отец."""
+        text = ctor_scene('    token: str\n', bases="(Mid)",
+                          extra='class Top:\n'
+                                '    def dump(self):\n'
+                                '        open(self.token + "_report.json")\n'
+                                '\n'
+                                'class Mid(Top):\n'
+                                '    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"база базы не судится: {flow.why}")
+        self.assertIn("Top.dump", flow.why)
+
+    def test_a_CYCLE_in_the_base_chain_does_not_hang_the_walk(self):
+        """Цикл наследования — не повод зависнуть и не повод соврать.
+
+        В Python такой класс не создать, но мера читает AST, а не исполняет
+        его; пара «модуль + имя класса» судится РОВНО один раз.
+        """
+        text = ctor_scene('    token: str\n', bases="(Base)",
+                          extra='class Base(Bag):\n'
+                                '    def dump(self):\n'
+                                '        open(self.token + "_report.json")\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"цикл в цепочке баз съел вердикт: {flow.why}")
+
+    def test_an_explicit_object_base_is_NOT_a_base_worth_judging(self):
+        """`class Bag(object)` базы не имеет — иначе третьим исходом стал бы КАЖДЫЙ класс.
+
+        Утверждение старое (`_base_names` отбрасывал `object` и до 25.11), но до
+        этой сцены его не проверял никто: мутант «считать `object` базой»
+        выживал бы, а выживание читалось бы как избыточность отсева.
+        """
+        text = ctor_scene('    token: str\n', bases="(object)")
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"`object` объявлен несудимой базой: {flow.why}")
+
+    def test_a_base_BEHIND_AN_IMPORT_is_resolved_by_the_same_half(self):
+        """База, ввезённая из достижимого модуля, судится как своя.
+
+        Сцена дописана ДО мутационного прогона: без неё мутант «базу искать
+        только в своём модуле» выжил бы, и выживание читалось бы как
+        избыточность кода, а не как дыра покрытия.
+        """
+        helper = ('class Base:\n'
+                  '    def dump(self):\n'
+                  '        open(self.token + "_report.json")\n')
+        text = ctor_scene('    token: str\n', bases="(Base)",
+                          extra='from helpers import Base\n\n')
+        flow = leak.data_name_flows(
+            text, resolve=lambda mod: helper if mod == "helpers" else None)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"ввезённая база не разрешена: {flow.why}")
+        self.assertIn("Base.dump", flow.why)
+
+    def test_a_base_named_THROUGH_A_DOT_is_resolved_too(self):
+        """`helpers.Base` — то же утверждение, записанное другой формой."""
+        helper = ('class Base:\n'
+                  '    def dump(self):\n'
+                  '        open(self.token + "_report.json")\n')
+        text = ctor_scene('    token: str\n', bases="(helpers.Base)",
+                          extra='import helpers\n\n')
+        flow = leak.data_name_flows(
+            text, resolve=lambda mod: helper if mod == "helpers" else None)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"база через точку не разрешена: {flow.why}")
+
+    def test_an_unresolvable_base_does_NOT_hide_a_member_found_elsewhere(self):
+        """Третий исход не вытесняет находку: худший вердикт остаётся худшим."""
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from far.away import Base\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"НЕ ИЗМЕРЕНО спрятало найденного члена: {flow.why}")
+
+    def test_an_unresolvable_base_is_the_third_outcome_EVEN_when_a_method_reads(self):
+        """Обратная половина: безвредный свой метод не закрывает чужую базу.
+
+        Поле читает свой метод и не делает с ним ничего — но что с ним делают
+        методы НЕДОСТИЖИМОЙ базы, по-прежнему неизвестно, и честный ответ об
+        этом — третий исход, а не `local_only` (fail-CLOSED, инв. #17).
+        """
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def show(self):\n'
+                          '        return len(self.token)\n',
+                          bases="(Base)",
+                          extra='from far.away import Base\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"чужая база выдана за измеренный ноль: {flow.why}")
+        self.assertIn("НЕ РАЗРЕШЕНЫ", flow.why)
 
     def test_the_SAME_scene_without_a_base_is_a_measured_zero(self):
         """Обратная половина пары: отличие РОВНО в наличии базового класса."""
@@ -905,6 +1064,35 @@ class TheReceiverDoorIsSINGLE(unittest.TestCase):
                         and node.func.id == name):
                     out.add(func.name)
         return out
+
+    def test_the_import_half_is_asked_by_name_in_ONE_place(self):
+        """Правило ввоза — одна копия на зов, конструктор И базовый класс.
+
+        `_module_ctx_for` появилась (цикл #1245) ровно потому, что базе нужна
+        была та же половина, а зова у базы нет. Своя копия у базы означала бы,
+        что она разрешается иначе, чем конструктор, и вердикт зависел бы от
+        того, каким путём мера дошла до класса.
+        """
+        tree = self._module()
+        self.assertEqual(
+            self._callers_of(tree, "_module_ctx_for"),
+            {"_module_ctx", "_resolve_base"},
+            "правило ввоза спрашивают не те: появилась вторая дорога к ввозу "
+            "либо исчезла одна из двух законных")
+
+    def test_the_base_chain_is_enumerated_in_ONE_place(self):
+        """Перечень баз спрашивает РОВНО обход методов.
+
+        Прежде `_base_names` звал и `_into_object` — чтобы напечатать «базовые
+        классы НЕ СУДЯТСЯ», ничего о них не спросив. Второй зов рядом означал
+        бы, что о базах есть два мнения: одно судит, другое объявляет
+        неподсудным.
+        """
+        tree = self._module()
+        self.assertEqual(
+            self._callers_of(tree, "_base_names"), {"_class_methods"},
+            "перечень базовых классов спрашивают в двух местах — мнения о "
+            "базах разойдутся")
 
     def test_only_the_single_door_resolves_a_receiver(self):
         tree = self._module()
