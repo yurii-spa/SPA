@@ -1,0 +1,116 @@
+{
+  "title": "ADR-1101 (#1246): конструктор, которого класс НЕ ОБЪЯВЛЯЛ, не судится — подпись собирается вместе с полями баз",
+  "tests": [
+    "spa_core/tests/test_tier_data_name_leak.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 форма не спрашивается вовсе — состояние ДО ADR-1101 (любой класс без своего __init__ считается сгенерированным)",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    form = _ctor_form(cls)\n    if form is None:\n        bases = _base_names(cls)",
+      "new": "    form = None\n    if form is None:\n        bases = _base_names(cls)"
+    },
+    {
+      "name": "M02 класс с базой и БЕЗ формы не отказывает (fail-OPEN инв. #17) — унаследованный конструктор выдан за свой",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        bases = _base_names(cls)\n        if bases:\n            return None, (",
+      "new": "        bases = _base_names(cls)\n        if False:\n            return None, ("
+    },
+    {
+      "name": "M03 признак наследования полей игнорируется — поля базы в подпись не ставятся НИКОГДА",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if not form.inherits_fields:\n        return _annotated_fields(cls), [], False",
+      "new": "    if True:\n        return _annotated_fields(cls), [], False"
+    },
+    {
+      "name": "M04 порядок подписи собирается В ШИРИНУ — дальняя база идёт после ближней",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "            out.extend(fields_of(base, bctx, seen))\n            if _ctor_form(base) is not None:\n                out.extend(_annotated_fields(base))",
+      "new": "            if _ctor_form(base) is not None:\n                out.extend(_annotated_fields(base))\n            out.extend(fields_of(base, bctx, seen))"
+    },
+    {
+      "name": "M05 поля берутся у ЛЮБОЙ разрешимой базы — форму базы не спрашиваем",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "            if _ctor_form(base) is not None:\n                out.extend(_annotated_fields(base))\n        return out",
+      "new": "            if True:\n                out.extend(_annotated_fields(base))\n        return out"
+    },
+    {
+      "name": "M06 неразрешимая база при ПОЗИЦИОННОМ зове не отказывает — мера верит своим полям",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if unresolved:\n        return None, (\n            f\"конструктор {cls.name!r}: подпись НЕИЗВЕСТНА",
+      "new": "    if False:\n        return None, (\n            f\"конструктор {cls.name!r}: подпись НЕИЗВЕСТНА"
+    },
+    {
+      "name": "M07 отказ наступает и по КЛЮЧУ — мера теряет 35 живых классов pydantic",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if where in fields or unresolved:\n            return where, None",
+      "new": "        if where in fields:\n            return where, None"
+    },
+    {
+      "name": "M08 keyword-only форма принимает ПОЗИЦИЮ — судится код, которого Python не исполнит",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if form.keyword_only:\n        return None, (",
+      "new": "    if False:\n        return None, ("
+    },
+    {
+      "name": "M09 неоднозначный порядок при двух несущих базах не объявляется",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if ambiguous:\n        return None, (",
+      "new": "    if False:\n        return None, ("
+    },
+    {
+      "name": "M10 ClassVar/InitVar не отсеиваются — классовая величина занимает позицию поля",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if _annotation_head(node.annotation) in _NON_FIELD_ANNOTATIONS:\n            continue",
+      "new": "        if False:\n            continue"
+    },
+    {
+      "name": "M11 field(init=False) не отсеивается — поле вне подписи занимает позицию",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        if _declared_out_of_init(node.value):\n            continue",
+      "new": "        if False:\n            continue"
+    },
+    {
+      "name": "M12 отсеивается ЛЮБОЙ field(...) — поле со значением по умолчанию теряет позицию",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if not isinstance(value, ast.Call) or _call_name(value) != \"field\":\n        return False\n    for kw in value.keywords:",
+      "new": "    if not isinstance(value, ast.Call) or _call_name(value) != \"field\":\n        return False\n    return True\n    for kw in value.keywords:"
+    },
+    {
+      "name": "M13 защита от цикла съедает ВЕСЬ обход — унаследованных полей не собирается ни одного",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        step = (nctx.key, node.name)\n        if step in seen:                       # цикл в цепочке баз — не повод врать\n            return []",
+      "new": "        step = (nctx.key, node.name)\n        if True:                               # цикл в цепочке баз — не повод врать\n            return []"
+    },
+    {
+      "name": "M14 позиция и ключ не различаются — попадание по позиции судится как ключевое",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    kind, where = _hit_in_call(call, names, node)\n    if kind == \"keyword\":\n        if where in fields or unresolved:",
+      "new": "    kind, where = _hit_in_call(call, names, node)\n    if kind is not None:\n        if where in fields or unresolved:"
+    },
+    {
+      "name": "M15 позиция за концом подписи зажимается к последнему полю — третий исход становится находкой",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    if where < len(fields):\n        return fields[where], None",
+      "new": "    if True:\n        return fields[min(where, len(fields) - 1)], None"
+    },
+    {
+      "name": "M16 переобъявленное поле удлиняет подпись — позиции за ним сдвигаются",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    own = [f for f in _annotated_fields(cls) if f not in inherited]",
+      "new": "    own = list(_annotated_fields(cls))"
+    },
+    {
+      "name": "M17 декоратор с аргументами формой не признаётся — живой Touch(frozen=True) теряется",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "        node = dec.func if isinstance(dec, ast.Call) else dec",
+      "new": "        node = dec"
+    },
+    {
+      "name": "M18 база, объявляющая форму, ищется по ПОЛНОЙ точечной цепочке — typing.NamedTuple теряется",
+      "file": "spa_core/monitoring/tier_data_name_leak.py",
+      "old": "    for dotted in _base_names(cls):\n        leaf = dotted.split(\".\")[-1]\n        if leaf in _FIELD_CTOR_BASES:",
+      "new": "    for dotted in _base_names(cls):\n        leaf = dotted\n        if leaf in _FIELD_CTOR_BASES:"
+    }
+  ]
+}

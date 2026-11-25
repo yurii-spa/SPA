@@ -20,6 +20,7 @@
 """
 from __future__ import annotations
 
+import ast
 import pathlib
 import unittest
 
@@ -660,12 +661,12 @@ _CTOR_SCENE = '''
 NAMES = ("tier_curator", "other")
 
 {extra}
-class Bag{bases}:
+{dec}class Bag{bases}:
 {body}
 
 def _helper(items):
     for it in items:
-        Bag(it)
+        Bag({call})
 
 
 def run():
@@ -673,8 +674,25 @@ def run():
 '''
 
 
-def ctor_scene(body: str, bases: str = "", extra: str = "") -> str:
-    return _CTOR_SCENE.format(body=body, bases=bases, extra=extra)
+#: Сцена с базой обязана ОБЪЯВИТЬ форму конструктора (ADR-1101): у
+#: `class Bag(Base)` без формы конструктор УНАСЛЕДОВАН, то есть `Bag(it)`
+#: передаёт величину в `Base.__init__`, а не в поле `token`. Прежние сцены
+#: (цикл #1245) этого не объявляли, и их премиса в Python не держалась вовсе.
+DATACLASS = "from dataclasses import dataclass\n\n"
+DEC = "@dataclass\n"
+
+
+def ctor_scene(body: str, bases: str = "", extra: str = "",
+               dec: str = "", call: str = "it") -> str:
+    return _CTOR_SCENE.format(body=body, bases=bases, extra=extra, dec=dec,
+                              call=call)
+
+
+def base_scene(body: str, bases: str, extra: str = "",
+               call: str = "it") -> str:
+    """Сцена с базой И объявленной формой — одна копия на все такие сцены."""
+    return ctor_scene(body, bases=bases, extra=DATACLASS + extra, dec=DEC,
+                      call=call)
 
 
 class AConstructorIsAResolvableReceiver(unittest.TestCase):
@@ -752,8 +770,9 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         рядом, разрешима, и её методы обязаны судиться; неподсудной остаётся
         ЧУЖАЯ база, и ровно её сцена здесь теперь и стои́т.
         """
-        text = ctor_scene('    token: str\n', bases="(Base)",
-                          extra='from far.away import Base\n\n')
+        text = base_scene('    token: str\n', bases="(Base)",
+                          extra='from far.away import Base\n\n',
+                          call="token=it")
         flow = leak.data_name_flows(text)[0]
         self.assertEqual(flow.verdict, leak.UNMEASURED,
                          f"неразрешимая база выдана за ноль: {flow.why}")
@@ -768,7 +787,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         вместо ввоза из недостижимого модуля. Ответ обязан СМЕНИТЬСЯ: иначе
         мера снова отвечала бы о СЕБЕ, а не о коде.
         """
-        text = ctor_scene('    token: str\n', bases="(Base)",
+        text = base_scene('    token: str\n', bases="(Base)",
                           extra='class Base:\n'
                                 '    def unrelated(self):\n'
                                 '        return 1\n\n')
@@ -785,7 +804,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         сцену `unmeasured` тем же текстом, что и на две сцены выше: ТРИ разных
         состояния схлопывались в один вердикт, и одним из трёх был ЧЛЕН класса.
         """
-        text = ctor_scene('    token: str\n', bases="(Base)",
+        text = base_scene('    token: str\n', bases="(Base)",
                           extra='class Base:\n'
                                 '    def dump(self):\n'
                                 '        open(self.token + "_report.json")\n\n')
@@ -801,7 +820,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         Без неё «есть база ⇒ член» было бы неотличимо от «метод базы собирает
         путь»: мутация, объявляющая членом любой класс с базой, прошла бы.
         """
-        text = ctor_scene('    token: str\n', bases="(Base)",
+        text = base_scene('    token: str\n', bases="(Base)",
                           extra='class Base:\n'
                                 '    def dump(self):\n'
                                 '        return len(self.token)\n\n')
@@ -811,7 +830,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
 
     def test_a_base_OF_A_BASE_is_judged_too(self):
         """Обход транзитивен: дед читает поле так же, как отец."""
-        text = ctor_scene('    token: str\n', bases="(Mid)",
+        text = base_scene('    token: str\n', bases="(Mid)",
                           extra='class Top:\n'
                                 '    def dump(self):\n'
                                 '        open(self.token + "_report.json")\n'
@@ -829,7 +848,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         В Python такой класс не создать, но мера читает AST, а не исполняет
         его; пара «модуль + имя класса» судится РОВНО один раз.
         """
-        text = ctor_scene('    token: str\n', bases="(Base)",
+        text = base_scene('    token: str\n', bases="(Base)",
                           extra='class Base(Bag):\n'
                                 '    def dump(self):\n'
                                 '        open(self.token + "_report.json")\n\n')
@@ -859,7 +878,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         helper = ('class Base:\n'
                   '    def dump(self):\n'
                   '        open(self.token + "_report.json")\n')
-        text = ctor_scene('    token: str\n', bases="(Base)",
+        text = base_scene('    token: str\n', bases="(Base)",
                           extra='from helpers import Base\n\n')
         flow = leak.data_name_flows(
             text, resolve=lambda mod: helper if mod == "helpers" else None)[0]
@@ -872,7 +891,7 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         helper = ('class Base:\n'
                   '    def dump(self):\n'
                   '        open(self.token + "_report.json")\n')
-        text = ctor_scene('    token: str\n', bases="(helpers.Base)",
+        text = base_scene('    token: str\n', bases="(helpers.Base)",
                           extra='import helpers\n\n')
         flow = leak.data_name_flows(
             text, resolve=lambda mod: helper if mod == "helpers" else None)[0]
@@ -881,12 +900,13 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
 
     def test_an_unresolvable_base_does_NOT_hide_a_member_found_elsewhere(self):
         """Третий исход не вытесняет находку: худший вердикт остаётся худшим."""
-        text = ctor_scene('    token: str\n'
+        text = base_scene('    token: str\n'
                           '\n'
                           '    def dump(self):\n'
                           '        open(self.token + "_report.json")\n',
                           bases="(Base)",
-                          extra='from far.away import Base\n\n')
+                          extra='from far.away import Base\n\n',
+                          call="token=it")
         flow = leak.data_name_flows(text)[0]
         self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
                          f"НЕ ИЗМЕРЕНО спрятало найденного члена: {flow.why}")
@@ -898,12 +918,13 @@ class AConstructorIsAResolvableReceiver(unittest.TestCase):
         методы НЕДОСТИЖИМОЙ базы, по-прежнему неизвестно, и честный ответ об
         этом — третий исход, а не `local_only` (fail-CLOSED, инв. #17).
         """
-        text = ctor_scene('    token: str\n'
+        text = base_scene('    token: str\n'
                           '\n'
                           '    def show(self):\n'
                           '        return len(self.token)\n',
                           bases="(Base)",
-                          extra='from far.away import Base\n\n')
+                          extra='from far.away import Base\n\n',
+                          call="token=it")
         flow = leak.data_name_flows(text)[0]
         self.assertEqual(flow.verdict, leak.UNMEASURED,
                          f"чужая база выдана за измеренный ноль: {flow.why}")
@@ -1038,6 +1059,393 @@ class TheDepthAxisAndTheConstructorAreDIFFERENTQuestions(unittest.TestCase):
         self.assertIn("НЕ ИЗМЕРЕНО", flow.why)
 
 
+class TheConstructorMustBeDECLARED(unittest.TestCase):
+    """Конструкторов у класса ТРИ вида, и третий — УНАСЛЕДОВАННЫЙ (ADR-1101).
+
+    Эталон снят РУЧНЫМ РАЗБОРОМ семантики Python ДО правки прибора (заказ
+    G1084 п. 2, восемь сцен): у `class Bag(Base)` без объявленной формы
+    `Bag(it)` передаёт величину в `Base.__init__`, а аннотация `REPORT: str`
+    остаётся классовой КОНСТАНТОЙ и величины не получает НИКОГДА. Прибор на
+    тех же сценах расходился с эталоном ТРИЖДЫ из восьми, и расхождения шли в
+    ОБЕ стороны: дважды он ВЫДУМЫВАЛ находку (назвал константу параметром и
+    поверил своим полям при неразрешимой базе), один раз выдал ложную
+    невинность (`local_only` там, где позицию 0 держит поле БАЗЫ).
+
+    Замер населения, `spa_core/**` вне тестов: классов с аннотациями, без
+    своего `__init__` и с базой — **64**; форму НЕ объявляют **9** (у всех
+    конструктор унаследован), `NamedTuple`/`TypedDict` — 20, pydantic — 35,
+    `@dataclass` с базой — **0**. Ноль последнего рода теперь ИЗМЕРЕН, а не
+    предположен: сцены ниже показывают, что мера на нём врала бы.
+    """
+
+    def test_an_INHERITED_constructor_is_the_THIRD_outcome(self):
+        """НЕСУЩИЙ контроль: выдуманная находка, которую мера печатала до 25.11.
+
+        Форма конструктора не объявлена, база своё `__init__` имеет — значит
+        `REPORT` величины не получает. Мера называла её «параметром, принявшим
+        значение», находила читателя, собирающего путь к отчёту, и печатала
+        `reaches_report` о потоке, которого НЕТ.
+        """
+        text = ctor_scene('    REPORT: str = "x"\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.REPORT + "_report.json")\n',
+                          bases="(Base)",
+                          extra='class Base:\n'
+                                '    def __init__(self, item):\n'
+                                '        self.item = item\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"унаследованный конструктор выдан за свой: {flow.why}")
+        self.assertIn("УНАСЛЕДОВАН", flow.why)
+        self.assertIn("Base", flow.why,
+                      "третий исход не НАЗЫВАЕТ, откуда конструктор")
+
+    def test_the_SAME_scene_with_a_DECLARED_form_is_a_member(self):
+        """Различающая половина: отличие РОВНО в строке `@dataclass`.
+
+        Без неё «есть база ⇒ третий исход» было бы неотличимо от «форма не
+        объявлена»: мутант, отказывающий КАЖДОМУ классу с базой, прошёл бы.
+        """
+        text = base_scene('    REPORT: str = "x"\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.REPORT + "_report.json")\n',
+                          bases="(Base)",
+                          extra='class Base:\n'
+                                '    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"объявленная форма не признана: {flow.why}")
+
+    def test_a_BASE_field_takes_POSITION_ZERO(self):
+        """НЕСУЩИЙ контроль ложной невинности: позицию 0 держит поле БАЗЫ.
+
+        Настоящая подпись `Bag` — `(token, extra)`: `dataclasses` собирает поля
+        по `__mro__` наоборот. Мера перечисляла только свои поля, называла
+        `extra`, не находила её читателя и печатала `local_only` —
+        ИЗМЕРЕННЫЙ ноль, который был неверен.
+        """
+        text = base_scene('    extra: int = 0\n', bases="(Base)",
+                          extra='@dataclass\n'
+                                'class Base:\n'
+                                '    token: str\n'
+                                '\n'
+                                '    def dump(self):\n'
+                                '        open(self.token + "_report.json")\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"поле базы на позиции 0 не найдено: {flow.why}")
+
+    def test_the_SAME_pair_with_a_FIELDLESS_base_names_the_OWN_field(self):
+        """Различающая половина: база формы, но БЕЗ полей — позиция 0 своя.
+
+        Отличие от предыдущей — одна строка `token: str` у базы. Мутант
+        «ставить поля базы в подпись ВСЕГДА, не спрашивая форму» здесь
+        краснеет: `Base.dump` читает `token`, которого величина не получала.
+        """
+        text = base_scene('    extra: int = 0\n', bases="(Base)",
+                          extra='@dataclass\n'
+                                'class Base:\n'
+                                '    def dump(self):\n'
+                                '        open(self.token + "_report.json")\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"поле, которого величина не получала, объявлено "
+                         f"принявшим её: {flow.why}")
+
+    def test_a_PLAIN_base_contributes_NO_fields_to_the_signature(self):
+        """Обычный родитель с аннотациями полей конструктору НЕ даёт.
+
+        `@dataclass` берёт поля только у баз, объявивших форму. Мутант
+        «брать аннотации ЛЮБОЙ разрешимой базы» сдвинул бы позиции и назвал
+        `token` вместо `extra`.
+        """
+        text = base_scene('    extra: int = 0\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.extra + "_report.json")\n',
+                          bases="(Base)",
+                          extra='class Base:\n'
+                                '    token: str = "t"\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"обычная база сдвинула подпись: {flow.why}")
+
+    def test_the_base_OF_A_BASE_contributes_its_fields_FIRST(self):
+        """Порядок — в ГЛУБИНУ: дальняя база идёт в подписи первой.
+
+        Подпись `Bag(Mid)`→`Mid(Top)` есть `(a, b, c)`. Обход в ШИРИНУ дал бы
+        `(b, a, c)`, и позиция 0 указала бы на `b` — поле, которого величина
+        не получала.
+        """
+        text = base_scene('    c: int = 0\n', bases="(Mid)",
+                          extra='@dataclass\n'
+                                'class Top:\n'
+                                '    a: str\n'
+                                '\n'
+                                '    def dump(self):\n'
+                                '        open(self.a + "_report.json")\n'
+                                '\n'
+                                '@dataclass\n'
+                                'class Mid(Top):\n'
+                                '    b: int = 0\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"порядок подписи собран в ширину: {flow.why}")
+
+    def test_a_POSITIONAL_hit_under_an_UNRESOLVABLE_base_is_the_THIRD_outcome(self):
+        """Сколько полей несёт чужая база — НЕИЗВЕСТНО, значит и позиция 0."""
+        text = base_scene('    extra: int = 0\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.extra + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from far.away import Base\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"подпись при чужой базе выдана за известную: {flow.why}")
+        self.assertIn("подпись НЕИЗВЕСТНА", flow.why)
+
+    def test_the_SAME_hit_BY_KEYWORD_is_resolved(self):
+        """Различающая половина: ключ НАЗЫВАЕТ поле, порядок базы ни при чём.
+
+        Без неё «чужая база ⇒ третий исход» было бы неотличимо от «чужая база
+        и ПОЗИЦИОННЫЙ зов», и мутант, отказывающий и по ключу, прошёл бы —
+        то есть мера потеряла бы 35 живых классов pydantic.
+        """
+        text = base_scene('    extra: int = 0\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.extra + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from far.away import Base\n\n',
+                          call="extra=it")
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"зов по ключу отвергнут из-за чужой базы: {flow.why}")
+
+    def test_a_KEYWORD_naming_a_field_of_an_UNSEEN_base_is_resolved(self):
+        """Ключ назвал поле, которого в ЭТОМ теле нет — объявить его могла лишь база.
+
+        ⚠️ Сцена дописана ПО ВЫЖИВШЕЙ МУТАЦИИ (M07, первый прогон #1246), и это
+        была дыра ПОКРЫТИЯ, а не избыточность кода: все прежние сцены с ключом
+        называли СВОЁ поле, поэтому мутант «отказывать по ключу, когда база
+        неразрешима» не менял ни одного вердикта. Его цена — 35 живых классов
+        pydantic, у которых поля объявлены в недостижимом `BaseModel`.
+        """
+        text = base_scene('    extra: int = 0\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from far.away import Base\n\n',
+                          call="token=it")
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"поле, названное ключом, отвергнуто из-за "
+                         f"неразрешимой базы: {flow.why}")
+
+    def test_a_NamedTuple_does_NOT_inherit_fields_from_its_form(self):
+        """Регрессионный контроль 20 живых классов: `NamedTuple` полей не несёт.
+
+        Имя `NamedTuple` неразрешимо так же, как `far.away.Base`, — и отказ
+        здесь был бы неверен: у этой формы подпись РОВНО свои поля.
+        """
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(NamedTuple)",
+                          extra='from typing import NamedTuple\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"NamedTuple объявлен неразрешимым: {flow.why}")
+
+    def test_a_form_base_named_THROUGH_A_DOT_is_the_same_form(self):
+        """`typing.NamedTuple` — та же форма, что `NamedTuple`.
+
+        ⚠️ Сцена дописана ПО ВЫЖИВШЕЙ МУТАЦИИ (M18, первый прогон #1246):
+        все прежние сцены называли форму ГОЛЫМ именем, поэтому мутант «искать
+        форму по ПОЛНОЙ точечной цепочке» не менял ни одного вердикта, и его
+        выживание читалось бы как избыточность отсева листа.
+        """
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(typing.NamedTuple)",
+                          extra='import typing\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"форма через точку не признана: {flow.why}")
+
+    def test_a_KEYWORD_ONLY_form_refuses_a_POSITIONAL_hit(self):
+        """pydantic принимает поля только по ключу — позиция 0 у него не бывает.
+
+        Такой зов Python не исполнит вовсе, и назвать «поле на позиции 0»
+        значило бы судить код, которого нет.
+        """
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(BaseModel)",
+                          extra='from pydantic import BaseModel\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"позиционный зов keyword-only формы разрешён: {flow.why}")
+        self.assertIn("ТОЛЬКО", flow.why)
+
+    def test_the_SAME_keyword_only_form_resolves_a_KEYWORD_hit(self):
+        """Различающая половина: по ключу та же форма разрешается."""
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(BaseModel)",
+                          extra='from pydantic import BaseModel\n\n',
+                          call="token=it")
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"pydantic по ключу не разрешён: {flow.why}")
+
+    def test_a_ClassVar_does_NOT_take_a_position_in_the_signature(self):
+        """`ClassVar` полем не становится — и позиций не сдвигает."""
+        text = base_scene('    REGISTRY: ClassVar[dict] = {}\n'
+                          '    token: str = ""\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from typing import ClassVar\n'
+                                '\n'
+                                'class Base:\n'
+                                '    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"ClassVar занял позицию поля: {flow.why}")
+
+    def test_a_field_declared_OUT_of_init_does_NOT_take_a_position(self):
+        """`field(init=False)` — объявление, что поля в подписи НЕТ."""
+        text = base_scene('    cached: dict = field(init=False)\n'
+                          '    token: str = ""\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from dataclasses import field\n'
+                                '\n'
+                                'class Base:\n'
+                                '    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"поле вне подписи заняло позицию: {flow.why}")
+
+    def test_a_field_declared_INSIDE_init_still_takes_its_position(self):
+        """Различающая половина: `field(default=…)` подпись НЕ покидает.
+
+        Без неё отсев «любого `field(...)`» прошёл бы молча, и мера потеряла
+        бы поля, у которых объявлено лишь значение по умолчанию.
+        """
+        text = base_scene('    token: str = field(default="")\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)",
+                          extra='from dataclasses import field\n'
+                                '\n'
+                                'class Base:\n'
+                                '    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"поле со значением по умолчанию отсеяно: {flow.why}")
+
+    def test_TWO_bases_carrying_fields_are_the_THIRD_outcome(self):
+        """Порядок полей при НЕСКОЛЬКИХ базах решает C3, а не объявление."""
+        text = base_scene('    c: int = 0\n', bases="(A, B)",
+                          extra='@dataclass\n'
+                                'class A:\n'
+                                '    a: str\n'
+                                '\n'
+                                '@dataclass\n'
+                                'class B:\n'
+                                '    b: str\n'
+                                '\n'
+                                '    def dump(self):\n'
+                                '        open(self.b + "_report.json")\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"порядок при двух базах выдан за известный: {flow.why}")
+        self.assertIn("C3", flow.why)
+
+    def test_only_ONE_base_carrying_fields_is_resolved(self):
+        """Различающая половина: вторая база БЕЗ полей порядок не ломает."""
+        text = base_scene('    c: int = 0\n', bases="(A, B)",
+                          extra='@dataclass\n'
+                                'class A:\n'
+                                '    a: str\n'
+                                '\n'
+                                '    def dump(self):\n'
+                                '        open(self.a + "_report.json")\n'
+                                '\n'
+                                '@dataclass\n'
+                                'class B:\n'
+                                '    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"одна несущая база объявлена неоднозначной: {flow.why}")
+
+    def test_a_decorator_WITH_ARGUMENTS_is_the_same_form(self):
+        """`@dataclass(frozen=True)` — та же форма; живой `Touch` объявлен так."""
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)", dec="@dataclass(frozen=True)\n",
+                          extra=DATACLASS + 'class Base:\n    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"декоратор с аргументами не признан формой: {flow.why}")
+
+    def test_a_REDECLARED_base_field_keeps_its_BASE_position(self):
+        """Поле, объявленное снова, позиции не меняет — и подпись не удлиняет.
+
+        `dataclasses` оставляет переобъявленное поле на месте БАЗЫ. Подпись
+        `Bag` здесь есть `(token, extra)`, и величина передана позицией 1, то
+        есть в `extra`, которое не читает никто. Удвой подпись до
+        `(token, token, extra)` — позиция 1 указала бы на `token`, читаемое
+        методом базы, и мера ВЫДУМАЛА БЫ находку.
+        """
+        text = base_scene('    token: str = ""\n'
+                          '    extra: int = 0\n',
+                          bases="(Base)",
+                          extra='@dataclass\n'
+                                'class Base:\n'
+                                '    token: str = ""\n'
+                                '\n'
+                                '    def dump(self):\n'
+                                '        open(self.token + "_report.json")\n\n',
+                          call="0, it")
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"переобъявленное поле удлинило подпись: {flow.why}")
+
+    def test_a_POSITION_BEYOND_the_signature_is_the_THIRD_outcome(self):
+        """Позиция за концом подписи — не «утечь нечему», а НЕ ИЗМЕРЕНО."""
+        text = base_scene('    token: str = ""\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open(self.token + "_report.json")\n',
+                          bases="(Base)",
+                          extra='class Base:\n    pass\n\n',
+                          call="0, it")
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"позиция за подписью выдана за ноль: {flow.why}")
+        self.assertIn("НЕ ИЗМЕРЕНО", flow.why)
+
+
 class TheReceiverDoorIsSINGLE(unittest.TestCase):
     """Разрешение получателя живёт в ОДНОМ месте — иначе вердикт зависел бы от дороги.
 
@@ -1081,18 +1489,30 @@ class TheReceiverDoorIsSINGLE(unittest.TestCase):
             "либо исчезла одна из двух законных")
 
     def test_the_base_chain_is_enumerated_in_ONE_place(self):
-        """Перечень баз спрашивает РОВНО обход методов.
+        """Перечень баз СЧИТАЕТ ровно один зов — `_base_names`.
 
-        Прежде `_base_names` звал и `_into_object` — чтобы напечатать «базовые
-        классы НЕ СУДЯТСЯ», ничего о них не спросив. Второй зов рядом означал
-        бы, что о базах есть два мнения: одно судит, другое объявляет
-        неподсудным.
+        ⚠️ Мерка предмета ИЗМЕНЕНА осознанно (цикл #1246, инв. #16, запись в
+        `docs/journal/2026-W48.md`). Прежняя редакция сверяла СПИСОК
+        ЗВУЩИХ с `{"_class_methods"}`, и предметом это не было: о базах
+        спрашивают законно уже четверо (обход методов · форма конструктора ·
+        сборка подписи · текст отказа), а опасна не ВТОРАЯ дверь к ОДНОМУ
+        перечню, а вторая РЕАЛИЗАЦИЯ перечня. Прежняя форма ловила первое и
+        НЕ ЛОВИЛА второго: функция, читающая `cls.bases` напрямую и заодно
+        звавшая `_base_names`, проходила её молча. Новая мерка спрашивает
+        ровно второе и потому строго сильнее на предмете.
         """
         tree = self._module()
+        readers = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Attribute) and sub.attr == "bases":
+                    readers.add(node.name)
         self.assertEqual(
-            self._callers_of(tree, "_base_names"), {"_class_methods"},
-            "перечень базовых классов спрашивают в двух местах — мнения о "
-            "базах разойдутся")
+            readers, {"_base_names"},
+            "перечень базовых классов СЧИТАЮТ в двух местах — мнения о базах "
+            f"разойдутся (считают: {sorted(readers)})")
 
     def test_only_the_single_door_resolves_a_receiver(self):
         tree = self._module()

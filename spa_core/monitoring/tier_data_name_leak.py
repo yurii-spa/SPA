@@ -49,9 +49,16 @@
 
 Границы, которые остаются НАЗВАННЫМИ и нулём не считаются:
 
-* **Унаследованные методы НЕ СУДЯТСЯ.** Поле, которое не читает ни один СВОЙ
-  метод класса с базой, даёт третий исход с этой причиной, а не ноль. Население
-  за ЭТОЙ границей НЕ ИЗМЕРЕНО.
+* **Конструктор, которого класс НЕ ОБЪЯВЛЯЛ, не судится** (ADR-1101): форма,
+  рождающая конструктор ПОЛЯМИ, перечислена закрытым каталогом
+  (:data:`_FIELD_CTOR_DECORATORS`, :data:`_FIELD_CTOR_BASES`), и класс вне
+  каталога, у которого есть база, отдаёт третий исход — конструктор у него
+  УНАСЛЕДОВАН, а аннотации суть классовые КОНСТАНТЫ. Остаётся названной
+  границей класс БЕЗ базы и без объявленной формы: его зов невозможен в Python
+  вовсе, и другого чтения исходника нет; население этой границы НЕ ИЗМЕРЕНО.
+* **`InitVar` и `ClassVar`** отсеяны, `field(init=False)` тоже; прочие рычаги
+  `dataclasses` (`kw_only=True`, `__post_init__`) подпись меры НЕ двигают, и
+  население этой границы НЕ ИЗМЕРЕНО.
 * **Поток внутри объекта идёт ПО ИМЕНИ ПОЛЯ**, ровно как внутри функции — по
   имени параметра: `self.token` и `other.token` для меры одно имя. Огрубление
   названо и ошибается в сторону НАХОДКИ, а не в сторону «чисто».
@@ -121,6 +128,44 @@ _BUILTIN_LEAVES: frozenset[str] = frozenset(dir(_builtins)) - FS_DOORS
 #: утечку за третьим исходом (дефект первой редакции, замер 25.11).
 LEAF_CALLS: frozenset[str] = (SHAPING_CALLS | ADMISSION_METHODS | FS_DOORS
                               | PATH_SHAPES | _BUILTIN_LEAVES)
+
+#: ФОРМА, рождающая конструктор ПОЛЯМИ класса. Перечень закрытый, и это не
+#: «белый список, который разрешает»: форма ВНЕ каталога даёт третий исход, а не
+#: догадку (:func:`_ctor_form`). Поэтому забытая форма теряет ОХВАТ меры и
+#: никогда не рождает ложное «чисто» — ошибка идёт в сторону `unmeasured`.
+#: `inherits_fields` — наследует ли форма поля БАЗЫ (у `@dataclass` и pydantic
+#: да, у `NamedTuple` нет); `keyword_only` — принимает ли конструктор величину
+#: только по ключу (pydantic и `TypedDict`), и тогда ПОЗИЦИОННЫЙ зов есть не
+#: «позиция 0», а код, которого Python не исполнит.
+
+@dataclass(frozen=True)
+class _CtorForm:
+    """Объявленная форма конструктора: её имя и два её свойства."""
+
+    name: str
+    inherits_fields: bool
+    keyword_only: bool
+
+
+#: Декораторы, объявляющие форму. `@dataclass(frozen=True)` — тот же декоратор
+#: (живой `Touch` объявлен ровно так), поэтому имя берётся у ЗОВА, а не у узла.
+_FIELD_CTOR_DECORATORS: dict = {
+    "dataclass": _CtorForm("@dataclass", True, False),
+}
+
+#: Базы, объявляющие форму. Имя сверяется по ЛИСТУ точечной цепочки:
+#: `typing.NamedTuple` и `NamedTuple` — одна форма.
+_FIELD_CTOR_BASES: dict = {
+    "NamedTuple": _CtorForm("NamedTuple", False, False),
+    "TypedDict": _CtorForm("TypedDict", False, True),
+    "BaseModel": _CtorForm("pydantic BaseModel", True, True),
+}
+
+#: Аннотации, которые полем конструктора НЕ являются: `ClassVar` — классовая
+#: величина, `InitVar` в подписи есть, но полем не становится и до объекта не
+#: доходит. Пропустить их значило бы сдвинуть ПОЗИЦИИ и назвать не то поле —
+#: ровно тот дефект, против которого написан ADR-1101.
+_NON_FIELD_ANNOTATIONS: frozenset[str] = frozenset({"ClassVar", "InitVar"})
 
 #: Вердикт, составляющий КЛАСС. Остальные — контекст либо третий исход.
 CLASS_VERDICT = "reaches_report"
@@ -454,16 +499,127 @@ def _init_of(cls: ast.ClassDef):
 
 
 def _annotated_fields(cls: ast.ClassDef) -> list:
-    """Поля, объявленные АННОТАЦИЕЙ, В ПОРЯДКЕ объявления.
+    """Поля ЭТОГО тела класса, объявленные АННОТАЦИЕЙ, В ПОРЯДКЕ объявления.
 
-    Для `@dataclass` и `NamedTuple` этот порядок И ЕСТЬ подпись сгенерированного
-    конструктора: тела `__init__` в исходнике нет вовсе, и спрашивать его
-    параметры нечему. Живая находка ровно такая — `Touch` из
-    `spa_core/monitoring/tier_touch.py`.
+    Подписью СГЕНЕРИРОВАННОГО конструктора этот порядок является только у
+    объявленной формы и только вместе с полями БАЗ — собирает подпись
+    :func:`_generated_signature`, а не этот зов. До ADR-1101 он отвечал на
+    вопрос о подписи сам, и на классе с базой это был ответ о другом
+    конструкторе: у `class Handler(BaseHTTPRequestHandler)` конструктор
+    УНАСЛЕДОВАН, а `backtest_dir: str` — классовая КОНСТАНТА, величины не
+    получающая никогда.
+
+    `ClassVar` и `InitVar` отсеяны: полями конструктора они не становятся, а их
+    присутствие в перечне СДВИНУЛО БЫ позиции и назвало не то поле.
     """
-    return [node.target.id for node in cls.body
-            if isinstance(node, ast.AnnAssign)
-            and isinstance(node.target, ast.Name)]
+    out: list = []
+    for node in cls.body:
+        if not (isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)):
+            continue
+        if _annotation_head(node.annotation) in _NON_FIELD_ANNOTATIONS:
+            continue
+        if _declared_out_of_init(node.value):
+            continue
+        out.append(node.target.id)
+    return out
+
+
+def _annotation_head(node: ast.AST) -> Optional[str]:
+    """Голова аннотации: `ClassVar[int]` → `ClassVar`, `typing.ClassVar` → то же."""
+    if isinstance(node, ast.Subscript):
+        node = node.value
+    dotted = _dotted_of(node)
+    return dotted.split(".")[-1] if dotted else None
+
+
+def _declared_out_of_init(value: Optional[ast.AST]) -> bool:
+    """`field(init=False)` — объявление, что поля в подписи НЕТ."""
+    if not isinstance(value, ast.Call) or _call_name(value) != "field":
+        return False
+    for kw in value.keywords:
+        if kw.arg == "init" and isinstance(kw.value, ast.Constant):
+            return kw.value.value is False
+    return False
+
+
+def _ctor_form(cls: ast.ClassDef) -> Optional[_CtorForm]:
+    """Форма, рождающая конструктор ПОЛЯМИ, либо `None` — форма НЕ ОБЪЯВЛЕНА.
+
+    Спрашивается ОБЪЯВЛЕНИЕ класса, а не отсутствие `__init__`: «своего
+    `__init__` нет» и «конструктор рождён полями» — разные утверждения, и до
+    ADR-1101 мера подменяла второе первым. Замер 25.11 по `spa_core/**` вне
+    тестов: классов с аннотациями, без своего `__init__` и с базой — **64**, из
+    них форму НЕ объявляют **9**, и у всех девяти конструктор унаследован.
+    """
+    for dec in cls.decorator_list:
+        node = dec.func if isinstance(dec, ast.Call) else dec
+        dotted = _dotted_of(node)
+        if dotted and dotted.split(".")[-1] in _FIELD_CTOR_DECORATORS:
+            return _FIELD_CTOR_DECORATORS[dotted.split(".")[-1]]
+    for dotted in _base_names(cls):
+        leaf = dotted.split(".")[-1]
+        if leaf in _FIELD_CTOR_BASES:
+            return _FIELD_CTOR_BASES[leaf]
+    return None
+
+
+def _generated_signature(cls: ast.ClassDef, ctx: "_Ctx",
+                         form: _CtorForm) -> tuple:
+    """Подпись сгенерированного конструктора: поля БАЗ ПЕРВЫМИ, потом свои.
+
+    Порядок не косметика, а сама мера: позиция зова сопоставляется с позицией
+    подписи, и перечислить только свои поля значит назвать поле, стоящее на
+    ДРУГОМ месте. Поля базы попадают в подпись лишь когда база сама объявила
+    форму (`@dataclass` не берёт аннотации обычного родителя) — поэтому у
+    каждой базы спрашивается :func:`_ctor_form`, а не наличие аннотаций.
+
+    Обход в ГЛУБИНУ и ПОСЛЕ потомка: `dataclasses` собирает поля по
+    `__mro__` НАОБОРОТ, то есть дальняя база идёт первой. Обход в ширину дал бы
+    для цепочки `Kid(Mid)`→`Mid(Top)` порядок `Mid, Top` вместо `Top, Mid` —
+    и позиция 0 указала бы на чужое поле.
+
+    Возвращается ТРОЙКА: подпись · базы, разрешить которые нечем · признак
+    НЕОДНОЗНАЧНОГО порядка. Последний поднимается, когда поля несёт больше
+    одной прямой базы: их порядок в подписи решает C3-линеаризация, а не
+    объявление, и вычислять её по исходнику мера не умеет. Оба последних —
+    вход третьего исхода у :func:`_ctor_param`, а не ответ этого зова.
+    """
+    if not form.inherits_fields:
+        return _annotated_fields(cls), [], False
+    unresolved: list = []
+    contributors = 0
+
+    def fields_of(node: ast.ClassDef, nctx: "_Ctx", seen: frozenset) -> list:
+        step = (nctx.key, node.name)
+        if step in seen:                       # цикл в цепочке баз — не повод врать
+            return []
+        seen = seen | {step}
+        out: list = []
+        for dotted in _base_names(node):
+            base, bctx = _resolve_base(dotted, nctx)
+            if base is None or bctx is None:
+                if dotted not in unresolved:
+                    unresolved.append(dotted)
+                continue
+            out.extend(fields_of(base, bctx, seen))
+            if _ctor_form(base) is not None:
+                out.extend(_annotated_fields(base))
+        return out
+
+    inherited: list = []
+    for field in fields_of(cls, ctx, frozenset()):
+        if field not in inherited:
+            inherited.append(field)
+    for dotted in _base_names(cls):
+        base, bctx = _resolve_base(dotted, ctx)
+        if base is None or bctx is None:
+            continue
+        if fields_of(base, bctx, frozenset()) or (
+                _ctor_form(base) is not None and _annotated_fields(base)):
+            contributors += 1
+    own = [f for f in _annotated_fields(cls) if f not in inherited]
+    return inherited + own, unresolved, contributors > 1
 
 
 def _base_names(cls: ast.ClassDef) -> list:
@@ -513,59 +669,119 @@ def _fields_fed_by(init: ast.AST, param: str) -> list:
 
 
 def _ctor_param(cls: ast.ClassDef, init, call: ast.Call, names: set,
-                node: Optional[ast.AST]) -> tuple:
+                node: Optional[ast.AST], ctx: "_Ctx") -> tuple:
     """Параметр конструктора, принявший значение, либо названная ПРИЧИНА отказа.
 
-    Два вида конструктора различаются, и подменять один другим нельзя: у явного
-    `__init__` подпись есть в исходнике (и первый её параметр — `self`, поэтому
-    позиции зова сдвинуты на один), у сгенерированного подписью СЛУЖАТ
-    объявленные поля. Нет ни того, ни другого ⇒ третий исход с причиной, а не
-    «не утекает».
+    Конструкторов у класса не два вида, а ТРИ, и до ADR-1101 мера знала два:
+    явный `__init__` (подпись в исходнике, первый параметр `self`, позиции зова
+    сдвинуты на один) и «сгенерированный» — им объявлялся ЛЮБОЙ класс без
+    своего `__init__`. Третий вид — конструктор УНАСЛЕДОВАННЫЙ, и он на живой
+    поверхности самый частый: у `class Handler(BaseHTTPRequestHandler)`
+    аннотации суть классовые КОНСТАНТЫ, величины не получающие никогда. Мера
+    называла первую из них «параметром, принявшим значение», и дальше судила
+    методы, её читающие, — то есть ВЫДУМЫВАЛА находку (замер 25.11: девять
+    таких классов, у двух из девяти константа участвует в сборке пути).
+
+    Поэтому спрашивается ОБЪЯВЛЕННАЯ ФОРМА (:func:`_ctor_form`), а подпись
+    собирается вместе с полями баз (:func:`_generated_signature`). Неизвестная
+    подпись — третий исход с названной причиной, а не позиция 0.
     """
     if init is not None:
         args = init.args
         params = [a.arg for a in list(args.posonlyargs) + list(args.args)][1:]
         return _match_param(params, args, call, names, node), None
-    fields = _annotated_fields(cls)
+    form = _ctor_form(cls)
+    if form is None:
+        bases = _base_names(cls)
+        if bases:
+            return None, (
+                f"конструктор {cls.name!r} НЕ ОБЪЯВЛЕН: ни `__init__`, ни формы, "
+                f"рождающей конструктор полями — он УНАСЛЕДОВАН от "
+                f"{', '.join(bases)}, а аннотации класса суть КОНСТАНТЫ; какой "
+                f"параметр принял величину, НЕ ИЗМЕРЕНО")
+        form = _CtorForm("поля без базы", False, False)
+    fields, unresolved, ambiguous = _generated_signature(cls, ctx, form)
     if not fields:
         return None, (f"конструктор {cls.name!r} НЕ РАЗРЕШЁН: ни `__init__`, ни "
                       f"объявленных полей — НЕ ИЗМЕРЕНО")
-    param = _match_param(fields, None, call, names, node)
-    if param is None:
+    kind, where = _hit_in_call(call, names, node)
+    if kind == "keyword":
+        if where in fields or unresolved:
+            return where, None
         return None, (f"конструктор {cls.name!r}: параметр, принявший значение, "
                       f"НЕ РАЗРЕШЁН среди объявленных полей "
                       f"({', '.join(fields)}) — НЕ ИЗМЕРЕНО")
-    return param, None
+    if kind is None:
+        return None, (f"конструктор {cls.name!r}: параметр, принявший значение, "
+                      f"НЕ РАЗРЕШЁН среди объявленных полей "
+                      f"({', '.join(fields)}) — НЕ ИЗМЕРЕНО")
+    if form.keyword_only:
+        return None, (
+            f"конструктор {cls.name!r}: форма {form.name} принимает поля ТОЛЬКО "
+            f"по ключу, а величина передана ПОЗИЦИЕЙ {where} — какое поле её "
+            f"приняло, НЕ ИЗМЕРЕНО")
+    if unresolved:
+        return None, (
+            f"конструктор {cls.name!r}: подпись НЕИЗВЕСТНА — базы НЕ РАЗРЕШЕНЫ "
+            f"({', '.join(unresolved)}), сколько полей они несут, мерой не "
+            f"узнать, и какое поле стои́т на позиции {where}, НЕ ИЗМЕРЕНО")
+    if ambiguous:
+        return None, (
+            f"конструктор {cls.name!r}: поля несёт больше одной прямой базы — "
+            f"их порядок в подписи решает C3-линеаризация, мерой не вычисляемая, "
+            f"и какое поле стои́т на позиции {where}, НЕ ИЗМЕРЕНО")
+    if where < len(fields):
+        return fields[where], None
+    return None, (
+        f"конструктор {cls.name!r}: величина передана позицией {where}, а "
+        f"подпись несёт {len(fields)} пол(я) ({', '.join(fields)}) — "
+        f"НЕ ИЗМЕРЕНО")
+
+
+def _hit_in_call(call: ast.Call, names: set,
+                 node: Optional[ast.AST]) -> tuple:
+    """КАК величина попала в зов: `("positional", индекс)` либо `("keyword", имя)`.
+
+    ЕДИНСТВЕННАЯ дверь вопроса, и спрашивает её же :func:`_match_param`. Копий
+    быть не должно: разойдись они — одна и та же передача считалась бы
+    позиционной на одной дороге и ключевой на другой, то есть вердикт зависел
+    бы от того, каким путём мера дошла до зова.
+    """
+    for index, arg in enumerate(call.args):
+        if _hits(arg, names, node):
+            return "positional", index
+    for kw in call.keywords:
+        if kw.arg and _hits(kw.value, names, node):
+            return "keyword", kw.arg
+    return None, None
+
+
+def _hits(arg: ast.AST, names: set, node: Optional[ast.AST]) -> bool:
+    """Лежит ли в этом аргументе ИСКОМОЕ вхождение — по ТОЖДЕСТВУ либо по именам.
+
+    Тождество нужно литералу, переданному на месте (`Touch(("tier_curator",))`):
+    имени у него нет, и поиск по именам ответил бы `False` — ложная невинность,
+    закрытая у функций :func:`_param_by_identity`.
+    """
+    if node is not None:
+        return any(sub is node for sub in ast.walk(arg))
+    return _mentions_any(arg, names)
 
 
 def _match_param(params: list, args, call: ast.Call, names: set,
                  node: Optional[ast.AST]) -> Optional[str]:
-    """Какой из `params` принял значение: по ТОЖДЕСТВУ узла либо по именам.
-
-    Тождество нужно литералу, переданному на месте (`Touch(("tier_curator",))`):
-    имени у него нет, и поиск по именам ответил бы `None` — ложная невинность,
-    закрытая у функций :func:`_param_by_identity`.
-    """
-    for index, arg in enumerate(call.args):
-        hit = (node is not None and any(sub is node for sub in ast.walk(arg))) \
-            or (node is None and _mentions_any(arg, names))
-        if not hit:
-            continue
-        if index < len(params):
-            return params[index]
+    """Какой из `params` принял значение. Как именно попало — у :func:`_hit_in_call`."""
+    kind, where = _hit_in_call(call, names, node)
+    if kind == "positional":
+        if where < len(params):
+            return params[where]
         if args is not None and args.vararg is not None:
             return args.vararg.arg
         return None
-    for kw in call.keywords:
-        if not kw.arg:
-            continue
-        hit = (node is not None
-               and any(sub is node for sub in ast.walk(kw.value))) \
-            or (node is None and _mentions_any(kw.value, names))
-        if hit:
-            if args is not None or kw.arg in params:
-                return kw.arg
-            return None
+    if kind == "keyword":
+        if args is not None or where in params:
+            return where
+        return None
     return None
 
 
@@ -1004,7 +1220,7 @@ def _into_object(cls: ast.ClassDef, call: ast.Call, names: set,
     базу, лежащую в том же модуле.
     """
     init = _init_of(cls)
-    param, refusal = _ctor_param(cls, init, call, names, node)
+    param, refusal = _ctor_param(cls, init, call, names, node, ctx)
     if param is None:
         return UNMEASURED, f"{where}: {refusal}"
     step = (ctx.key, cls.name, param)
