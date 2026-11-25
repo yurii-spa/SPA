@@ -22867,6 +22867,15 @@ ORIGIN_REF = "origin/main"
 #: Каталог карточек внутри репозитория — адрес один и тот же в любом дереве.
 TRACKER_REL = "nimbalyst-local/tracker"
 
+#: Откуда взята строка раздела — ТРИ различимых происхождения, а не «да/нет»
+#: (ADR-1105). Поле `from_origin` остаётся булевым для прежних читателей, а
+#: ПРИЧИНА дочитывания живёт отдельно: «файла в дереве нет» и «файл есть, а
+#: критерия в нём нет» суть разные состояния, и печатать их одной фразой значит
+#: соврать читателю о том, где лежит карточка.
+ROW_SOURCE_TREE = ""                             #: копия дерева, критерий её же
+ROW_SOURCE_FILE_ABSENT = "file_absent"           #: файла в дереве нет вовсе
+ROW_SOURCE_CRITERION_ONLY = "criterion_only_on_ref"  #: файл есть, критерия в нём нет
+
 
 def _git(args: list, *, repo_root: str, timeout: float = 20.0):
     """`git` в указанном дереве. `None` — команда не удалась (это НЕ «пусто»)."""
@@ -22999,11 +23008,22 @@ def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
     (:func:`probe_numbers_tree`), а раздел целиком — блок `trees`
     (:func:`section_trees`).
 
-    `origin_readthrough` дочитывает с `ref` карточки, которых в этом дереве нет
-    (см. :func:`cards_declaring_a_probe_on_ref`). Блок `origin` описывает исход
-    дочитывания ТРЕМЯ состояниями: `read` (сколько добрано), `unmeasured`
-    (дочитать не удалось — назвать вслух) и `off` (не просили). Слепота, о которой
-    не сказано, — та же слепота.
+    `origin_readthrough` дочитывает с `ref` карточки, чей КРИТЕРИЙ этому дереву
+    невидим (см. :func:`cards_declaring_a_probe_on_ref`), и ключ здесь —
+    критерий, а НЕ наличие файла (ADR-1105). Два состояния под этим считаются
+    раздельно (`read_file_absent`, `read_criterion_only_on_ref`) и печатаются
+    раздельно: «файла в дереве нет» лечится доставкой карточки, «файл есть, а
+    критерия в нём нет» — сверкой копий. Блок `origin` описывает исход ТРЕМЯ
+    состояниями: `read` (сколько добрано), `unmeasured` (дочитать не удалось —
+    назвать вслух) и `off` (не просили). Слепота, о которой не сказано, — та же
+    слепота.
+
+    Строка карточки, чей критерий есть только на `ref`, берётся с `ref`
+    ЦЕЛИКОМ — и критерий, и статус. Взять критерий с ref, а «открыта» прочесть
+    в дереве значило бы собрать вердикт из двух копий молча (предмет ADR-1081);
+    копия дерева при этом не замолчана и едет в строке полем `tree_status`.
+    Локальное объявление НИКОГДА не вытесняется ref-овским: дерево — то, что
+    правит сессия, и обратный порядок дал бы ровно зеркальный дефект.
     """
     tracker_dir = tracker_dir or os.path.join(REPO_ROOT, "nimbalyst-local", "tracker")
     # Дерево для дочитывания выводится ИЗ САМОГО tracker_dir, а не берётся у
@@ -23017,6 +23037,13 @@ def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
     rows: list[dict] = []
     scanned = 0
     local_names: set = set()
+    #: Локальные копии, ОБЪЯВИВШИЕ критерий своим же текстом, и их статус. Поле
+    #: ровно то, по которому ниже строится строка (`acceptance_probe`), — иначе
+    #: вопрос «объявлен ли критерий» задавался бы одному полю, а строка строилась
+    #: по другому, и дверь пускала бы через себя ровно те карточки, из-за которых
+    #: понадобилась (ADR-1105).
+    local_declaring: set = set()
+    local_status: dict = {}
     sources: list = []
     if os.path.isdir(tracker_dir):
         for name in sorted(os.listdir(tracker_dir)):
@@ -23030,7 +23057,11 @@ def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
                 continue
             scanned += 1
             local_names.add(name)
-            sources.append((name, text, False))
+            _lfm = parse_frontmatter(text)
+            local_status[name] = (_lfm.get("status") or "").strip()
+            if (_lfm.get("acceptance_probe") or "").strip():
+                local_declaring.add(name)
+            sources.append((name, text, ROW_SOURCE_TREE))
 
     origin: dict = {"state": "off", "read": 0, "ref": ref}
     if origin_readthrough and not _is_git_repo(repo_root):
@@ -23049,12 +23080,36 @@ def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
                                 f"нет ref или чтение прервалось) — сколько карточек "
                                 f"этому дереву невидимо, НЕ ИЗМЕРЕНО"}
         else:
-            added = [(n, t) for n, t in sorted(remote.items()) if n not in local_names]
-            sources.extend((n, t, True) for n, t in added)
-            origin = {"state": "read", "read": len(added), "ref": ref,
-                      "declared_on_ref": len(remote)}
+            # Дочитывание ключуется КРИТЕРИЕМ, а не наличием файла (ADR-1105).
+            # Прежний ключ `n not in local_names` отвечал на вопрос «лежит ли
+            # файл в этом каталоге», а предмет модуля — «объявлен ли у карточки
+            # машинный критерий». Замер 25.11 на живом проде: карточек в обеих
+            # копиях 930, у 15 из них критерий объявлен ТОЛЬКО на ref, и ни один
+            # прибор его не видел — среди 15 стоял голодающий приказ владельца
+            # `inbox-task-portfolio-cio-dynamic-capital-alloc`, чья проба
+            # `apy_name_carries_one_kind` ВЫПОЛНЕНА.
+            absent = [(n, t) for n, t in sorted(remote.items()) if n not in local_names]
+            # Файл в дереве ЕСТЬ, критерия в нём НЕТ: объявление живёт только на
+            # ref. Строка берётся с ref ЦЕЛИКОМ — и критерий, и статус, — потому
+            # что собрать вердикт из критерия одной копии и статуса другой
+            # значило бы вернуть предмет ADR-1081 на новом месте. Копия дерева
+            # при этом НЕ замолчана: её статус едет в строке полем `tree_status`
+            # и печатается рядом.
+            criterion_only = [(n, t) for n, t in sorted(remote.items())
+                              if n in local_names and n not in local_declaring]
+            sources.extend((n, t, ROW_SOURCE_FILE_ABSENT) for n, t in absent)
+            sources.extend((n, t, ROW_SOURCE_CRITERION_ONLY) for n, t in criterion_only)
+            origin = {"state": "read",
+                      "read": len(absent) + len(criterion_only),
+                      # Два слагаемых НАЗВАНЫ раздельно: одно число не даёт
+                      # отличить «карточки в дереве нет» от «есть, а критерия
+                      # нет», а лечатся они по-разному.
+                      "read_file_absent": len(absent),
+                      "read_criterion_only_on_ref": len(criterion_only),
+                      "ref": ref, "declared_on_ref": len(remote)}
 
-    for name, text, from_origin in sources:
+    for name, text, row_source in sources:
+            from_origin = bool(row_source)
             fm = parse_frontmatter(text)
             spec = fm.get("acceptance_probe")
             if not spec:
@@ -23104,6 +23159,19 @@ def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
                 # дереве нет, иначе читается как «файл рядом, посмотри» — и
                 # следующая сессия идёт искать его на диске.
                 "from_origin": from_origin,
+                # ПРИЧИНА дочитывания — три различимых состояния (ADR-1105).
+                # Булево `from_origin` сохранено для прежних читателей, но
+                # «файла нет» и «файл есть, критерия нет» одной фразой не
+                # печатаются: во втором случае файл на диске ЕСТЬ, и фраза
+                # «файла в этом дереве нет» была бы ложью.
+                "origin_source": row_source,
+                # Статус копии ДЕРЕВА — чтобы «статус взят с ref» не выглядело
+                # как утверждение об одной копии. Для строк из дерева он равен
+                # `status`; для дочитанных без файла его нет ПО ПОСТРОЕНИЮ, и
+                # тогда здесь None (инв. #17), а не пустая строка, которая
+                # совпала бы с «статус пуст».
+                "tree_status": (local_status.get(name)
+                                if name in local_names else None),
                 # Цена ЭТОЙ пробы в секундах, либо None — «не запускали».
                 "seconds": seconds,
                 # Дерево, из которого взяты ЧИСЛА критерия (ADR-1081). Три
@@ -23121,6 +23189,12 @@ def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
         "unmeasured": sum(1 for r in rows if r["verdict"] == UNMEASURED),
     }
     counts["from_origin"] = sum(1 for r in rows if r.get("from_origin"))
+    # Разложение того же числа по ПРИЧИНЕ дочитывания (ADR-1105): «итого
+    # дочитано N» не отличает невидимый файл от невидимого критерия.
+    counts["from_origin_file_absent"] = sum(
+        1 for r in rows if r.get("origin_source") == ROW_SOURCE_FILE_ABSENT)
+    counts["from_origin_criterion_only"] = sum(
+        1 for r in rows if r.get("origin_source") == ROW_SOURCE_CRITERION_ONLY)
     # Деревья СТРОК (ADR-1081). Знаменатель — ОТКРЫТЫЕ строки: у закрытой пробу не
     # запускали, и её дерево чисел никто не читал.
     _open_rows = [r for r in rows if r.get("open")]
@@ -23416,6 +23490,35 @@ def section_tree_lines(result: dict) -> list[str]:
     return [f"   [НЕ ИЗМЕРЕНО] деревья раздела: {why}{tail}"]
 
 
+def _row_provenance(row: dict, *, ref: str | None = None) -> str:
+    """Откуда взята строка — словами, и ТРИ состояния различимы (ADR-1105).
+
+    Прежняя редакция печатала одну фразу «файла в этом дереве нет» на любое
+    дочитывание. Для карточки, чей файл в дереве ЕСТЬ, а критерий объявлен
+    только на ref, эта фраза — ЛОЖЬ: следующая сессия пошла бы искать файл и
+    нашла бы его, а расхождение копий, из-за которого критерий невидим,
+    осталось бы ненаписанным.
+
+    Строка из дерева провенанса не печатает вовсе: приписка у КАЖДОЙ строки
+    утопила бы в шуме те две, у которых она есть по делу.
+    """
+    src = row.get("origin_source")
+    if src is None:
+        # Отчёт СТАРОГО образца (до ADR-1105) поля не несёт. Булево сохраняем
+        # как прежний контракт, но выдавать его за измеренную причину нельзя.
+        return (" [дочитана с origin; причина дочитывания НЕ ИЗМЕРЕНА — отчёт "
+                "старого образца]" if row.get("from_origin") else "")
+    if src == ROW_SOURCE_FILE_ABSENT:
+        return " [дочитана с origin, файла в этом дереве нет]"
+    if src == ROW_SOURCE_CRITERION_ONLY:
+        tree_status = row.get("tree_status")
+        shown = f"`{tree_status}`" if tree_status else "статус не прочитан"
+        return (f" [критерий объявлен ТОЛЬКО на {ref or ORIGIN_REF}: файл в этом "
+                f"дереве ЕСТЬ, критерия в нём НЕТ — и критерий, и статус взяты "
+                f"с ref, копия дерева говорит {shown}]")
+    return ""
+
+
 def report_lines(result: dict) -> list[str]:
     """Строки для шага 0-офис. Пустой ответ невозможен: «проб не объявлено» —
     тоже состояние, и молчание о нём неотличимо от «всё сошлось»."""
@@ -23432,9 +23535,22 @@ def report_lines(result: dict) -> list[str]:
     if origin.get("state") == "unmeasured":
         out.append(f"   [{'НЕ ИЗМЕРЕНО'}] {origin.get('reason')}")
     elif origin.get("state") == "read" and origin.get("read"):
+        # Два слагаемых НАЗВАНЫ (ADR-1105): «файла в дереве нет» лечится
+        # доставкой карточки, «файл есть, критерия в нём нет» — сверкой копий, и
+        # одно число на оба состояния отправило бы читателя не туда. Отчёт
+        # старого образца слагаемых не несёт — тогда печатается прежняя фраза,
+        # а не выдуманный ноль.
+        _abs_n = origin.get("read_file_absent")
+        _crit_n = origin.get("read_criterion_only_on_ref")
+        if _abs_n is None or _crit_n is None:
+            _split = ("карточк(и) с объявленной пробой, которых в этом дереве НЕТ "
+                      "(разложение по причине НЕ ИЗМЕРЕНО — отчёт старого образца)")
+        else:
+            _split = (f"карточк(и) с объявленной пробой, невидимой этому дереву: "
+                      f"файла в дереве нет {_abs_n} · файл есть, а критерий "
+                      f"объявлен ТОЛЬКО на ref {_crit_n}")
         out.append(f"   популяция дочитана с `{origin.get('ref')}`: +{origin['read']} "
-                   f"карточк(и) с объявленной пробой, которых в этом дереве НЕТ "
-                   f"(на ref объявлено {origin.get('declared_on_ref')})")
+                   f"{_split} (на ref объявлено {origin.get('declared_on_ref')})")
     if not (result.get("rows") or []):
         out.append(f"   проб не объявлено ни на одной из {result.get('scanned', 0)} карточек "
                    f"— критерии живут прозой, машинно не перемеряются (ADR-208)")
@@ -23457,7 +23573,7 @@ def report_lines(result: dict) -> list[str]:
     # минут, и вопрос «куда они ушли» дороже любой отдельной строки вердикта.
     out.extend(probe_price_lines(result))
     for r in result["rows"]:
-        where_from = " [дочитана с origin, файла в этом дереве нет]" if r.get("from_origin") else ""
+        where_from = _row_provenance(r, ref=(result.get("origin") or {}).get("ref"))
         if r["open"] and r["verdict"] == SATISFIED:
             _rt = r.get("row_trees") or {}
             if _rt.get("state") == ROW_SPLIT:
