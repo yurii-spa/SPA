@@ -236,6 +236,7 @@
 | ADR-1105 | ADR-1105 — Объявленный критерий, который есть ТОЛЬКО на ветви доставки: дочитывание ключовалось файлом, а не критерием | Accepted | [ADR-1105](ADR-1105-declared-criterion-only-on-the-ref.md) |
 | ADR-1106 | ADR-1106 — Ноль доставленных коммитов печатался владельцу как ПУСТОТА | Accepted | [ADR-1106](ADR-1106-delivered-zero-printed-as-emptiness.md) |
 | ADR-1107 | ADR-1107 — Названный каталог чисел обязан ДОХОДИТЬ до пробы, а «не измерено» обязано винить себя, а не дерево | Accepted | [ADR-1107](ADR-1107-named-numbers-tree-must-reach-the-probe.md) |
+| ADR-1108 | ADR-1108 — Класс «названный каталог данных до читателя не дошёл» ИЗМЕРЕН за пределами реестра проб: предмет ПУСТ, вилка 0…1, НЕ ИЗМЕРЕНО 2 | Accepted | [ADR-1108](ADR-1108-named-data-dir-class-measured-outside-the-probe-registry.md) |
 
 ## Соглашения
 

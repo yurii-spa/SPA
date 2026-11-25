@@ -22357,7 +22357,83 @@ def _github_identity_probe(token, timeout=None):  # noqa: F811
         "(2027-02-22); три причины «не измерено» различимы")
 
 
+def _probe_named_data_dir_class_measurable(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: вопрос «дошёл ли названный каталог» задан КЛАССУ, а не одной двери.
+
+    ADR-1107 закрыл класс у реестра проб приёмки (`probe_numbers_tree`), и карточка
+    `inbox-klass-nazvannyi-katalog-do-pribora-ne-do` назвала остаток НЕ ИЗМЕРЕННЫМ
+    вслух: сколько приборов `scripts/*` и `spa_core/monitoring/*` принимают
+    `--data-dir` на CLI и всё равно читают своё дерево — не мерил никто.
+
+    Проба меряет ИСХОД, а не наличие файла: прибор обязан (а) доказать, что его ось
+    РАЗЛИЧАЕТ (три синтетические сцены, отличающиеся ровно охраной чтения), и
+    (б) назвать население порознь — предмет, вилку и НЕ ИЗМЕРЕНО. «✅ ПУСТ» без (а)
+    было бы ответом о себе, а не о классе (урок ADR-932).
+
+    Три исхода (инв. #17): предмет ПУСТ при зелёной оси ⇒ `satisfied` · предмет НЕ
+    пуст ⇒ `not_satisfied` с именами · ось не различает либо поверхность не
+    прочитана ⇒ `unmeasured` с причиной. Дерево — ВХОД (`repo_root`), иначе проба
+    отвечала бы о дереве МОДУЛЯ под заголовком про названное (ровно ADR-1107).
+    """
+    import importlib.util as _ilu
+
+    root = _pathlib.Path(repo_root) if repo_root else _pathlib.Path(REPO_ROOT)
+    tool = root / "scripts" / "named_data_dir_census.py"
+    if not tool.is_file():
+        return UNMEASURED, f"прибора переписи нет в дереве: {tool}"
+    try:
+        spec = _ilu.spec_from_file_location("_ndc_probe", str(tool))
+        if spec is None or spec.loader is None:
+            return UNMEASURED, f"прибор {tool} не загружается"
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"прибор не ввезён: {type(exc).__name__}: {exc}"
+
+    for door in ("self_check", "surface", "classify_file"):
+        if not hasattr(mod, door):
+            return UNMEASURED, f"у прибора нет двери `{door}` — мерить нечем"
+
+    try:
+        sc = mod.self_check()
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"самоконтроль не ответил: {type(exc).__name__}: {exc}"
+    if not sc.get("ok"):
+        return UNMEASURED, (
+            "ось НЕ РАЗЛИЧАЕТ сцены класса: член -> "
+            f"{sc.get('member')}, запаска -> {sc.get('clean')}, "
+            f"ранний возврат -> {sc.get('fallback')}; «предмет пуст» при такой оси "
+            "есть ответ о себе")
+
+    try:
+        rep = mod.surface(root)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись не ответила: {type(exc).__name__}: {exc}"
+    if rep.get("missing_dirs"):
+        return UNMEASURED, ("каталог(и) поверхности не прочитан(ы): "
+                            + ", ".join(rep["missing_dirs"]))
+
+    c = rep.get("counts") or {}
+    strict = int(c.get(mod.PARTIAL, 0))
+    weak = int(c.get(mod.PARTIAL_WEAK, 0))
+    unm = int(c.get(mod.UNMEASURED, 0))
+    total = int(rep.get("surface_total", 0))
+    if strict:
+        names = ", ".join(r["path"] for r in rep["records"]
+                          if r["verdict"] == mod.PARTIAL)
+        return NOT_SATISFIED, (
+            f"предмет НЕ пуст: {strict} прибор(ов) из {total} читают дерево модуля "
+            f"безусловно — {names}")
+    return SATISFIED, (
+        f"население класса у НЕ-проб ИЗМЕРЕНО: поверхность {total}, предмет "
+        f"{strict}, вилка {strict}…{strict + weak}, НЕ ИЗМЕРЕНО {unm}; ось доказала, "
+        f"что различает (член/запаска/ранний возврат — три разных вердикта)")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "named_data_dir_class_measurable":
+        _probe_named_data_dir_class_measurable,
     "pat_token_state_is_asked_of_github":
         _probe_pat_token_state_is_asked_of_github,
     "module_limit_bites_a_busy_module":

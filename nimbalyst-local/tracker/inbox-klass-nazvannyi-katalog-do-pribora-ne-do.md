@@ -2,12 +2,16 @@
 trackerStatus:
   type: inbox
 title: "Класс «названный каталог до прибора не дошёл» измерен ТОЛЬКО внутри реестра проб: за одним хопом и у НЕ-проб — не измерено"
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-25
 intake_kind: task
 priority: medium
 twin_key: "sha256:0859ffb9a9addccebffed93baacf48c447f7cf0def51b8e5df322256f29ecf99"
+acceptance_probe: named_data_dir_class_measurable
+status_trail:
+  - "2026-11-25T23:02:57.470729+00:00 new -> in-progress · queue.set_status · cycle-15670"
+  - "2026-11-25T23:14:17.694019+00:00 in-progress -> done · queue.set_status/closed_by:цикл #1253 (orchestrator-15670)/evidence:ADR-1108. Проба named_data_dir_class_measurable объявлена ДО работы и даёт satisfied: поверхность 125, предмет 0, вилка 0…1, НЕ ИЗМЕРЕНО 2; контроль в обе стороны — spa_core/tests/test_named_data_dir_ · cycle-15670"
 ---
 
 ## Что измерено
