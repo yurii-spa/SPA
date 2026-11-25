@@ -41,14 +41,24 @@
 
 ## Чего мера НЕ закрывает
 
-Хоп ОДИН: получатель, передающий значение ДАЛЬШЕ третьему, числится по тому, что
-делает сам, и население за этой границей НЕ ИЗМЕРЕНО — нулём это не считается
-(та же граница, о которую спотыкается сторож притязания `injected-clock`,
-`.claude/rules/deployment.md` § девятая дверь). Поток значения внутри получателя
-прослеживается ПО ИМЕНИ ПАРАМЕТРА, а не по SSA: переименование через промежуточную
-переменную внутри помощника мера видит, переупаковку в чужой объект — нет.
-Разбор чужого исходника — дело вызывающего: он подаёт `resolve`, и `None` от него
-есть `unmeasured`, а не «чисто».
+Хопов НЕСКОЛЬКО (`max_hops`, ADR-1098), и КОНСТРУКТОР класса с 25.11 — такой же
+разрешимый получатель, как функция (ADR-1099, заказ G1082 п. 3): величина,
+легшая в поле, судится в КАЖДОМ методе, это поле читающем. Прежде `Touch(hit, …)`
+не разрешался никак, и мера печатала честное «получатель НЕ РАЗРЕШЁН» — причина
+верная, населением за границей не являвшаяся.
+
+Границы, которые остаются НАЗВАННЫМИ и нулём не считаются:
+
+* **Унаследованные методы НЕ СУДЯТСЯ.** Поле, которое не читает ни один СВОЙ
+  метод класса с базой, даёт третий исход с этой причиной, а не ноль. Население
+  за ЭТОЙ границей НЕ ИЗМЕРЕНО.
+* **Поток внутри объекта идёт ПО ИМЕНИ ПОЛЯ**, ровно как внутри функции — по
+  имени параметра: `self.token` и `other.token` для меры одно имя. Огрубление
+  названо и ошибается в сторону НАХОДКИ, а не в сторону «чисто».
+* **Объект, положенный в ЧУЖОЙ объект** (`self.writer.save(x)`), — следующий
+  класс, и он НЕ ИЗМЕРЕН.
+* Разбор чужого исходника — дело вызывающего: он подаёт `resolve`, и `None` от
+  него есть `unmeasured`, а не «чисто».
 """
 from __future__ import annotations
 
@@ -143,6 +153,7 @@ class _Ctx:
     key: str
     defs: dict
     imported: dict
+    classes: dict
     resolve: Optional[Callable[[str], Optional[str]]] = None
     cache: Optional[dict] = None
 
@@ -413,6 +424,151 @@ def _local_defs(tree: ast.AST) -> dict:
     return out
 
 
+def _local_classes(tree: ast.AST) -> dict:
+    """Классы модуля: имя → объявление. Конструктор — такой же получатель.
+
+    До 25.11 здесь не было ничего, и зов `Touch(hit, …)` не разрешался НИКАК:
+    мера печатала «получатель следующего хопа НЕ РАЗРЕШЁН» — честный третий
+    исход, но населением за ЭТОЙ границей он не был (ADR-1098 назвал это своим
+    пределом, заказ G1082 п. 3 велел измерить).
+    """
+    out: dict = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            out.setdefault(node.name, node)
+    return out
+
+
+def _methods(cls: ast.ClassDef) -> list:
+    """Методы, объявленные в ЭТОМ теле класса. Унаследованных здесь нет."""
+    return [node for node in cls.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+
+
+def _init_of(cls: ast.ClassDef):
+    """Явный `__init__` либо `None` — у сгенерированного конструктора тела НЕТ."""
+    for method in _methods(cls):
+        if method.name == "__init__":
+            return method
+    return None
+
+
+def _annotated_fields(cls: ast.ClassDef) -> list:
+    """Поля, объявленные АННОТАЦИЕЙ, В ПОРЯДКЕ объявления.
+
+    Для `@dataclass` и `NamedTuple` этот порядок И ЕСТЬ подпись сгенерированного
+    конструктора: тела `__init__` в исходнике нет вовсе, и спрашивать его
+    параметры нечему. Живая находка ровно такая — `Touch` из
+    `spa_core/monitoring/tier_touch.py`.
+    """
+    return [node.target.id for node in cls.body
+            if isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)]
+
+
+def _base_names(cls: ast.ClassDef) -> list:
+    """Базовые классы, кроме `object`. Непустой список = есть НЕВИДИМЫЕ методы."""
+    out: list = []
+    for base in cls.bases:
+        dotted = _dotted_of(base)
+        if dotted and dotted.split(".")[-1] != "object":
+            out.append(dotted)
+    return out
+
+
+def _dotted_of(node: ast.AST) -> Optional[str]:
+    """`a.b.c` из цепочки Attribute/Name, либо `None` — цепочка не из имён."""
+    parts: list = []
+    cur = node
+    while isinstance(cur, ast.Attribute):
+        parts.append(cur.attr)
+        cur = cur.value
+    if not isinstance(cur, ast.Name):
+        return None
+    parts.append(cur.id)
+    return ".".join(reversed(parts))
+
+
+def _fields_fed_by(init: ast.AST, param: str) -> list:
+    """Поля `self.X`, в которые явный `__init__` КЛАДЁТ значение параметра.
+
+    Спрашивается ЗАМЫКАНИЕ параметра, а не само имя: `__init__`, положивший
+    `self.mods = tuple(modules)`, кладёт ту же величину в другой упаковке.
+    """
+    local = _closure(init, {param})
+    out: list = []
+    for node in _own_statements(init):
+        targets: list = []
+        if isinstance(node, ast.Assign) and _mentions_any(node.value, local):
+            targets = list(node.targets)
+        elif (isinstance(node, ast.AnnAssign) and node.value is not None
+                and _mentions_any(node.value, local)):
+            targets = [node.target]
+        for target in targets:
+            if (isinstance(target, ast.Attribute)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "self"):
+                out.append(target.attr)
+    return out
+
+
+def _ctor_param(cls: ast.ClassDef, init, call: ast.Call, names: set,
+                node: Optional[ast.AST]) -> tuple:
+    """Параметр конструктора, принявший значение, либо названная ПРИЧИНА отказа.
+
+    Два вида конструктора различаются, и подменять один другим нельзя: у явного
+    `__init__` подпись есть в исходнике (и первый её параметр — `self`, поэтому
+    позиции зова сдвинуты на один), у сгенерированного подписью СЛУЖАТ
+    объявленные поля. Нет ни того, ни другого ⇒ третий исход с причиной, а не
+    «не утекает».
+    """
+    if init is not None:
+        args = init.args
+        params = [a.arg for a in list(args.posonlyargs) + list(args.args)][1:]
+        return _match_param(params, args, call, names, node), None
+    fields = _annotated_fields(cls)
+    if not fields:
+        return None, (f"конструктор {cls.name!r} НЕ РАЗРЕШЁН: ни `__init__`, ни "
+                      f"объявленных полей — НЕ ИЗМЕРЕНО")
+    param = _match_param(fields, None, call, names, node)
+    if param is None:
+        return None, (f"конструктор {cls.name!r}: параметр, принявший значение, "
+                      f"НЕ РАЗРЕШЁН среди объявленных полей "
+                      f"({', '.join(fields)}) — НЕ ИЗМЕРЕНО")
+    return param, None
+
+
+def _match_param(params: list, args, call: ast.Call, names: set,
+                 node: Optional[ast.AST]) -> Optional[str]:
+    """Какой из `params` принял значение: по ТОЖДЕСТВУ узла либо по именам.
+
+    Тождество нужно литералу, переданному на месте (`Touch(("tier_curator",))`):
+    имени у него нет, и поиск по именам ответил бы `None` — ложная невинность,
+    закрытая у функций :func:`_param_by_identity`.
+    """
+    for index, arg in enumerate(call.args):
+        hit = (node is not None and any(sub is node for sub in ast.walk(arg))) \
+            or (node is None and _mentions_any(arg, names))
+        if not hit:
+            continue
+        if index < len(params):
+            return params[index]
+        if args is not None and args.vararg is not None:
+            return args.vararg.arg
+        return None
+    for kw in call.keywords:
+        if not kw.arg:
+            continue
+        hit = (node is not None
+               and any(sub is node for sub in ast.walk(kw.value))) \
+            or (node is None and _mentions_any(kw.value, names))
+        if hit:
+            if args is not None or kw.arg in params:
+                return kw.arg
+            return None
+    return None
+
+
 def _param_by_identity(func: ast.AST, call: ast.Call,
                        node: ast.AST) -> Optional[str]:
     """Параметр, принявший ЛИТЕРАЛ, переданный на месте.
@@ -612,7 +768,7 @@ def data_name_flows(
     parents = _parents(tree)
     defs = _local_defs(tree)
     imported = _imported_modules(tree)
-    ctx = _Ctx("<self>", defs, imported, resolve, {})
+    ctx = _Ctx("<self>", defs, imported, _local_classes(tree), resolve, {})
     out: list = []
     for mention in data:
         node = _constant_at(tree, mention.line, token)
@@ -682,7 +838,8 @@ def _ctx_for_source(key: str, source: str,
                     cache: dict) -> "_Ctx":
     """Контекст чужого модуля: его разбор, его ввозы, тот же разрешитель."""
     tree = _parse(source)
-    return _Ctx(key, _local_defs(tree), _imported_modules(tree), resolve, cache)
+    return _Ctx(key, _local_defs(tree), _imported_modules(tree),
+                _local_classes(tree), resolve, cache)
 
 
 def _resolve_callee(call: ast.Call, ctx: "_Ctx",
@@ -697,13 +854,31 @@ def _resolve_callee(call: ast.Call, ctx: "_Ctx",
     name = _call_name(call)
     if name in ctx.defs:
         return ctx.defs[name], ctx, "local"
+    sub, hop = _module_ctx(call, ctx)
+    if sub is None:
+        return None, None, hop
+    func = sub.defs.get(name)
+    if func is None:
+        return None, None, "unresolved"
+    return func, sub, hop
+
+
+def _module_ctx(call: ast.Call, ctx: "_Ctx") -> tuple:
+    """Контекст МОДУЛЯ, в котором живёт получатель зова, либо `None`.
+
+    Вынесено из :func:`_resolve_callee` не ради краткости: та же половина нужна
+    КОНСТРУКТОРУ (:func:`_resolve_class`), и вторая её копия означала бы, что
+    функция и класс разрешаются по РАЗНЫМ правилам ввоза — то есть мера пускала
+    бы через себя ровно то, из-за чего понадобилась.
+    """
+    name = _call_name(call)
     module = ctx.imported.get(name)
     if module is None and isinstance(call.func, ast.Attribute):
         base = call.func.value
         if isinstance(base, ast.Name):
             module = ctx.imported.get(base.id)
     if module is None or ctx.resolve is None:
-        return None, None, "unresolved"
+        return None, "unresolved"
     cache = ctx.cache if ctx.cache is not None else {}
     if module in cache:
         sub = cache[module]
@@ -718,11 +893,129 @@ def _resolve_callee(call: ast.Call, ctx: "_Ctx",
                 sub = None
         cache[module] = sub
     if sub is None:
+        return None, "unresolved"
+    return sub, f"import:{module}"
+
+
+def _resolve_class(call: ast.Call, ctx: "_Ctx") -> tuple:
+    """Класс-получатель зова: объявление, КОНТЕКСТ его модуля и где он измерен."""
+    name = _call_name(call)
+    if name in ctx.classes:
+        return ctx.classes[name], ctx, "local"
+    sub, hop = _module_ctx(call, ctx)
+    if sub is None:
+        return None, None, hop
+    cls = sub.classes.get(name)
+    if cls is None:
         return None, None, "unresolved"
-    func = sub.defs.get(name)
-    if func is None:
-        return None, None, "unresolved"
-    return func, sub, f"import:{module}"
+    return cls, sub, hop
+
+
+def _into_object(cls: ast.ClassDef, call: ast.Call, names: set,
+                 node: Optional[ast.AST], ctx: "_Ctx", hops_left: int,
+                 visited: frozenset, where: str) -> tuple:
+    """Что делает с величиной САМ ОБЪЕКТ, а не только его конструктор.
+
+    Граница ADR-1098 стояла здесь: `Touch(hit, …)` разрешался НИКАК, и мера
+    печатала «получатель НЕ РАЗРЕШЁН». Причина была честной, но населением за
+    границей она не была — а величина, легшая в поле, живёт дальше в КАЖДОМ
+    методе, это поле читающем.
+
+    Поток внутри объекта прослеживается ПО ИМЕНИ ПОЛЯ — той же мерой, что поток
+    внутри функции прослеживается по имени параметра, и с тем же признанным
+    огрублением: `self.token` и `other.token` для неё одно имя. Огрубление
+    ошибается в сторону НАХОДКИ, а не в сторону «чисто».
+    """
+    init = _init_of(cls)
+    param, refusal = _ctor_param(cls, init, call, names, node)
+    if param is None:
+        return UNMEASURED, f"{where}: {refusal}"
+    step = (ctx.key, cls.name, param)
+    if step in visited:
+        return (UNMEASURED,
+                f"{where}: ЦИКЛ передач — конструктор {cls.name!r} уже судился "
+                f"на этой дороге, НЕ ИЗМЕРЕНО")
+    visited = visited | {step}
+    results: list = []
+    if init is not None:
+        results.append(_follow(init, {param}, f"{where}.__init__", ctx,
+                               hops_left, visited))
+        fields = _fields_fed_by(init, param)
+    else:
+        # Сгенерированный конструктор: поле зовётся так же, как параметр.
+        fields = [param]
+    read_by: list = []
+    for field in sorted(set(fields)):
+        for method in _methods(cls):
+            if method is init:
+                continue
+            if not any(_mentions_name(stmt, field)
+                       for stmt in _own_statements(method)):
+                continue
+            read_by.append((field, method))
+    for field, method in read_by:
+        results.append(_follow(method, {field},
+                               f"{where}.{method.name}", ctx,
+                               hops_left - 1, visited))
+    if fields and not read_by:
+        bases = _base_names(cls)
+        if bases:
+            results.append((
+                UNMEASURED,
+                f"{where}: величина легла в поле "
+                f"{', '.join(sorted(set(fields)))}, его не читает ни один "
+                f"СВОЙ метод класса, а унаследованные методы (базовые классы: "
+                f"{', '.join(bases)}) мерой НЕ СУДЯТСЯ — НЕ ИЗМЕРЕНО"))
+        else:
+            results.append((
+                "local_only",
+                f"{where}: величина легла в поле "
+                f"{', '.join(sorted(set(fields)))}, и НИ ОДИН метод класса её "
+                f"не читает (базовых классов нет) — ИЗМЕРЕННЫЙ ноль, "
+                f"проверенный обходом"))
+    if not results:
+        return (UNMEASURED,
+                f"{where}: конструктор {cls.name!r} разрешён, но ни одного "
+                f"места, куда попало значение, не найдено — НЕ ИЗМЕРЕНО")
+    results.sort(key=lambda r: VERDICT_ORDER.index(r[0]))
+    return results[0]
+
+
+def _into_receiver(call: ast.Call, ctx: "_Ctx", names: set,
+                   node: Optional[ast.AST], hops_left: int,
+                   visited: frozenset, label: str) -> tuple:
+    """ЕДИНСТВЕННАЯ дверь «войти в получателя»: функция ЛИБО конструктор класса.
+
+    Дверей было три (:func:`_handover`, :func:`_flow_for_direct_call` и цикл
+    :func:`_follow`), и каждая разрешала получателя своей копией кода. Копий
+    больше нет намеренно: разойдись они — конструктор стал бы получателем на
+    одной дороге и неразрешимым на другой, то есть вердикт зависел бы от того,
+    каким путём мера дошла до зова.
+    """
+    func, sub, hop = _resolve_callee(call, ctx)
+    if func is not None and sub is not None:
+        param = (_param_by_identity(func, call, node) if node is not None
+                 else _param_for(func, call, names))
+        if param is None:
+            return (UNMEASURED,
+                    f"{label}: параметр получателя, принявший значение, "
+                    f"НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО", hop)
+        step = (sub.key, getattr(func, "name", "?"), param)
+        if step in visited:
+            return (UNMEASURED,
+                    f"{label}: ЦИКЛ передач — этот получатель уже судился на "
+                    f"этой дороге, НЕ ИЗМЕРЕНО", hop)
+        verdict, why = _follow(func, {param}, label, sub, hops_left,
+                               visited | {step})
+        return verdict, why, hop
+    cls, csub, chop = _resolve_class(call, ctx)
+    if cls is None or csub is None:
+        return (UNMEASURED,
+                f"{label}: исходник получателя НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО",
+                chop)
+    verdict, why = _into_object(cls, call, names, node, csub, hops_left,
+                                visited, label)
+    return verdict, why, chop
 
 
 def _follow(scope: ast.AST, names: set, where: str, ctx: "_Ctx",
@@ -757,27 +1050,11 @@ def _follow(scope: ast.AST, names: set, where: str, ctx: "_Ctx",
                 f"`local_only`, ничего не измерив)")
     results: list = []
     for call in onward:
-        func, sub, _hop = _resolve_callee(call, ctx)
         who = _call_name(call) or "<?>"
-        if func is None or sub is None:
-            results.append((UNMEASURED,
-                            f"{where} → {who}: получатель следующего хопа НЕ "
-                            f"РАЗРЕШЁН — НЕ ИЗМЕРЕНО"))
-            continue
-        param = _param_for(func, call, local)
-        if param is None:
-            results.append((UNMEASURED,
-                            f"{where} → {who}: параметр получателя, принявший "
-                            f"значение, НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО"))
-            continue
-        step = (sub.key, getattr(func, "name", "?"), param)
-        if step in visited:
-            results.append((UNMEASURED,
-                            f"{where} → {who}: ЦИКЛ передач — этот получатель "
-                            f"уже судился на этой дороге, НЕ ИЗМЕРЕНО"))
-            continue
-        results.append(_follow(func, {param}, f"{where} → {who}", sub,
-                               hops_left - 1, visited | {step}))
+        verdict, why, _hop = _into_receiver(call, ctx, local, None,
+                                            hops_left - 1, visited,
+                                            f"{where} → {who}")
+        results.append((verdict, why))
     results.sort(key=lambda r: VERDICT_ORDER.index(r[0]))
     return results[0]
 
@@ -795,17 +1072,10 @@ def _flow_for_direct_call(mention, call, node, ctx: "_Ctx",
     Нашёл её `pyflakes`, а не тест: дыра покрытия названа и закрыта сценой
     `ADirectCallArgument`.
     """
-    func, sub, hop = _resolve_callee(call, ctx)
     receiver = _call_name(call) or None
-    if func is None or sub is None:
-        return Flow(mention.token, mention.line, None, UNMEASURED,
-                    f"получатель {receiver!r} НЕ РАЗРЕШЁН (первый хоп) — "
-                    f"НЕ ИЗМЕРЕНО", receiver, hop)
-    param = _param_by_identity(func, call, node) or "<аргумент>"
-    verdict, why = _follow(func, {param}, f"получатель {receiver!r}", sub,
-                           max_hops - 1,
-                           frozenset({(sub.key, getattr(func, "name", "?"),
-                                       param)}))
+    verdict, why, hop = _into_receiver(call, ctx, set(), node, max_hops - 1,
+                                       frozenset(),
+                                       f"получатель {receiver!r}")
     return Flow(mention.token, mention.line, None, verdict, why, receiver, hop)
 
 
@@ -818,21 +1088,10 @@ def _handover(mention, binding, call, names, ctx: "_Ctx",
     отдающее значение ТРЕТЬЕМУ, судится по той же дороге до предела
     `max_hops`, а исчерпанный предел тоже есть третий исход (ADR-1098).
     """
-    func, sub, hop = _resolve_callee(call, ctx)
     receiver = _call_name(call) or None
-    if func is None or sub is None:
-        return Flow(mention.token, mention.line, binding, UNMEASURED,
-                    f"получатель {receiver!r} НЕ РАЗРЕШЁН (первый хоп) — "
-                    f"НЕ ИЗМЕРЕНО", receiver, hop)
-    param = _param_for(func, call, names)
-    if param is None:
-        return Flow(mention.token, mention.line, binding, UNMEASURED,
-                    f"параметр получателя {receiver!r}, принявший значение, "
-                    f"НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО", receiver, hop)
-    verdict, why = _follow(func, {param}, f"получатель {receiver!r}", sub,
-                           max_hops - 1,
-                           frozenset({(sub.key, getattr(func, "name", "?"),
-                                       param)}))
+    verdict, why, hop = _into_receiver(call, ctx, names, None, max_hops - 1,
+                                       frozenset(),
+                                       f"получатель {receiver!r}")
     return Flow(mention.token, mention.line, binding, verdict, why, receiver,
                 hop)
 

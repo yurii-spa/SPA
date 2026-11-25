@@ -650,3 +650,274 @@ class TheLiveThirdOutcomeIsNamed(unittest.TestCase):
             silent, [],
             "третий исход без названной причины неотличим от «не утекает» "
             "(инв. #17):\n  " + "\n  ".join(silent))
+
+
+#: Сцена конструктора: привязка отдана помощнику, помощник строит ОБЪЕКТ, и
+#: дальше величина живёт в ПОЛЕ. Все контроли ниже — варианты РОВНО этой сцены,
+#: чтобы разница между «утекает» и «не утекает» лежала в теле класса, а не в
+#: обвязке.
+_CTOR_SCENE = '''
+NAMES = ("tier_curator", "other")
+
+{extra}
+class Bag{bases}:
+{body}
+
+def _helper(items):
+    for it in items:
+        Bag(it)
+
+
+def run():
+    return _helper(NAMES)
+'''
+
+
+def ctor_scene(body: str, bases: str = "", extra: str = "") -> str:
+    return _CTOR_SCENE.format(body=body, bases=bases, extra=extra)
+
+
+class AConstructorIsAResolvableReceiver(unittest.TestCase):
+    """Величина, отданная КОНСТРУКТОРУ, судится по тому, что делает ОБЪЕКТ.
+
+    До 25.11 здесь стояла граница ADR-1098: `Touch(hit, …)` не разрешался
+    никак, и мера печатала честное «получатель НЕ РАЗРЕШЁН». Причина была
+    верной, населением за границей — нет. Заказ G1082 п. 3 велел это население
+    измерить, и ручной эталон (живой `spa_core/monitoring/tier_touch.py`) снят
+    ДО прибора: поле `token` читает РОВНО `__str__`, его f-строка несёт
+    константы `" ("`, `", строка "`, `")"` — ни `tier_curator_report`, ни
+    `_report.json`, — двери файловой системы в классе нет. Прибор обязан
+    согласиться с эталоном, и расхождение есть дефект ПРИБОРА.
+    """
+
+    def test_a_field_read_by_a_method_that_assembles_the_report_is_a_member(self):
+        """Положительный контроль: за конструктором утечка ВИДНА."""
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open("data/" + self.token + "_report.json")\n')
+        flows = leak.data_name_flows(text)
+        self.assertEqual(flows[0].verdict, leak.CLASS_VERDICT,
+                         f"утечка ЗА конструктором не найдена: {flows[0].why}")
+        self.assertTrue(flows[0].is_member)
+
+    def test_a_field_only_stringified_is_a_MEASURED_zero(self):
+        """Отрицательный контроль — форма живого `Touch`, отличие РОВНО в теле."""
+        text = ctor_scene('    token: str\n'
+                          '\n'
+                          '    def __str__(self):\n'
+                          '        return f"{self.token} (строка)"\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"строка прозы объявлена утечкой: {flow.why}")
+        self.assertIn("ИЗМЕРЕННЫЙ ноль", flow.why)
+
+    def test_an_explicit_init_is_followed_into_the_field_it_feeds(self):
+        """Явный `__init__`: подпись сдвинута на `self`, поле зовётся ИНАЧЕ."""
+        text = ctor_scene('    def __init__(self, items):\n'
+                          '        self.mods = items\n'
+                          '\n'
+                          '    def dump(self):\n'
+                          '        open("data/" + self.mods + "_report.json")\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"поле, названное не как параметр, потеряно: {flow.why}")
+
+    def test_the_body_of_init_ITSELF_is_judged(self):
+        """Величина, не легшая в поле, судится там, где она умерла."""
+        text = ctor_scene('    def __init__(self, items):\n'
+                          '        open("data/" + items + "_report.json")\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"тело `__init__` не судится вовсе: {flow.why}")
+
+    def test_a_class_with_neither_init_nor_fields_is_the_THIRD_outcome(self):
+        """Конструктор неразрешим ⇒ названная причина, а не «не утекает»."""
+        text = ctor_scene('    def dump(self):\n'
+                          '        return 1\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"неразрешимый конструктор выдан за чистоту: {flow.why}")
+        self.assertIn("ни `__init__`, ни объявленных полей", flow.why)
+        self.assertIn("НЕ ИЗМЕРЕНО", flow.why)
+
+    def test_an_unread_field_under_a_BASE_class_is_the_THIRD_outcome(self):
+        """Унаследованные методы мерой НЕ СУДЯТСЯ — и это СКАЗАНО, а не скрыто."""
+        text = ctor_scene('    token: str\n', bases="(Base)",
+                          extra='class Base:\n    pass\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"невидимый унаследованный метод выдан за ноль: {flow.why}")
+        self.assertIn("НЕ СУДЯТСЯ", flow.why)
+
+    def test_the_SAME_scene_without_a_base_is_a_measured_zero(self):
+        """Обратная половина пары: отличие РОВНО в наличии базового класса."""
+        text = ctor_scene('    token: str\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(flow.verdict, "local_only",
+                         f"поле, которое никто не читает, стало находкой: {flow.why}")
+        self.assertIn("ИЗМЕРЕННЫЙ ноль", flow.why)
+
+    def test_a_class_BEHIND_AN_IMPORT_is_resolved_by_the_same_half(self):
+        """Ввоз класса и ввоз функции обязаны разрешаться ОДНОЙ половиной."""
+        text = ('from helpers import Bag\n'
+                'NAMES = ("tier_curator",)\n'
+                'def run():\n'
+                '    for it in NAMES:\n'
+                '        Bag(it)\n')
+        helper = ('class Bag:\n'
+                  '    token: str\n'
+                  '\n'
+                  '    def dump(self):\n'
+                  '        open("data/" + self.token + "_report.json")\n')
+        flow = leak.data_name_flows(text, resolve=_resolver(helpers=helper))[0]
+        self.assertEqual(flow.verdict, leak.CLASS_VERDICT,
+                         f"класс за ввозом не разрешён: {flow.why}")
+
+    def test_an_unresolved_class_behind_an_import_stays_the_third_outcome(self):
+        """Обратная сторона: исходника нет ⇒ НЕ ИЗМЕРЕНО, а не «чисто»."""
+        text = ('from helpers import Bag\n'
+                'NAMES = ("tier_curator",)\n'
+                'def run():\n'
+                '    for it in NAMES:\n'
+                '        Bag(it)\n')
+        flow = leak.data_name_flows(text, resolve=_resolver())[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED)
+        self.assertIn("НЕ РАЗРЕШЁН", flow.why)
+
+    #: Объект, строящий себя же. Бюджета умолчания до цикла НЕ ХВАТАЕТ, и это
+    #: не дефект кода: оба исхода — третьи, но причины РАЗНЫЕ, и подменять одну
+    #: другой нельзя. Первая редакция этой сцены требовала причину «ЦИКЛ» при
+    #: умолчании и покраснела — дефект МОЕЙ СЦЕНЫ (замер #1244), записан, а не
+    #: замазан: мерить надо тем бюджетом, которого хватает дойти до предмета.
+    _SELF_BUILDING = ('    token: str\n'
+                      '\n'
+                      '    def again(self):\n'
+                      '        return Bag(self.token)\n')
+
+    #: Эта пара различает «поле ОБЪЕКТА» от «любого атрибута, которому
+    #: присвоили». Сцены отличаются РОВНО целью присваивания в `__init__`:
+    #: `self.mods` против `HOLDER.mods`. Снятие проверки `self` в
+    #: `_fields_fed_by` переворачивает вердикт обеих — значит мутация убита
+    #: наблюдением, а не надеждой.
+    _READER = ('\n'
+               '    def dump(self):\n'
+               '        open("data/" + self.mods + "_report.json")\n')
+
+    def test_a_field_of_SELF_is_the_new_home(self):
+        text = ctor_scene('    def __init__(self, items):\n'
+                          '        self.mods = items\n' + self._READER)
+        self.assertEqual(verdict(text), leak.CLASS_VERDICT)
+
+    def test_an_attribute_of_SOMEONE_ELSE_is_NOT_the_new_home(self):
+        """`HOLDER.mods = items` полем ЭТОГО объекта не является."""
+        text = ctor_scene('    def __init__(self, items):\n'
+                          '        HOLDER.mods = items\n' + self._READER,
+                          extra='HOLDER = object()\n\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertNotEqual(
+            flow.verdict, leak.CLASS_VERDICT,
+            f"метод, читающий поле, которого `__init__` НЕ ЗАПОЛНЯЛ, объявлен "
+            f"утечкой — дом величины выдуман: {flow.why}")
+
+    def test_a_container_handed_to_a_constructor_IN_PLACE_is_followed(self):
+        """Литерал на месте: имени у него нет, и искать параметр надо по ТОЖДЕСТВУ."""
+        text = ('class Bag:\n'
+                '    token: str\n'
+                '\n'
+                '    def dump(self):\n'
+                '        open("data/" + self.token + "_report.json")\n'
+                '\n'
+                '\n'
+                'def run():\n'
+                '    return Bag(("tier_curator",))\n')
+        flow = leak.data_name_flows(text)[0]
+        self.assertEqual(
+            flow.verdict, leak.CLASS_VERDICT,
+            f"литерал, отданный конструктору НА МЕСТЕ, потерян: {flow.why}")
+
+    def test_a_cycle_through_a_constructor_terminates_and_SAYS_so(self):
+        """Объект, строящий себя же, не вешает меру и назван ЦИКЛОМ."""
+        flow = leak.data_name_flows(ctor_scene(self._SELF_BUILDING),
+                                    max_hops=5)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"цикл передач через конструктор не назван: {flow.why}")
+        self.assertIn("ЦИКЛ передач", flow.why)
+
+    def test_the_same_cycle_at_the_default_budget_says_BUDGET_not_cycle(self):
+        """Обратная половина: причина третьего исхода не выдумывается."""
+        flow = leak.data_name_flows(ctor_scene(self._SELF_BUILDING))[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED)
+        self.assertIn("бюджет хопов исчерпан", flow.why,
+                      "исчерпанный бюджет доложен как цикл — причины третьего "
+                      "исхода перестали различаться")
+
+
+class TheDepthAxisAndTheConstructorAreDIFFERENTQuestions(unittest.TestCase):
+    """Дифференциальный контроль: бюджет хопов и разрешимость — два вопроса.
+
+    Замер 25.11 (цикл #1244) нашёл это у САМОЙ дешёвой пробы заказа G1082 п. 2:
+    «поднять `max_hops` и сравнить сводку» давало на живой поверхности ДОСЛОВНО
+    равные сводки для глубин 1…6 — и читалось это как «за бюджетом пусто». На
+    деле равенство означало ДРУГОЕ: дорога была закрыта конструктором на первом
+    же хопе, и бюджет не менял ничего, потому что идти было некуда. Ось глубины
+    отвечает о населении только ПОСЛЕ того, как конструктор разрешим.
+    """
+
+    _BEHIND = ('    token: str\n'
+               '\n'
+               '    def dump(self):\n'
+               '        open("data/" + self.token + "_report.json")\n')
+
+    def test_the_leak_behind_a_constructor_is_found_at_the_default_depth(self):
+        self.assertEqual(verdict(ctor_scene(self._BEHIND)), leak.CLASS_VERDICT)
+
+    def test_the_SAME_scene_at_one_hop_is_the_third_outcome_not_a_zero(self):
+        flow = leak.data_name_flows(ctor_scene(self._BEHIND), max_hops=1)[0]
+        self.assertEqual(flow.verdict, leak.UNMEASURED,
+                         f"бюджет в один хоп выдал утечку за чистоту: {flow.why}")
+        self.assertIn("НЕ ИЗМЕРЕНО", flow.why)
+
+
+class TheReceiverDoorIsSINGLE(unittest.TestCase):
+    """Разрешение получателя живёт в ОДНОМ месте — иначе вердикт зависел бы от дороги.
+
+    Дверей было три (`_handover`, `_flow_for_direct_call` и цикл `_follow`), и
+    каждая несла свою копию «разреши получателя, найди параметр, проверь цикл».
+    Разойдись копии — конструктор стал бы получателем на одной дороге и
+    неразрешимым на другой.
+    """
+
+    def _module(self):
+        import ast
+        return ast.parse((REPO / "spa_core" / "monitoring"
+                          / "tier_data_name_leak.py").read_text(encoding="utf-8"))
+
+    def _callers_of(self, tree, name: str) -> set:
+        import ast
+        out = set()
+        for func in ast.walk(tree):
+            if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for node in ast.walk(func):
+                if (isinstance(node, ast.Call)
+                        and isinstance(node.func, ast.Name)
+                        and node.func.id == name):
+                    out.add(func.name)
+        return out
+
+    def test_only_the_single_door_resolves_a_receiver(self):
+        tree = self._module()
+        for name in ("_resolve_callee", "_resolve_class"):
+            self.assertEqual(
+                self._callers_of(tree, name), {"_into_receiver"},
+                f"{name} зовут не только из единственной двери — появилась "
+                f"вторая копия правила разрешения получателя")
+
+    def test_the_constructor_half_is_actually_wired(self):
+        """Обратная сторона: дверь обязана СПРАШИВАТЬ о классе, а не только о функции."""
+        tree = self._module()
+        self.assertIn("_into_receiver", self._callers_of(tree, "_resolve_class"),
+                      "дверь не спрашивает о конструкторе вовсе")
+        self.assertIn("_into_receiver", self._callers_of(tree, "_into_object"),
+                      "разбор объекта объявлен и не подключён")

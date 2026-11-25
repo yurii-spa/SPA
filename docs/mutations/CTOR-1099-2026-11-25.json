@@ -1,0 +1,104 @@
+{
+ "title": "ADR-1099 (#1244): конструктор класса — РАЗРЕШИМЫЙ получатель меры утечки имени-данных",
+ "tests": [
+  "spa_core/tests/test_tier_data_name_leak.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 классы модуля не собираются — конструктор не разрешим НИКОГДА (состояние до ADR-1099)",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        if isinstance(node, ast.ClassDef):\n            out.setdefault(node.name, node)",
+   "new": "        if False:\n            out.setdefault(node.name, node)"
+  },
+  {
+   "name": "M02 местный класс не спрашивается — разрешается только ввезённый",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    if name in ctx.classes:\n        return ctx.classes[name], ctx, \"local\"",
+   "new": "    if False:\n        return ctx.classes[name], ctx, \"local\""
+  },
+  {
+   "name": "M03 ввезённый класс не спрашивается — половина разрешения модуля снята",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    cls = sub.classes.get(name)\n    if cls is None:",
+   "new": "    cls = None\n    if cls is None:"
+  },
+  {
+   "name": "M04 сгенерированный конструктор: поля не служат подписью — третий исход вместо ответа",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    param = _match_param(fields, None, call, names, node)\n    if param is None:",
+   "new": "    param = None\n    if param is None:"
+  },
+  {
+   "name": "M05 подпись явного `__init__` НЕ сдвинута на `self` — параметром станет `self`",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        params = [a.arg for a in list(args.posonlyargs) + list(args.args)][1:]",
+   "new": "        params = [a.arg for a in list(args.posonlyargs) + list(args.args)]"
+  },
+  {
+   "name": "M06 поле, заполненное явным `__init__`, не находится — величина теряет дом",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "            if (isinstance(target, ast.Attribute)\n                    and isinstance(target.value, ast.Name)\n                    and target.value.id == \"self\"):\n                out.append(target.attr)",
+   "new": "            if False:\n                out.append(target.attr)"
+  },
+  {
+   "name": "M07 домом объявляется АТРИБУТ КОГО УГОДНО, а не поле `self`",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "                    and target.value.id == \"self\"):",
+   "new": "                    and True):"
+  },
+  {
+   "name": "M08 тело самого `__init__` не судится — величина, умершая в нём, не видна",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        results.append(_follow(init, {param}, f\"{where}.__init__\", ctx,\n                               hops_left, visited))",
+   "new": "        pass  # тело __init__ снято мутацией"
+  },
+  {
+   "name": "M09 методы, читающие поле, не судятся — объект объявляется немым",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    for field, method in read_by:\n        results.append(_follow(method, {field},",
+   "new": "    for field, method in []:\n        results.append(_follow(method, {field},"
+  },
+  {
+   "name": "M10 непрочитанное поле при БАЗОВОМ классе выдаётся за ИЗМЕРЕННЫЙ ноль",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        bases = _base_names(cls)\n        if bases:",
+   "new": "        bases = _base_names(cls)\n        if False:"
+  },
+  {
+   "name": "M11 базовых классов не видно вовсе — третий исход превращается в ноль",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        dotted = _dotted_of(base)\n        if dotted and dotted.split(\".\")[-1] != \"object\":\n            out.append(dotted)",
+   "new": "        dotted = _dotted_of(base)\n        if False:\n            out.append(dotted)"
+  },
+  {
+   "name": "M12 ЦИКЛ передач через конструктор не распознаётся — причина подменяется бюджетом",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    step = (ctx.key, cls.name, param)\n    if step in visited:",
+   "new": "    step = (ctx.key, cls.name, param)\n    if False:"
+  },
+  {
+   "name": "M13 дверь не спрашивает о конструкторе вовсе — остаётся прежний третий исход",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    cls, csub, chop = _resolve_class(call, ctx)\n    if cls is None or csub is None:",
+   "new": "    cls, csub, chop = (None, None, \"unresolved\")\n    if cls is None or csub is None:"
+  },
+  {
+   "name": "M14 параметр конструктора по ТОЖДЕСТВУ узла не ищется — литерал на месте теряется",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        hit = (node is not None and any(sub is node for sub in ast.walk(arg))) \\\n            or (node is None and _mentions_any(arg, names))",
+   "new": "        hit = (node is None and _mentions_any(arg, names))"
+  },
+  {
+   "name": "M15 бюджет хопов умолчания сжат до одного — утечка за конструктором не достигается",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "DEFAULT_MAX_HOPS: int = 3",
+   "new": "DEFAULT_MAX_HOPS: int = 1"
+  },
+  {
+   "name": "M16 цикл `_follow` получает СВОЮ копию разрешения получателя — дверь перестаёт быть одной",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        verdict, why, _hop = _into_receiver(call, ctx, local, None,\n                                            hops_left - 1, visited,\n                                            f\"{where} → {who}\")\n        results.append((verdict, why))",
+   "new": "        func2, sub2, _h2 = _resolve_callee(call, ctx)\n        if func2 is None or sub2 is None:\n            results.append((UNMEASURED, f\"{where} → {who}: НЕ РАЗРЕШЁН — НЕ ИЗМЕРЕНО\"))\n            continue\n        p2 = _param_for(func2, call, local)\n        results.append(_follow(func2, {p2 or \"<?>\"}, f\"{where} → {who}\", sub2,\n                               hops_left - 1, visited))"
+  }
+ ]
+}
