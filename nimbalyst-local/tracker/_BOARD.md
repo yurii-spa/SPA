@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-25T19:43:56Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-25T19:53:25Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1695** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1696** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -452,7 +452,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (988)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (989)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1275,6 +1275,7 @@
 - Поверхность решения штампует TVL live на НЕзакреплённом пуле — и один пул судится дважды  ·  `inbox-poverhnost-resheniya-shtampuet-tvl-live.md` · 2026-11-25
 - Поверхность владельца зовёт флот просроченным 25 минут каждого часа — порог 35 минут против часового писателя  ·  `inbox-poverhnost-vladeltsa-zovet-flot-prosroch.md` · 2026-10-08
 - Повтор просьбы владельца неотличим от повторного приёма того же сообщения: личности сообщения не несёт ни одна карточка  ·  `inbox-povtor-prosby-vladeltsa-neotlichim-ot-po.md` · 2026-10-30
+- Повтор вопроса владельцу откалиброван, но планового вызывающего у него нет: 16 из 17 открытых вопросов права на повтор не получили  ·  `inbox-povtor-voprosa-vladeltsu-otkalibrovan-no.md` · 2026-11-25
 - Поздний «принято» воскрешает карточку, закрытую замером — и предъявляет агенту ОТМЕНЁННУЮ разрушительную команду  ·  `inbox-pozdnii-prinyato-voskreshaet-kartochku-z.md` · 2026-08-30
 - Правило о якорях: дописать НОМЕР СТРОКИ третьим носителем класса (замер #534)  ·  `inbox-pravilo-o-yakoryah-dopisat-nomer-stroki.md` · 2026-09-09
 - Предписанный прогон даёт 39 падений против записанной полосы 14 — знаменатели РАЗНЫЕ, и число снято загрязнённым прогоном  ·  `inbox-predpisannyi-progon-daet-39-padenii-prot.md` · 2026-09-21
