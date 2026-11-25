@@ -24,6 +24,12 @@ import pytest
 from spa_core.analytics import _apy_series
 from spa_core.analytics import tier_curator as tc
 from spa_core.monitoring.tier_touch import describe, tier_touches
+from spa_core.monitoring.tier_report_consumption import (
+    TierReportConsumptionUnmeasured,
+    consumes_report,
+    describe as describe_consumption,
+    mentions as curator_mentions,
+)
 from spa_core.risk.policy import RiskConfig
 
 NOW = datetime(2026, 8, 5, 12, 0, 0, tzinfo=timezone.utc)
@@ -350,93 +356,55 @@ def test_curator_never_imports_execution_or_gate_domains():
         assert forbidden not in text, forbidden
 
 
-def _docstring_nodes(tree: "ast.AST") -> set:
-    """Узлы-докстроки модуля, классов и функций — по id объекта."""
-    out = set()
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-            body = getattr(node, "body", None)
-            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
-                    and isinstance(body[0].value.value, str):
-                out.add(id(body[0].value))
-    return out
+def _mentions_curator_in_code(text: str) -> bool:
+    """Добирается ли модуль до ОТЧЁТА куратора — одна дверь, один вопрос.
 
+    ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #1241, карточка
+    `inbox-storozh-tira-sudit-podstrokoi-imya-kurat`, ADR-1096). Здесь жила своя
+    мера, и она спрашивала о ФАЙЛЕ, а не о вхождении: любая строковая константа с
+    именем `tier_curator` вне докстроки считалась потреблением, а невинность
+    снималась ОТДЕЛЬНЫМ механизмом на ВЕСЬ файл — признаком «сгенерированная
+    разметка» (`_is_generated_markup`) либо входом `data_names_ok`. Оба механизма
+    УДАЛЕНЫ вместе с мерой: роль вхождения знает разбор, и спрашивать её у класса
+    файла значило держать два правила на один вопрос — ровно так перечень
+    `allowed` дорос до пяти имён и покраснел на четвёртом невинном модуле.
 
-def _is_generated_markup(tree: "ast.AST") -> bool:
-    """Файл — СГЕНЕРИРОВАННАЯ разметка: объявляет `AUDIT_GENERATED_AT` на верхнем уровне.
+    Мера живёт ОДНОЙ копией у двери
+    `spa_core/monitoring/tier_report_consumption.py`; второй копии здесь нет
+    намеренно — на двух копиях одного правила уже разъезжался перечень канона
+    (цикл #875).
 
-    Признак машинный, а не список имён: отметку замера ставит инструмент
-    (`--emit-markup`), и такой файл состоит из ИЗМЕРЕННЫХ ДАННЫХ — имён модулей и
-    причин. Сегодня признаку удовлетворяют пять файлов (`_protocol_blindness`,
-    `_protocol_key_coverage`, `_tier_c_writeoff`, `_tier_b_writeoff`,
-    `_untiered_census`), и следующий появится ровно тем же способом."""
-    for node in getattr(tree, "body", []):
-        targets = []
-        if isinstance(node, ast.Assign):
-            targets = node.targets
-        elif isinstance(node, ast.AnnAssign):
-            targets = [node.target]
-        for t in targets:
-            if isinstance(t, ast.Name) and t.id == "AUDIT_GENERATED_AT":
-                return True
-    return False
-
-
-def _mentions_curator_in_code(text: str, *, data_names_ok: bool = False) -> bool:
-    """Читает ли модуль отчёт куратора / импортирует ли curate() — В КОДЕ.
-
-    Раньше здесь стояла проверка подстроки ``"tier_curator" in text``, и она
-    краснела на ПРОЗЕ: `spa_core/agents/apy_evidencer.py` перечисляет в своей
-    докстроке артефакты, записывающие APY, и среди них `tier_curator_report.json`.
-    Модуль отчёт не читает и тиры не меняет — сторож краснел на верное состояние.
-
-    По правилу доставки такой сторож чинится, а не отключается. Теперь считаются
-    только ИМПОРТЫ модуля и строковые константы вне докстрок (путь, который
-    собирают, чтобы файл прочитать). Зубы сохранены: модуль, строящий
-    ``"data/tier_curator_report.json"`` для чтения, по-прежнему ловится.
+    Неразбираемое судится СТРОГО: третий исход двери сторож превращает в
+    «потребление», потому что ложный зелёный за опечатку опаснее красного. Сам
+    третий исход при этом НЕ исчезает — он назван у двери и отдельной развилкой
+    в сторо́же ниже (инв. #17).
     """
     try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return "tier_curator" in text          # неразбираемое — судим строго
-    docs = _docstring_nodes(tree)
-    # СГЕНЕРИРОВАННАЯ РАЗМЕТКА (добавлено 2026-08-29, ADR-165 — намеренно, инв. #16).
-    # У неё строковые константы и есть данные: `_untiered_census.py` — машинная
-    # перепись ВСЕХ модулей аналитики вне тиров, и `tier_curator` попал в неё
-    # законно, в набор «не модуль сигнала» (у него нет ни одного класса). Ничего он
-    # при этом не импортирует и отчёта не читает — сторож краснел на ВЕРНОМ
-    # состоянии, ровно как на прозе `apy_evidencer` днём раньше.
-    #
-    # Зубы сохранены и здесь: для разметки по-прежнему ловятся импорт, обращение к
-    # атрибуту и строка, называющая ОТЧЁТ (путь, который строят, чтобы его прочесть).
-    # Разрешено ровно одно — голое имя модуля как элемент данных.
-    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #875). Сужение «голое имя модуля — ДАННЫЕ»
-    # перестало быть привязанным к ОДНОМУ классу файлов (сгенерированная разметка):
-    # третий такой файл — сам ПРИБОР признака (`tier_touch.py`), у которого имя модуля
-    # стои́т элементом перечня канона, то есть ровно данными. Вход, а не второе
-    # автоопределение: класс файла знает ВЫЗЫВАЮЩИЙ, и угадывать его по содержимому
-    # значило бы заводить второе правило рядом с первым. Умолчание не изменилось.
-    markup = data_names_ok or _is_generated_markup(tree)
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            if any("tier_curator" in a.name for a in node.names):
-                return True
-        elif isinstance(node, ast.ImportFrom):
-            if node.module and "tier_curator" in node.module:
-                return True
-            if any("tier_curator" in a.name for a in node.names):
-                return True
-        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if "tier_curator" not in node.value or id(node) in docs:
-                continue
-            if markup and "tier_curator_report" not in node.value:
-                continue          # имя модуля как ДАННЫЕ разметки — не потребление
-            return True
-        elif isinstance(node, ast.Attribute) and "tier_curator" in node.attr:
-            return True
-    return False
+        return consumes_report(text)
+    except TierReportConsumptionUnmeasured:
+        return True
 
 
+def _guard_own_instruments() -> set:
+    """Приборы самого сторожа — ВЫВЕДЕНЫ из его ввозов, а не перечислены именами.
+
+    ADR-1096. Прибор, которым сторож меряет, в население сторожа не входит: он не
+    читает ни одного файла (текст приходит ему аргументом) и тир сменить не может
+    ничем. Прежде такой прибор дописывали ИМЕНЕМ в `allowed` — так перечень дорос
+    до пяти имён, и четвёртый невинный модуль покраснел всё равно. Здесь имя не
+    пишут: его называет сам ввоз, и список не может разойтись с кодом молча.
+
+    Положительный контроль у вывода есть, и в обе стороны —
+    `test_the_guard_derives_its_instruments_from_its_own_imports`.
+    """
+    own = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    found = set()
+    for node in ast.walk(own):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            parts = node.module.split(".")
+            if len(parts) == 3 and parts[:2] == ["spa_core", "monitoring"]:
+                found.add(SPA_CORE / "monitoring" / f"{parts[2]}.py")
+    return found
 def test_no_module_consumes_report_to_mutate_tiers():
     """Никто в runtime-коде не ЧИТАЕТ tier_curator_report.json и не импортирует
     curate() для смены тира: упоминания допустимы только в самом модуле
@@ -453,16 +421,19 @@ def test_no_module_consumes_report_to_mutate_tiers():
     # в ОДНОРАЗОВОЕ дерево и меряет, родилась ли карточка. Её чистота проверяется тем же
     # положительным контролем, что у моста, — ниже.
     probe = SPA_CORE / "monitoring" / "card_acceptance.py"
-    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #875): третий разрешённый — сам ПРИБОР
-    # признака. Отчёта он не читает ни строкой: имя модуля стои́т у него ДАННЫМИ,
-    # элементом перечня канона, который он и запрещает трогать. Чистота его
-    # проверяется ниже СТРОЖЕ, чем у двух читателей: читателям отчёт читать положено,
-    # прибору — незачем, поэтому у него запрещено само ИМЯ отчёта в коде.
+    # Прибор признака `monitoring/tier_touch.py` стоя́л здесь ЧЕТВЁРТЫМ именем с
+    # цикла #875 — ровно с оговоркой «имя модуля стои́т у него ДАННЫМИ». С ADR-1096
+    # перечень СОКРАЩЁН: роль «элемент данных» мера знает сама, и держать для неё
+    # имя в белом списке больше не надо. Перечень может только УМЕНЬШАТЬСЯ
+    # (карточка `inbox-storozh-tira-sudit-podstrokoi-imya-kurat`, п. 4); его
+    # чистота проверяется ниже тем же положительным контролем, что у читателей.
     instrument = SPA_CORE / "monitoring" / "tier_touch.py"
     allowed = {SPA_CORE / "analytics" / "tier_curator.py",
                SPA_CORE / "paper_trading" / "cycle_runner.py",
-               reader, probe, instrument}
+               reader, probe} | _guard_own_instruments()
     offenders = []
+    unmeasured = []
+    data_only = []
     for py in SPA_CORE.rglob("*.py"):
         if py.parts and "tests" in py.parts:
             continue
@@ -471,9 +442,26 @@ def test_no_module_consumes_report_to_mutate_tiers():
         text = py.read_text(encoding="utf-8", errors="replace")
         if "tier_curator" not in text:
             continue
-        if _mentions_curator_in_code(text):
-            offenders.append(str(py))
+        # Три исхода РАЗЛИЧИМЫ (инв. #17): потребляет · называет имя данными ·
+        # НЕ ИЗМЕРЕНО. Прежняя редакция знала два, и неразбираемый файл попадал в
+        # тот же список, что настоящий потребитель, — вердикт о нём был верен, а
+        # причина терялась.
+        try:
+            found = curator_mentions(text)
+        except TierReportConsumptionUnmeasured as exc:
+            unmeasured.append(f"{py}: {exc}")
+            continue
+        if any(m.consuming for m in found):
+            offenders.append(describe_consumption(str(py), found))
+        else:
+            data_only.append(str(py))
+    assert unmeasured == [], unmeasured
     assert offenders == [], offenders
+    # «Измерено и равно нулю» названо вслух: вхождения ЕСТЬ, и все они данные.
+    # Пустой `data_only` означал бы, что мера перестала видеть класс вовсе, —
+    # то есть сторож зеленеет не потому, что чисто (обратная половина ниже).
+    assert data_only, ("ни одного модуля с именем куратора в роли ДАННЫХ — мера "
+                       "перестала видеть класс, а не подтвердила чистоту")
     # Разрешённый читатель НЕ вправе трогать тир: ни канон оценок, ни реестр адаптеров,
     # ни разрешатель имён, ни политику — он превращает вердикт в карточку, и только.
     # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #875, карточка
@@ -501,7 +489,7 @@ def test_no_module_consumes_report_to_mutate_tiers():
         "проба обязана класть именно отчёт куратора")
     assert tier_touches(probe_text) == [], describe(str(probe), tier_touches(probe_text))
     inst_text = instrument.read_text(encoding="utf-8")
-    assert not _mentions_curator_in_code(inst_text, data_names_ok=True), (
+    assert not _mentions_curator_in_code(inst_text), (
         "прибор признака назвал ОТЧЁТ куратора — читать его прибору незачем")
     assert tier_touches(inst_text) == [], describe(str(instrument),
                                                   tier_touches(inst_text))
@@ -540,31 +528,173 @@ def test_the_consumer_guard_tells_code_from_prose():
     assert _mentions_curator_in_code(unparseable), "неразбираемое судится строго"
 
 
-def test_generated_markup_names_modules_as_data_but_keeps_its_teeth():
-    """Контроль сужения для СГЕНЕРИРОВАННОЙ разметки — в обе стороны (ADR-165).
+def test_the_measure_judges_the_role_of_the_mention_not_the_class_of_the_file():
+    """Контроль в обе стороны у СУЖЕНИЯ ADR-1096 — по роли вхождения, а не по файлу.
 
-    Перепись `_untiered_census.py` называет ВСЕ модули аналитики вне тиров, и
-    `tier_curator` в ней законен: у него нет ни одного класса, он в наборе «не модуль
-    сигнала». Голое имя как элемент данных потреблением не является.
+    ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #1241, карточка
+    `inbox-storozh-tira-sudit-podstrokoi-imya-kurat`, запись в
+    `docs/journal/2026-W48.md`). Прежняя редакция звалась
+    `test_generated_markup_names_modules_as_data_but_keeps_its_teeth` и закрепляла
+    ПРОТИВОПОЛОЖНОЕ последним своим утверждением: «тот же текст БЕЗ отметки замера
+    перестал быть нарушением — сужение расползлось за класс сгенерированной
+    разметки». То есть голое имя модуля элементом словаря объявлялось нарушением в
+    РУКОПИСНОМ модуле и невинностью в СГЕНЕРИРОВАННОМ при дословно одинаковом
+    вхождении.
 
-    Послабление не смеет открыть дверь, поэтому проверяются ОБЕ стороны: разметка,
-    которая импортирует куратора или строит путь к его ОТЧЁТУ, ловится по-прежнему;
-    и тот же самый текст БЕЗ отметки замера остаётся нарушением — иначе сужение
-    расползлось бы на рукописные модули."""
-    stamp = "AUDIT_GENERATED_AT = '2026-01-01T00:00:00Z'\n"
+    Утверждение снято потому, что ИЗМЕРЕНО как причина дефекта, а не как защита:
+    класс файла не отвечает на вопрос «добирается ли модуль до отчёта». Под его
+    защитой перечень `allowed` дорос до пяти имён (#875 внёс `tier_touch.py` с
+    оговоркой «имя стои́т у него ДАННЫМИ»), и 25.11 четвёртый невинный модуль —
+    `analytics/cadence_census.py`, где имя стои́т элементом кортежа ключевых слов
+    классификатора такта, — покраснил сторожа на ВЕРНОМ состоянии. Перепись
+    населения в тот же день: модулей с именем **7**, роль «данные и только» —
+    **3**, НЕ РАЗОБРАНО — **0**.
+
+    Сторож НЕ ослаблен, и проверяются ОБЕ стороны: ввоз, псевдоним, имя ОТЧЁТА,
+    обращение к атрибуту, имя в не-данной роли и СБОРКА пути ловятся по-прежнему,
+    каждое своей сценой.
+    """
     data = "NOT_A_SIGNAL_MODULE = {'tier_curator': 'нет публичного класса с входом'}\n"
 
+    # ── сторона первая: роль ДАННЫХ молчит, и молчит БЕЗ всякой отметки файла ──
+    assert not _mentions_curator_in_code(data), (
+        "голое имя модуля элементом словаря объявлено потреблением — сужение "
+        "ADR-1096 не работает, и пятый невинный модуль покраснеет снова")
+
+    keywords = 'TACT = {"Tier change": ("tier_curator", "tier_", "promotion")}\n'
+    assert not _mentions_curator_in_code(keywords), (
+        "дословная сцена 25.11 (имя элементом кортежа ключевых слов) всё ещё "
+        "считается потреблением")
+
+    stamp = "AUDIT_GENERATED_AT = '2026-01-01T00:00:00Z'\n"
     assert not _mentions_curator_in_code(stamp + data), (
-        "имя модуля как ДАННЫЕ разметки объявлено потреблением — сужение не работает")
+        "сгенерированная разметка покраснела — прежний класс файлов обязан "
+        "остаться невинным и ПОСЛЕ снятия механизма, который его различал")
+
+    # ── сторона вторая: каждый зуб на своей сцене ──
+    assert _mentions_curator_in_code(
+        data + "from spa_core.analytics.tier_curator import curate\n"), (
+        "ввоз curate() рядом с данными прошёл — это дыра")
 
     assert _mentions_curator_in_code(
-        stamp + data + "from spa_core.analytics.tier_curator import curate\n"), (
-        "разметка с настоящим импортом прошла — это дыра")
+        data + "from spa_core.analytics import tier_curator as _tc\n"), (
+        "ввоз модуля под псевдонимом прошёл — это дыра")
 
+    # Форма `ast.Import` отличается от `ast.ImportFrom` узлом, и своей сцены у неё не
+    # было ни у сторожа, ни у пробы: дыру нашёл мутационный замер #1241, а не вычитка.
     assert _mentions_curator_in_code(
-        stamp + "P = 'data/tier_curator_report.json'\n"), (
-        "разметка, строящая путь к отчёту, прошла — зубы потеряны")
+        data + "import spa_core.analytics.tier_curator\n"), (
+        "ПЛОСКИЙ ввоз модуля прошёл — это дыра")
 
-    assert _mentions_curator_in_code(data), (
-        "тот же текст БЕЗ отметки замера перестал быть нарушением — сужение "
-        "расползлось за класс сгенерированной разметки")
+    assert _mentions_curator_in_code(data + "P = 'data/tier_curator_report.json'\n"), (
+        "строка, называющая ОТЧЁТ, прошла — зубы потеряны")
+
+    # Роль ДАННЫХ оправдывает ГОЛОЕ имя модуля, а не путь к ОТЧЁТУ: контейнер с
+    # именем отчёта — тот же путь, только в скобках. Сцену нашла выжившая мутация
+    # M01 замера #1241, а не вычитка.
+    assert _mentions_curator_in_code('P = ("data/tier_curator_report.json",)\n'), (
+        "имя ОТЧЁТА внутри кортежа объявлено данными — контейнер оправдывает голое "
+        "имя модуля, а не путь к отчёту")
+
+    assert _mentions_curator_in_code("v = mod.tier_curator_report\n"), (
+        "обращение к атрибуту с именем отчёта прошло — зубы потеряны")
+
+    assert _mentions_curator_in_code('open(os.path.join("data", "tier_curator"))\n'), (
+        "имя в аргументе вызова объявлено данными — аргумент вызова не данные")
+
+    assert _mentions_curator_in_code('N = "tier_curator"\n'), (
+        "имя в присваивании объявлено данными — присваивание не литеральный контейнер")
+
+
+def test_the_data_role_closes_the_assembly_route_it_opens():
+    """Замыкание сужения: голое имя ПЛЮС СБОРКА второй половины пути — потребление.
+
+    Сужение по роли открывает ровно одну дверь, которую прежняя подстрока держала
+    закрытой: положить имя в контейнер, а путь собрать из элемента. Замыкание
+    закрывает её, и проверяется В ОБЕ стороны — иначе «сторож теперь всегда зелен»
+    прошло бы незамеченным.
+
+    Вторая половина ищется только в роли СБОРКИ (склейка либо f-строка), а не по
+    НАЛИЧИЮ: перепись артефактов, перечисляющая `*_report.json` данными, путей не
+    строит, и краснеть на ней значило бы воспроизвести тот же класс на шаг позже.
+    Замер 25.11: ни один из трёх живых модулей класса `data` не называет
+    `report.json` НИ РАЗУ — замыкание сегодня не ложно ни на одном из них.
+    """
+    evasion = ('KEYS = ["tier_curator"]\n'
+               'p = "data/" + KEYS[0] + "_report.json"\n'
+               'open(p)\n')
+    assert _mentions_curator_in_code(evasion), (
+        "путь, собранный из имени-данных склейкой, прошёл — сужение открыло дверь")
+
+    evasion_fstring = ('KEYS = ["tier_curator"]\n'
+                       'p = f"data/{KEYS[0]}_report.json"\n')
+    assert _mentions_curator_in_code(evasion_fstring), (
+        "путь, собранный f-строкой, прошёл — сужение открыло дверь")
+
+    # Обратная половина: те же байты второй половины, но в роли ДАННЫХ, а не сборки.
+    census = ('KEYS = ["tier_curator"]\n'
+              'ARTIFACTS = ["apy_report.json", "tvl_report.json"]\n')
+    assert not _mentions_curator_in_code(census), (
+        "перепись, перечисляющая `*_report.json` ДАННЫМИ, объявлена сборкой пути")
+
+
+def test_the_measure_names_the_third_outcome_instead_of_swallowing_it():
+    """Неразбираемый исходник — НЕ «чисто»: у двери он третий исход (инв. #17).
+
+    Сторож судит его СТРОГО (ложный зелёный за опечатку опаснее красного), но
+    строгость не смеет стирать причину: `consumes_report` поднимает исключение с
+    номером строки, а не возвращает `True` молча.
+    """
+    broken = "def broken(:\n  tier_curator\n"
+    with pytest.raises(TierReportConsumptionUnmeasured) as caught:
+        consumes_report(broken)
+    assert "НЕ ИЗМЕРЕНО" in str(caught.value), (
+        "третий исход не назван словами — вызывающий не отличит его от вердикта")
+
+    assert _mentions_curator_in_code(broken), (
+        "сторож проглотил неразбираемый исходник — это ложный зелёный")
+
+
+def test_the_measure_separates_absence_from_data_only_mentions():
+    """«Вхождений нет вовсе» и «все вхождения — данные» — РАЗНЫЕ наблюдения.
+
+    Сторож опирается на это различие (`data_only` обязан быть непустым), поэтому
+    дверь обязана их различать, а не отвечать одним `False` на оба.
+    """
+    assert curator_mentions("X = 1\n") == ()
+    found = curator_mentions("K = ('tier_curator',)\n")
+    assert [m.kind for m in found] == ["data"]
+    assert not any(m.consuming for m in found)
+    assert "потребления нет" in describe_consumption("f.py", found)
+
+
+def test_the_guard_derives_its_instruments_from_its_own_imports():
+    """Приборы сторожа ВЫВЕДЕНЫ из его ввозов — контроль в обе стороны.
+
+    Положительная сторона: оба прибора, которыми сторож меряет, найдены выводом, и
+    на диске они ЕСТЬ. Обратная: модуль, который сторож не ввозит, прибором не
+    числится — иначе вывод стал бы тем же белым списком, только неявным.
+    """
+    found = _guard_own_instruments()
+    assert SPA_CORE / "monitoring" / "tier_touch.py" in found
+    assert SPA_CORE / "monitoring" / "tier_report_consumption.py" in found
+    for path in found:
+        assert path.exists(), f"выведенный прибор не существует: {path}"
+    assert SPA_CORE / "monitoring" / "findings_bridge.py" not in found, (
+        "не ввезённый сторожем модуль числится его прибором — вывод стал списком")
+
+
+def test_the_consumption_door_is_the_measure_it_claims_to_be():
+    """Дверь меры ОБЯЗАНА называть отчёт — иначе она не та мера.
+
+    Зеркало к утверждению о приборе признака выше: `tier_touch.py` отчёт называть
+    НЕ вправе (читать его прибору незачем), а дверь потребления — обязана, потому
+    что имя отчёта и есть её предмет. Без этой половины «прибор исключён из
+    населения» означало бы «мера может стать пустой молча».
+    """
+    door = SPA_CORE / "monitoring" / "tier_report_consumption.py"
+    text = door.read_text(encoding="utf-8")
+    assert _mentions_curator_in_code(text), (
+        "дверь потребления перестала называть отчёт — мера опустела, а сторож "
+        "остался зелёным")
+    assert tier_touches(text) == [], describe(str(door), tier_touches(text))

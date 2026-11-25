@@ -2,10 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Сторож тира судит подстрокой: имя куратора в ДАННЫХ читается как потребление отчёта"
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-11-25
 twin_key: "sha256:55c7445b6cfb21b276091797b0c28b271c71b03a1d6d1f454fcadb2890029b0d"
+acceptance_probe: tier_consumer_measure_judges_role_not_name
+status_trail:
+  - "2026-11-25T02:00:12.890991+00:00 new -> in-progress · queue.set_status · cycle-91281"
 ---
 
 ## Что измерено

@@ -12052,6 +12052,211 @@ def _probe_tier_guard_judges_code_not_prose(
                        f"копии перечня не держа")
 
 
+#: Сцены, на которых мерится мера потребления отчёта (ADR-1096). Перечень ЗАКРЫТ и
+#: проверяется ЦЕЛИКОМ: мера, различающая роль на одной сцене и слепая на соседней,
+#: есть прежний белый список имён в новой одежде. Третий столбец — ожидаемый ответ.
+TIER_CONSUMPTION_SCENES = (
+    ("голое имя элементом словаря", False,
+     "NOT_A_SIGNAL = {'tier_curator': 'нет публичного класса'}\n"),
+    ("голое имя элементом кортежа ключевых слов", False,
+     'TACT = {"Tier change": ("tier_curator", "tier_", "promotion")}\n'),
+    ("плоский ввоз модуля", True, "import spa_core.analytics.tier_curator\n"),
+    ("ввоз curate()", True,
+     "from spa_core.analytics.tier_curator import curate\n"),
+    ("ввоз модуля под псевдонимом", True,
+     "from spa_core.analytics import tier_curator as _tc\n"),
+    ("строка, называющая ОТЧЁТ", True,
+     "P = 'data/tier_curator_report.json'\n"),
+    # Сцена найдена ВЫЖИВШЕЙ мутацией M01 замера #1241: правило «имя ОТЧЁТА есть
+    # потребление ДАЖЕ в роли данных» не имело ни одной сцены, и снятие его вердикта
+    # не меняло. Контейнер оправдывает ГОЛОЕ имя модуля, а не путь к отчёту.
+    ("имя ОТЧЁТА элементом данных", True,
+     'P = ("data/tier_curator_report.json",)\n'),
+    ("обращение к атрибуту", True, "v = mod.tier_curator_report\n"),
+    ("имя в аргументе вызова", True,
+     'open(os.path.join("data", "tier_curator"))\n'),
+    ("путь, СОБРАННЫЙ из имени-данных склейкой", True,
+     'KEYS = ["tier_curator"]\np = "data/" + KEYS[0] + "_report.json"\n'),
+    ("перепись `*_report.json` ДАННЫМИ рядом с именем", False,
+     'KEYS = ["tier_curator"]\nA = ["apy_report.json", "tvl_report.json"]\n'),
+)
+
+#: Сторож, чья мера и мерится. Мера без зовущего — прибор без читателя.
+TIER_CONSUMPTION_GUARD = "spa_core/tests/test_tier_curator.py"
+
+#: Перечень имён, которым отчёт читать можно, живёт у сторожа и может только
+#: УМЕНЬШАТЬСЯ (карточка `inbox-storozh-tira-sudit-podstrokoi-imya-kurat`, п. 4).
+#: Замер 25.11 ПОСЛЕ ADR-1096 — ЧЕТЫРЕ имени (было пять). Число здесь — потолок
+#: храповика, а не копия списка: список у сторожа один.
+TIER_ALLOWED_CEILING = 4
+
+
+def _probe_tier_consumer_measure_judges_role_not_name(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Мера потребления отчёта куратора решает по РОЛИ вхождения, а не по имени файла.
+
+    Карточка `inbox-storozh-tira-sudit-podstrokoi-imya-kurat` (25.11, ADR-1096):
+    сторож `test_no_module_consumes_report_to_mutate_tiers` был КРАСЕН на чистом
+    `origin` — `analytics/cadence_census.py` называет `tier_curator` элементом
+    кортежа ключевых слов классификатора такта, отчёта не читает ни строкой и тир
+    не мутирует ничем. Это ЧЕТВЁРТЫЙ такой модуль: прежняя мера спрашивала о КЛАССЕ
+    ФАЙЛА, и невинность снималась либо отметкой «сгенерированная разметка», либо
+    дописыванием имени в `allowed` (цикл #875 внёс третье имя ровно с этой
+    оговоркой). Белый список имён класс не закрывает — закрывает роль вхождения.
+
+    Шесть звеньев; любое одно порванное даёт `not_satisfied` с ИМЕНЕМ звена:
+
+    1. **дверь меры ввезена** — иначе признак НЕ ИЗМЕРЕН, а не «чисто»;
+    2. **мера отвечает ВЕРНО на КАЖДОЙ сцене** (`TIER_CONSUMPTION_SCENES`, перечень
+       закрыт): роль данных молчит, ввоз · псевдоним · имя отчёта · атрибут ·
+       аргумент вызова · СБОРКА пути кусаются. Обе стороны в одном звене намеренно —
+       мера, зелёная всегда, проходит проверку «кусается» и проваливает эту;
+    3. **неразбираемый исходник — третий исход**, а не «потребления нет» (инв. #17);
+    4. **живой сторож ЗОВЁТ дверь и не держит своей копии правила** — ввоз
+       проверяется разбором, а не подстрокой, и литерального перечня ролей в файле
+       сторожа быть не должно: два перечня на одно правило разъехались бы молча;
+    5. **перечень `allowed` НЕ ВЫРОС** — потолок `TIER_ALLOWED_CEILING`. Звено и есть
+       приёмка карточки по исходу: погасить падение дописыванием имени запрещено
+       (инв. #16), поэтому мера обязана различать, а список — убывать;
+    6. **сторож зелен на ЖИВОМ дереве** — вердикт снимается прогоном самого сторожа,
+       а не пересказом его правила.
+
+    `repo_root` — вход: контроль в обе стороны подаёт одноразовое дерево и рвёт
+    звенья поимённо. Живое дерево ничем не трогается: проба только ЧИТАЕТ.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "мера целиком, пофайловой формы у неё нет")
+    import ast as _ast
+    root = repo_root or REPO_ROOT
+
+    # 1. дверь меры
+    try:
+        from spa_core.monitoring import tier_report_consumption as trc
+    except ImportError as exc:
+        return UNMEASURED, (f"дверь меры tier_report_consumption не ввезена ({exc}) — "
+                            f"признак НЕ ИЗМЕРЕН")
+    for needed in ("consumes_report", "mentions",
+                   "TierReportConsumptionUnmeasured"):
+        if not hasattr(trc, needed):
+            return UNMEASURED, (f"у двери меры нет `{needed}` — мерить нечем, это НЕ "
+                                f"«потребления нет»")
+
+    # 2. каждая сцена своим ответом
+    for label, expected, source in TIER_CONSUMPTION_SCENES:
+        try:
+            got = trc.consumes_report(source)
+        except trc.TierReportConsumptionUnmeasured as exc:
+            return UNMEASURED, (f"сцена «{label}» не разобрана ({exc}) — мера НЕ "
+                                f"ИЗМЕРЕНА")
+        except Exception as exc:                    # noqa: BLE001
+            return UNMEASURED, (f"сцена «{label}» подняла {type(exc).__name__}: {exc}")
+        if got != expected:
+            verdict = "потреблением" if got else "данными"
+            return NOT_SATISFIED, (
+                f"сцена «{label}» сочтена {verdict} — мера решает не по роли "
+                f"вхождения (ожидалось consumes_report={expected})")
+
+    # 3. третий исход назван, а не подменён
+    try:
+        trc.consumes_report("def broken(:\n  tier_curator\n")
+    except trc.TierReportConsumptionUnmeasured as exc:
+        if "НЕ ИЗМЕРЕНО" not in str(exc):
+            return NOT_SATISFIED, (f"третий исход поднят без слов «НЕ ИЗМЕРЕНО» "
+                                   f"({exc}) — вызывающий не отличит его от вердикта")
+    except Exception as exc:                        # noqa: BLE001
+        return NOT_SATISFIED, (f"неразбираемый исходник поднял {type(exc).__name__}, "
+                               f"а не третий исход: {exc}")
+    else:
+        return NOT_SATISFIED, ("неразбираемый исходник проглочен молча — ложный "
+                               "зелёный за опечатку (инв. #17)")
+
+    # 4–5. сторож зовёт дверь, своей копии правила не держит, список не вырос
+    guard_path = os.path.join(root, TIER_CONSUMPTION_GUARD)
+    try:
+        with open(guard_path, encoding="utf-8") as fh:
+            guard_src = fh.read()
+    except OSError as exc:
+        return UNMEASURED, (f"сторож {TIER_CONSUMPTION_GUARD} не прочитан ({exc}) — "
+                            f"проводка НЕ ИЗМЕРЕНА")
+    try:
+        guard_tree = _ast.parse(guard_src)
+    except SyntaxError as exc:
+        return UNMEASURED, (f"сторож не разобран ({exc}) — проводка НЕ ИЗМЕРЕНА")
+    imports_door = any(
+        isinstance(node, _ast.ImportFrom) and node.module
+        and node.module.endswith("tier_report_consumption")
+        for node in _ast.walk(guard_tree))
+    if not imports_door:
+        return NOT_SATISFIED, (f"{TIER_CONSUMPTION_GUARD} НЕ ввозит дверь меры — "
+                               f"мера живёт у сторожа второй копией либо не живёт "
+                               f"вовсе (проверено разбором, не подстрокой)")
+    own_roles = [n.lineno for n in _ast.walk(guard_tree)
+                 if isinstance(n, _ast.Constant) and isinstance(n.value, str)
+                 and n.value in ("report_path", "assembled_path", "expression")]
+    if own_roles:
+        return NOT_SATISFIED, (f"у сторожа своя копия перечня РОЛЕЙ (строки "
+                               f"{own_roles}) — два перечня на одно правило "
+                               f"разойдутся молча")
+    allowed_names = [n for n in _ast.walk(guard_tree)
+                     if isinstance(n, _ast.Name) and n.id == "allowed"]
+    if not allowed_names:
+        return UNMEASURED, ("у сторожа нет перечня `allowed` — убыль списка НЕ "
+                            "ИЗМЕРЕНА (переименование есть смена предмета)")
+    sizes = []
+    for node in _ast.walk(guard_tree):
+        if not (isinstance(node, _ast.Assign) and len(node.targets) == 1):
+            continue
+        target = node.targets[0]
+        if not (isinstance(target, _ast.Name) and target.id == "allowed"):
+            continue
+        value = node.value
+        while isinstance(value, _ast.BinOp):        # `{...} | выведенные приборы`
+            value = value.left
+        if isinstance(value, (_ast.Set, _ast.List, _ast.Tuple)):
+            sizes.append(len(value.elts))
+    if not sizes:
+        return UNMEASURED, ("перечень `allowed` не разобран (не литеральный набор) — "
+                            "убыль НЕ ИЗМЕРЕНА")
+    if max(sizes) > TIER_ALLOWED_CEILING:
+        return NOT_SATISFIED, (f"перечень `allowed` у сторожа вырос до {max(sizes)} "
+                               f"имён при потолке {TIER_ALLOWED_CEILING} — падение "
+                               f"гасят именем, а не мерой (инв. #16)")
+
+    # 6. вердикт — ПРОГОНОМ сторожа, а не пересказом его правила
+    import subprocess as _sp
+    import sys as _sys
+    node = (f"{TIER_CONSUMPTION_GUARD}"
+            "::test_no_module_consumes_report_to_mutate_tiers")
+    genv = {k: v for k, v in os.environ.items()}
+    genv.update(SPA_ENV="ci", PYTHONHASHSEED="0")
+    try:
+        guard = _sp.run(
+            [_sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
+             "--tb=line", node],
+            cwd=str(root), capture_output=True, text=True, env=genv, timeout=900)
+    except (OSError, _sp.TimeoutExpired) as exc:
+        return UNMEASURED, (f"сторож не прогнан ({type(exc).__name__}: {exc}) — "
+                            f"зелёный НЕ ИЗМЕРЕН, а не подтверждён")
+    guard_out = (guard.stdout or "") + (guard.stderr or "")
+    if guard.returncode == 5 or "no tests ran" in guard_out:
+        return UNMEASURED, (f"сторож не найден по узлу `{node}` — зелёный НЕ ИЗМЕРЕН "
+                            f"(переименование есть смена предмета, а не чистота)")
+    if guard.returncode != 0:
+        return NOT_SATISFIED, (f"сторож `{node}` КРАСЕН на дереве {root} "
+                               f"(pytest → {guard.returncode}): "
+                               f"{guard_out.strip()[-400:]}")
+
+    return SATISFIED, (
+        f"мера решает по РОЛИ вхождения: верна на всех {len(TIER_CONSUMPTION_SCENES)} "
+        f"сценах закрытого перечня (данные молчат, ввоз/псевдоним/отчёт/атрибут/"
+        f"аргумент/СБОРКА пути кусаются), неразбираемое — третий исход со словами «НЕ "
+        f"ИЗМЕРЕНО», сторож ЗОВЁТ дверь разбором и своей копии ролей не держит, "
+        f"перечень `allowed` {max(sizes)} ≤ {TIER_ALLOWED_CEILING} (убыл с пяти), и "
+        f"сам сторож ЗЕЛЕН прогоном на дереве {root}")
+
+
+
 #: DIRECTOR-OS-UX-02 (ADR-762): the fixed scene the owner-view probe is judged on — a read-only
 #: snapshot of one real bundle, never re-read from production at probe time.
 OWNER_VIEW_FIXTURE = os.path.join(REPO_ROOT, "spa_core", "tests", "fixtures", "owner_view",
@@ -22391,6 +22596,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "mutation_window_restore_refuses_a_live_owner":
         _probe_mutation_window_restore_refuses_a_live_owner,
     "tier_guard_judges_code_not_prose": _probe_tier_guard_judges_code_not_prose,
+    "tier_consumer_measure_judges_role_not_name":
+        _probe_tier_consumer_measure_judges_role_not_name,
     "agent_health_reboot_false_alarm_closed": _probe_agent_health_reboot_false_alarm,
     "paused_agent_is_not_a_dead_agent": _probe_paused_agent_is_not_a_dead_agent,
     "read_only_view_parses_the_ledger_once":

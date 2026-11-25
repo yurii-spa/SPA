@@ -1,0 +1,124 @@
+{
+  "label": "ADR-1096-c1241",
+  "why": "Мера потребления отчёта тир-куратора решает РОЛЬ вхождения. Мутации рвут каждое звено меры, её замыкание, третий исход, проводку сторожа и звенья пробы.",
+  "tests": [
+    "spa_core/tests/test_tier_curator.py",
+    "spa_core/tests/test_tier_consumer_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 имя ОТЧЁТА больше не отличается от имени модуля",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "            elif REPORT_TOKEN in node.value:",
+      "new": "            elif False:"
+    },
+    {
+      "name": "M02 любая строка объявлена ДАННЫМИ",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "            elif isinstance(parents.get(id(node)), _DATA_CONTAINERS):",
+      "new": "            elif True:"
+    },
+    {
+      "name": "M03 роль ДАННЫХ снята — вернулась подстрока",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "_DATA_CONTAINERS = (ast.Tuple, ast.List, ast.Set, ast.Dict)",
+      "new": "_DATA_CONTAINERS = ()"
+    },
+    {
+      "name": "M04 докстрока больше не проза",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "            if id(node) in docs:",
+      "new": "            if False:"
+    },
+    {
+      "name": "M05 ПЛОСКИЙ ввоз модуля не замечается",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "        if isinstance(node, ast.Import):\n            for alias in node.names:\n                if MODULE_TOKEN in alias.name:",
+      "new": "        if isinstance(node, ast.Import):\n            for alias in node.names:\n                if False:"
+    },
+    {
+      "name": "M06 обращение к атрибуту не замечается",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "        elif isinstance(node, ast.Attribute) and MODULE_TOKEN in node.attr:",
+      "new": "        elif isinstance(node, ast.Attribute) and False:"
+    },
+    {
+      "name": "M07 замыкание на СБОРКУ пути снято",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "        if isinstance(parents.get(id(node)), _ASSEMBLY_ROLES):\n            return node.lineno",
+      "new": "        if False:\n            return node.lineno"
+    },
+    {
+      "name": "M08 замыкание судит НАЛИЧИЕ, а не роль сборки",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "_ASSEMBLY_ROLES = (ast.BinOp, ast.JoinedStr)",
+      "new": "_ASSEMBLY_ROLES = (ast.BinOp, ast.JoinedStr, ast.List, ast.Tuple)"
+    },
+    {
+      "name": "M09 третий исход проглочен молча",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "        raise TierReportConsumptionUnmeasured(\n            f\"исходник не разобран ({exc.msg}, строка {exc.lineno}) — \"\n            f\"потребление НЕ ИЗМЕРЕНО\") from exc",
+      "new": "        return ast.Module(body=[], type_ignores=[])"
+    },
+    {
+      "name": "M10 третий исход без слов НЕ ИЗМЕРЕНО",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "            f\"потребление НЕ ИЗМЕРЕНО\") from exc",
+      "new": "            f\"potreblenie neizvestno\") from exc"
+    },
+    {
+      "name": "M11 отчёт объявлен НЕпотребляющей ролью",
+      "file": "spa_core/monitoring/tier_report_consumption.py",
+      "old": "NON_CONSUMING_KINDS: frozenset[str] = frozenset({\"data\", \"prose\"})",
+      "new": "NON_CONSUMING_KINDS: frozenset[str] = frozenset({\"data\", \"prose\", \"report_path\"})"
+    },
+    {
+      "name": "M12 разрешённый читатель выпал из перечня",
+      "file": "spa_core/tests/test_tier_curator.py",
+      "old": "               reader, probe} | _guard_own_instruments()",
+      "new": "               probe} | _guard_own_instruments()"
+    },
+    {
+      "name": "M13 вывод приборов сторожа опустел",
+      "file": "spa_core/tests/test_tier_curator.py",
+      "old": "            if len(parts) == 3 and parts[:2] == [\"spa_core\", \"monitoring\"]:",
+      "new": "            if False:"
+    },
+    {
+      "name": "M14 вывод приборов называет несуществующий файл",
+      "file": "spa_core/tests/test_tier_curator.py",
+      "old": "                found.add(SPA_CORE / \"monitoring\" / f\"{parts[2]}.py\")",
+      "new": "                found.add(SPA_CORE / \"monitoring\" / f\"{parts[2]}_x.py\")"
+    },
+    {
+      "name": "M15 проба спрашивает проводку ПОДСТРОКОЙ",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    imports_door = any(\n        isinstance(node, _ast.ImportFrom) and node.module\n        and node.module.endswith(\"tier_report_consumption\")\n        for node in _ast.walk(guard_tree))",
+      "new": "    imports_door = \"tier_report_consumption\" in guard_src"
+    },
+    {
+      "name": "M16 потолок allowed поднят",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "TIER_ALLOWED_CEILING = 4",
+      "new": "TIER_ALLOWED_CEILING = 5"
+    },
+    {
+      "name": "M17 звено прогона сторожа снято",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if guard.returncode != 0:\n        return NOT_SATISFIED, (f\"сторож `{node}` КРАСЕН на дереве {root} \"",
+      "new": "    if False:\n        return NOT_SATISFIED, (f\"сторож `{node}` КРАСЕН на дереве {root} \""
+    },
+    {
+      "name": "M18 отсутствие узла сторожа выдаётся за чистоту",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if guard.returncode == 5 or \"no tests ran\" in guard_out:",
+      "new": "    if False:"
+    },
+    {
+      "name": "M19 сцена роли данных выброшена из закрытого перечня",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    (\"голое имя элементом словаря\", False,\n     \"NOT_A_SIGNAL = {'tier_curator': 'нет публичного класса'}\\n\"),",
+      "new": "    # сцена роли ДАННЫХ снята мутацией M19"
+    }
+  ]
+}
