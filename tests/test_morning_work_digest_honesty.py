@@ -445,9 +445,17 @@ class ExistingBehaviourStillHoldsTests(unittest.TestCase):
         self.assertIn("Что сделано вчера (2026-07-31)", text)
 
     def test_llm_summary_is_used_when_claude_answers(self):
-        """POSITIVE CONTROL — a fully-read day still ships the LLM prose and nothing else."""
+        """POSITIVE CONTROL — a fully-read day still ships the LLM prose and nothing else.
+
+        Сцена объявляет ОБЫЧНЫЙ день: коммиты за сутки есть. Утверждение осталось
+        точным равенством (строго сильнее, чем ``assertIn``) — изменена только сцена:
+        при нуле коммитов к тексту законно дописывается блок о доставке (ADR-1106), и
+        день без доставки для пробы «пересказ модели используется» предметом не
+        является. День с коммитами — его собственная сцена.
+        """
         self.fx.journal("2026-W31.md", "## 2026-07-31 · работа\nсделано\n")
-        raw, text = self._digest(claude="☀️ человеческий текст")
+        raw, text = self._digest(claude="☀️ человеческий текст",
+                                 log_out="цикл #1237: доставлено\n")
         self.assertIn("сделано", raw)
         self.assertEqual(text, "☀️ человеческий текст")
 
@@ -635,6 +643,175 @@ class CiStatusIsMeasuredNotNarrated(unittest.TestCase):
         """Положительный контроль состава: lint/proof-gate зелены и при красных тестах,
         и включить их значило бы докладывать владельцу не тот вопрос."""
         self.assertEqual(set(self.m.CI_GATING_WORKFLOWS), {"SPA Tests", "SPA CI"})
+
+
+
+class DeliveredZeroIsSpokenAloudTests(unittest.TestCase):
+    """ADR-1106 — «за сутки на origin не уехало НИЧЕГО» печаталось как ПУСТОТА.
+
+    Авария 2026-11-25 (цикл #1251): ключ GitHub истёк 24.11 около 20:45, тринадцать
+    циклов (#1238…#1250) отработали и сложили 15 коммитов в локальный стек, на origin
+    не уехало ни одного. Сборка роняет раздел «КОММИТЫ» целиком при пустом списке, а
+    блок «прочитано не всё» молчит ВЕРНО (и ``fetch``, и ``git log`` прошли — ноль
+    ИЗМЕРЕН). Журнал и лог изменений при этом непусты, поэтому ветка «Вчера было
+    тихо» не срабатывает: владелец получает полный рассказ о сделанной работе и ни
+    слова о том, что работа никуда не уехала.
+
+    Каждая проба ниже — положительный контроль одного исхода, и ОБЕ стороны названы:
+    ноль печатается громко, а «не измерено» и «коммиты есть» молчат — иначе блок
+    выдавал бы непрочитанный реф за измеренный ноль.
+    """
+
+    def setUp(self):
+        self.m = _load_module()
+        self._tmp = TemporaryDirectory()
+        self.fx = _RepoFixture(self.m, Path(self._tmp.name))
+        self.addCleanup(self._tmp.cleanup)
+
+    def _work_recorded(self):
+        """Journal AND changes both carry yesterday's work — the 25.11 configuration."""
+        self.fx.journal("2026-W31.md", "## 2026-07-31 · цикл #1250\n- сделано многое\n")
+        self.fx.changes([{"ts": "2026-07-31T10:00:00Z", "summary": "правка сторожа"}])
+
+    def _digest(self, **git):
+        with mock.patch.object(self.m.subprocess, "run", side_effect=_git_run(**git)), \
+             mock.patch.object(self.m, "ci_status", **_CI_GREEN):
+            return self.m.build_digest(datetime(2026, 8, 1, 9, 0))
+
+    # ── исход 1: ноль ИЗМЕРЕН ──────────────────────────────────────────────
+    def test_a_day_with_no_commits_says_so_instead_of_dropping_the_section(self):
+        self._work_recorded()
+        _raw, text = self._digest(log_out="")
+        self.assertIn("не уехало НИ ОДНОГО коммита", text)
+
+    def test_the_line_itself_names_the_day_it_is_about(self):
+        """Мерится САМ блок, а не сводка целиком.
+
+        Первая редакция пробы искала дату в полном тексте — и дату туда приносил
+        ЖУРНАЛ фикстуры (``## 2026-07-31 …``), поэтому мутация «сутки в строке не
+        названы» ВЫЖИЛА при зелёной пробе. Сцена, не отличающая свой предмет от
+        соседнего источника, мутацию не убивает: спрашиваем блок напрямую, и день
+        берём такой, какого в остальной сводке нет.
+        """
+        block = self.m._delivery_block("", [], "2031-02-03", work_recorded=True)
+        self.assertIn("2031-02-03", block, "строка обязана назвать СУТКИ, о которых она")
+
+    def test_the_incident_configuration_is_not_reported_as_a_quiet_day(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ аварии: работа есть, доставки нет."""
+        self._work_recorded()
+        raw, text = self._digest(log_out="")
+        self.assertNotEqual(raw, "", "журнал и лог изменений непусты — это НЕ тихий день")
+        self.assertNotIn("Вчера было тихо", text)
+        self.assertIn("осталась на этой машине", text)
+        self.assertIn("Доставку стои́т считать сломанной", text)
+
+    def test_zero_commits_without_recorded_work_omits_the_stuck_work_claim(self):
+        """Две формы нуля РАЗЛИЧИМЫ: без записанной работы утверждать о застрявшей нечего."""
+        _raw, text = self._digest(log_out="")
+        self.assertIn("не уехало НИ ОДНОГО коммита", text)
+        self.assertNotIn("осталась на этой машине", text)
+
+    def test_work_recorded_only_in_the_changes_log_still_counts_as_work(self):
+        """Источников записанной работы ДВА, и каждый по отдельности её доказывает.
+
+        Все прочие сцены класса заполняют журнал И лог изменений сразу, поэтому
+        мутация «работа мерится ТОЛЬКО журналом» ВЫЖИЛА при зелёном наборе (замер
+        #1251). Эта сцена — обратная половина: журнала за сутки нет, запись есть
+        только в координационном логе, и работа всё равно обязана считаться.
+        """
+        self.fx.changes([{"ts": "2026-07-31T10:00:00Z", "summary": "правка сторожа"}])
+        _raw, text = self._digest(log_out="")
+        self.assertIn("не уехало НИ ОДНОГО коммита", text)
+        self.assertIn("осталась на этой машине", text)
+
+    # ── исход 2: коммиты ЕСТЬ ⇒ блок молчит (не шумим каждый день) ─────────
+    def test_a_day_with_commits_adds_no_delivery_line(self):
+        self._work_recorded()
+        raw, text = self._digest(log_out="цикл #1237: доставлено\n")
+        self.assertIn("цикл #1237", raw, "список коммитов обязан доехать до данных модели")
+        self.assertNotIn("не уехало НИ ОДНОГО коммита", text)
+
+    # ── исход 3: ноль НЕ ИЗМЕРЕН ⇒ блок молчит, причина названа ────────────
+    def test_an_unread_ref_is_not_reported_as_nothing_shipped(self):
+        """``fetch`` не прошёл: список пуст, но ноль НЕ измерен — говорить о нём нельзя."""
+        self._work_recorded()
+        _raw, text = self._digest(log_out="", fetch_rc=1,
+                                  fetch_err="Could not resolve host: github.com")
+        self.assertNotIn("не уехало НИ ОДНОГО коммита", text)
+        self.assertIn("Could not resolve host", text)
+
+    def test_a_failed_git_log_is_not_reported_as_nothing_shipped(self):
+        self._work_recorded()
+        _raw, text = self._digest(log_rc=128, log_err="fatal: bad revision 'origin/main'")
+        self.assertNotIn("не уехало НИ ОДНОГО коммита", text)
+        self.assertIn("bad revision", text)
+
+    # ── проводка: строка обязана дойти до ОБОИХ исходов пересказа ─────────
+    def test_the_line_survives_the_llm_summary(self):
+        """Модель не может пересказать то, чего во входных данных нет ВОВСЕ (ADR-308)."""
+        self._work_recorded()
+        _raw, text = self._digest(log_out="", claude="Вчера шла работа над сторожами.")
+        self.assertIn("Вчера шла работа над сторожами", text, "пересказ обязан быть использован")
+        self.assertIn("не уехало НИ ОДНОГО коммита", text)
+
+    def test_the_line_reaches_the_raw_fallback_when_the_llm_is_unavailable(self):
+        self._work_recorded()
+        _raw, text = self._digest(log_out="", claude=None)
+        self.assertIn("сырьём", text, "это именно путь отказа модели")
+        self.assertIn("не уехало НИ ОДНОГО коммита", text)
+
+    def test_the_line_reaches_a_genuinely_quiet_day_too(self):
+        """Четвёртый путь возврата: источники прочитаны и пусты — ноль всё равно назван."""
+        _raw, text = self._digest(log_out="")
+        self.assertIn("Вчера было тихо", text)
+        self.assertIn("не уехало НИ ОДНОГО коммита", text)
+
+    # ── контроль самой меры: блок читается как функция, а не как подстрока ─
+    def test_every_return_path_of_build_digest_carries_the_deterministic_tail(self):
+        """Забытый путь возврата — ровно тот молчаливый ноль, против которого блок написан.
+
+        Меряется AST, а не грепом: имя ``tail`` в комментарии грепу неотличимо от зова.
+
+        Привязка прослеживается на ОДИН хоп: два пути возвращают переменную (``txt``,
+        ``fallback``), собранную выше, и мерка, искавшая имя ``tail`` внутри самого
+        ``return``, объявила их дефектом кода — дефект был У МЕРКИ (замер #1251:
+        «1 != 3» при верной проводке). Дальше одного хопа мерка не ходит, и это
+        граница ОХВАТА, а не замер её отсутствия.
+        """
+        import ast
+        src = (Path(self.m.__file__).read_text(encoding="utf-8")
+               if getattr(self.m, "__file__", None) else "")
+        self.assertTrue(src, "исходник модуля не прочитан — это НЕ ИЗМЕРЕНО, а не «чисто»")
+        tree = ast.parse(src)
+        fn = next(n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == "build_digest")
+
+        def _mentions_tail(node) -> bool:
+            return any(isinstance(x, ast.Name) and x.id == "tail" for x in ast.walk(node))
+
+        # имена, чьё ЗНАЧЕНИЕ происходит от хвоста (один хоп)
+        from_tail = {t.id for a in ast.walk(fn) if isinstance(a, ast.Assign)
+                     for t in a.targets if isinstance(t, ast.Name) and _mentions_tail(a.value)}
+        returns = [n for n in ast.walk(fn) if isinstance(n, ast.Return)]
+        self.assertGreaterEqual(len(returns), 3, "путей возврата стало меньше — перемерь сцену")
+        carried = [r for r in returns
+                   if _mentions_tail(r)
+                   or any(isinstance(x, ast.Name) and x.id in from_tail for x in ast.walk(r))]
+        self.assertEqual(
+            len(carried), len(returns),
+            f"{len(returns) - len(carried)} путь(и) возврата build_digest не несут блок tail")
+
+    def test_the_block_is_a_named_function_wired_into_the_tail(self):
+        """Положительный контроль ПРОВОДКИ: блок существует и его зовут из сборки."""
+        import ast
+        self.assertTrue(callable(getattr(self.m, "_delivery_block", None)))
+        tree = ast.parse(Path(self.m.__file__).read_text(encoding="utf-8"))
+        fn = next(n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == "build_digest")
+        calls = [n for n in ast.walk(fn)
+                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                 and n.func.id == "_delivery_block"]
+        self.assertEqual(len(calls), 1, "зов блока обязан быть ровно один — на единый хвост")
 
 
 

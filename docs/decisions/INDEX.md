@@ -234,6 +234,7 @@
 | ADR-1103 | ADR-1103 — Инжест ответа владельца не есть СОСТОЯВШЕЕСЯ действие: прибор спрашивает живой флот | Accepted | [ADR-1103](ADR-1103-ingested-answer-is-not-a-performed-owner-action.md) |
 | ADR-1104 | ADR-1104 — Работа, которой нельзя уехать на origin, не имела ВТОРОЙ копии: одиннадцать коммитов в одном объектном складе | Accepted | [ADR-1104](ADR-1104-work-that-cannot-reach-origin-needs-a-second-copy.md) |
 | ADR-1105 | ADR-1105 — Объявленный критерий, который есть ТОЛЬКО на ветви доставки: дочитывание ключовалось файлом, а не критерием | Accepted | [ADR-1105](ADR-1105-declared-criterion-only-on-the-ref.md) |
+| ADR-1106 | ADR-1106 — Ноль доставленных коммитов печатался владельцу как ПУСТОТА | Accepted | [ADR-1106](ADR-1106-delivered-zero-printed-as-emptiness.md) |
 
 ## Соглашения
 
