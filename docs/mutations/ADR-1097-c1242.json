@@ -1,0 +1,159 @@
+{
+ "label": "ADR-1097-c1242",
+ "why": "Мера «имя-данные, дошедшее до диска окольно». Мутации рвут каждое звено: предмет класса, его границу (НЕ шире файловой системы), ближний промах, замыкание привязки по каждому способу путешествия значения, область замыкания, вычет листьев в обе стороны, третий исход и живую перепись. Добавлены M23–M25: ветка «литерал передан зову НА МЕСТЕ» не имела ни одной сцены до 25.11 и звала снятую функцию — нашёл pyflakes, а не тест.",
+ "tests": [
+  "spa_core/tests/test_tier_data_name_leak.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 сборка пути к отчёту больше не требует УЧАСТИЯ значения",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        if has_suffix and _mentions_any(node, names):",
+   "new": "        if has_suffix:"
+  },
+  {
+   "name": "M02 сборка пути к отчёту не замечается вовсе",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    node = _report_assembled_from(scope, local)\n    if node is not None:",
+   "new": "    node = _report_assembled_from(scope, local)\n    if False:"
+  },
+  {
+   "name": "M03 дверь, открывающая отчёт ПО ИМЕНИ, не замечается",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    call = _door_naming_the_report(scope)\n    if call is not None:",
+   "new": "    call = _door_naming_the_report(scope)\n    if False:"
+  },
+  {
+   "name": "M04 ЧУЖОЙ путь объявлен членом класса — мера стала ШИРЕ",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        return (\"reaches_fs\",",
+   "new": "        return (CLASS_VERDICT,"
+  },
+  {
+   "name": "M05 ближний промах схлопнут в «ничего»",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    cmp_node = _compare_with_path(scope, local)\n    if cmp_node is not None:",
+   "new": "    cmp_node = _compare_with_path(scope, local)\n    if False:"
+  },
+  {
+   "name": "M06 замыкание: распаковка цикла больше не продолжает поток",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "            elif (isinstance(node, (ast.For, ast.AsyncFor))\n                    and _mentions_any(node.iter, names)):\n                fresh |= _target_names(node.target)",
+   "new": "            elif (isinstance(node, (ast.For, ast.AsyncFor))\n                    and False):\n                fresh |= _target_names(node.target)"
+  },
+  {
+   "name": "M07 замыкание: присваивание больше не продолжает поток",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "            if isinstance(node, ast.Assign) and _mentions_any(node.value, names):",
+   "new": "            if isinstance(node, ast.Assign) and False:"
+  },
+  {
+   "name": "M08 замыкание: приём в контейнер больше не продолжает поток",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "                fresh.add(node.func.value.id)",
+   "new": "                pass"
+  },
+  {
+   "name": "M09 умолчание параметра перестало быть передачей",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        for func, param in _default_crossings(tree, module_names):",
+   "new": "        for func, param in []:"
+  },
+  {
+   "name": "M10 замыкание потеряло неподвижную точку (один проход)",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "            if fresh - names:\n                names |= fresh\n                changed = True",
+   "new": "            if fresh - names:\n                names |= fresh"
+  },
+  {
+   "name": "M11 область замыкания снята — модульное спускается в тела функций",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):\n            continue",
+   "new": "        if False:\n            continue"
+  },
+  {
+   "name": "M12 вычет встроенных снят — дверь прячется за третьим исходом",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "LEAF_CALLS: frozenset[str] = (SHAPING_CALLS | ADMISSION_METHODS | FS_DOORS\n                              | PATH_SHAPES | _BUILTIN_LEAVES)",
+   "new": "LEAF_CALLS: frozenset[str] = frozenset()"
+  },
+  {
+   "name": "M13 вычет встроенных СЪЕЛ `open` — утечка снята с учёта",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "_BUILTIN_LEAVES: frozenset[str] = frozenset(dir(_builtins)) - FS_DOORS",
+   "new": "_BUILTIN_LEAVES: frozenset[str] = frozenset(dir(_builtins))"
+  },
+  {
+   "name": "M14 вычет метода-листа СЪЕЛ дверь файловой системы",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    if func.attr in FS_DOORS:\n        return False",
+   "new": "    if False:\n        return False"
+  },
+  {
+   "name": "M15 третий исход: неразрешимый получатель объявлен невинным",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        return Flow(mention.token, mention.line, binding, UNMEASURED,\n                    f\"получатель {receiver!r} НЕ РАЗРЕШЁН (один хоп) — \"\n                    f\"НЕ ИЗМЕРЕНО\", receiver, hop)",
+   "new": "        return Flow(mention.token, mention.line, binding, \"local_only\",\n                    f\"получатель {receiver!r} НЕ РАЗРЕШЁН (один хоп) — \"\n                    f\"НЕ ИЗМЕРЕНО\", receiver, hop)"
+  },
+  {
+   "name": "M16 третий исход: неразобранный исходник отвечает «пусто»",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        raise TierDataNameLeakUnmeasured(str(exc)) from exc",
+   "new": "        return ()"
+  },
+  {
+   "name": "M17 членом класса стал ЛЮБОЙ вердикт",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        return self.verdict == CLASS_VERDICT",
+   "new": "        return True"
+  },
+  {
+   "name": "M18 членов класса не бывает никогда — мера зелена всегда",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    return tuple(f for f in flows if f.is_member)",
+   "new": "    return ()"
+  },
+  {
+   "name": "M19 правило ролей скопировано, а не ввезено",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    data = [m for m in found if m.kind == \"data\"]",
+   "new": "    data = []"
+  },
+  {
+   "name": "M20 худший исход прячется за первым попавшимся",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    ordered = sorted(verdicts, key=lambda f: VERDICT_ORDER.index(f.verdict))",
+   "new": "    ordered = list(verdicts)"
+  },
+  {
+   "name": "M21 один хоп обрезан: чужой модуль не разрешается никогда",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    source = resolve(module)",
+   "new": "    source = None"
+  },
+  {
+   "name": "M22 параметр получателя подменён первым попавшимся",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        if _mentions_any(arg, names):\n            if index < len(params):",
+   "new": "        if True:\n            if index < len(params):"
+  },
+  {
+   "name": "M23 литерал на месте: параметр ищется по ИМЕНИ, а не по тождеству",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "    param = _param_by_identity(func, call, node) or \"<аргумент>\"",
+   "new": "    param = _param_for(func, call, {mention.token}) or \"<аргумент>\""
+  },
+  {
+   "name": "M24 литерал на месте: параметр не ищется вовсе",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "        if any(sub is node for sub in ast.walk(arg)):",
+   "new": "        if False:"
+  },
+  {
+   "name": "M25 литерал на месте: получатель не судится — ветка молчит",
+   "file": "spa_core/monitoring/tier_data_name_leak.py",
+   "old": "            out.append(_flow_for_direct_call(mention, owner, node, parents,\n                                             defs, imported, resolve))\n            continue",
+   "new": "            out.append(Flow(mention.token, mention.line, None, \"local_only\",\n                            \"литерал на месте\"))\n            continue"
+  }
+ ]
+}
