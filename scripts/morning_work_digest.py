@@ -59,6 +59,62 @@ _CLAUDE = os.environ.get("SPA_CLAUDE_BIN") or "/Users/yuriikulieshov/.local/bin/
 _CLAUDE_TIMEOUT_S = 180
 
 
+class TreeNotMeasured(Exception):
+    """Названное дерево работы прочитать нельзя — это ТРЕТИЙ исход, а не умолчание."""
+
+
+def resolve_repo_root(argv: list[str], *, default: Path | None = None) -> tuple[Path, str]:
+    """``(дерево, как выбрано)`` — где читать журнал, лог изменений и коммиты.
+
+    Дерево — ВХОД, а не расположение файла (ADR-1111, тот же приём, что ``--repo-root``
+    у ``scripts/import_time_anchor_bombs.py`` по ADR-933 и ``--data-dir`` по ADR-1107/1108).
+    Замер 26.11, цикл #1257: починка ADR-1106 (блок «за сутки не уехало НИ ОДНОГО
+    коммита») лежала в стеке простоя доставки и была НЕ ИСПОЛНИМА даже рукой — читатель
+    брал дерево из своего расположения, поэтому запуск из стека отвечал про СТЕК
+    (``data/session_changes.jsonl`` там — замороженный git-канон), а не про живую работу
+    в прод-дереве. Починка о простое не могла быть применена ровно во время простоя.
+
+    Три исхода различимы (инв. #17):
+
+    * дерево НАЗВАНО и читается — используется, выбор ПЕЧАТАЕТСЯ;
+    * дерево НЕ названо — умолчание (дерево самого файла), и это тоже ПЕЧАТАЕТСЯ:
+      молча подставить своё дерево хуже ошибки, читатель не узнает, о чьей работе ему
+      доложили (``.claude/rules/deployment.md``, § поправка #1031);
+    * дерево названо и прочитать его нельзя (пустое значение · не каталог · git там не
+      отвечает) — :class:`TreeNotMeasured`, то есть ОТКАЗ с названной причиной, а НЕ
+      молчаливый возврат к своему дереву.
+    """
+    # Умолчание читается в МОМЕНТ ЗОВА, а не на импорте: значение по умолчанию
+    # в подписи заморозило бы дерево навсегда и сделало вход неподменяемым
+    # (на этом же месте краснели сцены, подменяющие ``_REPO``).
+    default = default or _REPO
+    value: str | None = None
+    for i, a in enumerate(argv):
+        if a == "--repo-root":
+            value = argv[i + 1] if i + 1 < len(argv) else ""
+            break
+        if a.startswith("--repo-root="):
+            value = a.split("=", 1)[1]
+            break
+    if value is None:
+        return default, "УМОЛЧАНИЕ (дерево самого файла)"
+    if not value.strip():
+        raise TreeNotMeasured("--repo-root назван без значения")
+    root = Path(value).expanduser()
+    if not root.is_dir():
+        raise TreeNotMeasured(f"названное дерево не является каталогом: {root}")
+    try:
+        probe = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=str(root),
+                               capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise TreeNotMeasured(f"git не ответил в названном дереве {root}: {exc}") from exc
+    if probe.returncode != 0:
+        raise TreeNotMeasured(
+            f"git не считает {root} репозиторием (exit {probe.returncode}): "
+            f"{(probe.stderr or '').strip()[:200]}")
+    return root.resolve(), "НАЗВАНО"
+
+
 def _yesterday_bounds(now: datetime) -> tuple[datetime, datetime, str]:
     """Return (start, end, human-date) for 'yesterday' in local time."""
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -95,14 +151,14 @@ def _parse_log_ts(value: str) -> datetime | None:
     return t if t.tzinfo is not None else t.replace(tzinfo=timezone.utc)
 
 
-def _gather_journal(day: str) -> tuple[str, list[str]]:
+def _gather_journal(day: str, repo: Path | None = None) -> tuple[str, list[str]]:
     """Journal lines whose section/date matches yesterday.
 
     Returns ``(text, unread)``. ``unread`` names — verbatim — every journal source that could
     not be READ; an empty ``text`` with an empty ``unread`` therefore means "read it, nothing
     there", which is a different statement from "could not look".
     """
-    wk_dir = _REPO / "docs" / "journal"
+    wk_dir = (repo or _REPO) / "docs" / "journal"
     if not wk_dir.is_dir():
         return "", [f"docs/journal: каталога нет ({wk_dir})"]
     out: list[str] = []
@@ -129,14 +185,15 @@ def _gather_journal(day: str) -> tuple[str, list[str]]:
     return "\n".join(out)[:8000], unread
 
 
-def _gather_session_changes(start: datetime, end: datetime) -> tuple[str, list[str]]:
+def _gather_session_changes(start: datetime, end: datetime,
+                            repo: Path | None = None) -> tuple[str, list[str]]:
     """session_changes.jsonl summaries stamped within ``[start, end)``.
 
     Returns ``(text, unread)``; the window is compared in UTC (see :func:`_utc_window`).
     A line that cannot be parsed is COUNTED, not silently dropped — an announce we failed to
     read is an announce we cannot claim was absent.
     """
-    f = _REPO / "data" / "session_changes.jsonl"
+    f = (repo or _REPO) / "data" / "session_changes.jsonl"
     if not f.is_file():
         return "", [f"data/session_changes.jsonl: файла нет ({f})"]
     try:
@@ -171,16 +228,17 @@ def _gather_session_changes(start: datetime, end: datetime) -> tuple[str, list[s
     return "\n".join(lines[-60:])[:6000], unread
 
 
-def _gather_commits(day: str) -> tuple[str, list[str]]:
+def _gather_commits(day: str, repo: Path | None = None) -> tuple[str, list[str]]:
     """git commits on origin/main authored on yesterday (subject lines).
 
     Returns ``(text, unread)``. A failed ``fetch`` is reported (the ref may be behind, so an
     empty list would not mean "nothing shipped"), and so is a non-zero ``git log`` — that exit
     code used to be discarded, leaving an unread ref indistinguishable from a quiet day.
     """
+    root = repo or _REPO
     unread: list[str] = []
     try:
-        fetched = subprocess.run(["git", "fetch", "origin", "main"], cwd=str(_REPO),
+        fetched = subprocess.run(["git", "fetch", "origin", "main"], cwd=str(root),
                                  capture_output=True, timeout=30)
         if fetched.returncode != 0:
             # ``fetch`` runs without ``text=True``, so stderr arrives as bytes here and as str
@@ -194,7 +252,7 @@ def _gather_commits(day: str) -> tuple[str, list[str]]:
         out = subprocess.run(
             ["git", "log", "origin/main", "--since", f"{day} 00:00",
              "--until", f"{day} 23:59", "--pretty=%s"],
-            cwd=str(_REPO), capture_output=True, text=True, timeout=20,
+            cwd=str(root), capture_output=True, text=True, timeout=20,
         )
         if out.returncode != 0:
             return "", unread + [f"git log origin/main не прошёл (exit {out.returncode}): "
@@ -451,13 +509,14 @@ def _delivery_block(commits: str, unread_commits: list[str], day: str,
     return line
 
 
-def build_digest(now: datetime | None = None) -> tuple[str, str]:
+def build_digest(now: datetime | None = None, *,
+                 repo: Path | None = None) -> tuple[str, str]:
     """Return (raw_bullets_fallback, human_text). human_text via claude; fallback if it fails."""
     now = now or datetime.now()
     start, end, day = _yesterday_bounds(now)
-    journal, u_journal = _gather_journal(day)
-    changes, u_changes = _gather_session_changes(start, end)
-    commits, u_commits = _gather_commits(day)
+    journal, u_journal = _gather_journal(day, repo)
+    changes, u_changes = _gather_session_changes(start, end, repo)
+    commits, u_commits = _gather_commits(day, repo)
     ci_text, u_ci = ci_status()
     unread = u_journal + u_changes + u_commits + u_ci
 
@@ -542,7 +601,15 @@ def delivery_verdict(resp: object) -> tuple[bool, str]:
 
 
 def main() -> int:
-    _, text = build_digest()
+    # Дерево работы — ВХОД (ADR-1111). Отказ на нечитаемом НАЗВАННОМ дереве идёт ДО сборки:
+    # «не измерено» не имеет права выглядеть как сводка о спокойном дне.
+    try:
+        repo, how = resolve_repo_root(sys.argv[1:])
+    except TreeNotMeasured as exc:
+        print(f"НЕ ИЗМЕРЕНО, из какого дерева читать работу: {exc}", file=sys.stderr)
+        return 2
+    print(f"дерево работы: {repo} — {how}", file=sys.stderr)
+    _, text = build_digest(repo=repo)
     if "--dry-run" in sys.argv:
         print(text)
         return 0

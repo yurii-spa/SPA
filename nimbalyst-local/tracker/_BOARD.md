@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T02:55:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T06:47:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1699** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1700** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -452,7 +452,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (992)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (993)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1424,6 +1424,7 @@
 - У журналов агентов в /tmp нет предела размера — один снова вырос до 2,3 ГБ  ·  `inbox-u-zhurnalov-agentov-v-tmp-net-predela-ra.md` · 2026-10-08
 - Убитый прогон переписи оставляет МУТАНТ чужого модуля в рабочем дереве: форсированный исходник пишется сквозь символическую ссылку  ·  `inbox-ubityi-progon-perepisi-ostavlyaet-mutant.md` · 2026-10-09
 - Убрать два пустых артефакта из корня прод-дерева после починки контракта переписей  ·  `inbox-ubrat-dva-pustyh-artefakta-iz-kornya-pro.md` · 2026-09-11
+- Утренняя сводка читает журнал из дерева, куда журнал не доезжает — 12 дней из 14 пустой первый источник  ·  `inbox-utrennyaya-svodka-chitaet-zhurnal-iz-der.md` · 2026-11-26
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт памяти копий не доходит до читателя очереди: шаг 1 печатает origin_check и молчит про 94 пропавшие записи  ·  `inbox-verdikt-pamyati-kopii-ne-dohodit-do-chit.md` · 2026-10-13
 - Вердикт прогона 41197602899 ИЗМЕРЕН: починка #994 сняла 8 имён, вклад цикла ноль — но +1 против базы не из его диффа и локально зелен  ·  `inbox-verdikt-progona-41197602899-izmeren-poch.md` · 2026-10-31

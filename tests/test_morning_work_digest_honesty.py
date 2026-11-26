@@ -161,7 +161,10 @@ class MainReportsDeliveryTruthfullyTests(unittest.TestCase):
 
     def setUp(self):
         self.m = _load_module()
-        self.m.build_digest = lambda now=None: ("raw", "digest text")
+        # ``*a, **k``: настоящая ``build_digest`` приняла вход ДЕРЕВА (ADR-1111), а предмет
+        # этих проб — доставка сообщения, не сборка. Заглушка обязана отвечать как
+        # настоящая функция; сужать её сигнатуру значило бы краснеть не по предмету.
+        self.m.build_digest = lambda *_a, **_k: ("raw", "digest text")
 
     def _run_main(self, resp, argv=("morning_work_digest.py",)):
         out, err = io.StringIO(), io.StringIO()
@@ -504,7 +507,10 @@ class ReadableMorningTests(unittest.TestCase):
         import types
         fake_mod = types.ModuleType("spa_core.telegram.bot")
         fake_mod.TelegramBot = Bot()
-        self.m.build_digest = lambda now=None: ("raw", "digest text")
+        # ``*a, **k``: настоящая ``build_digest`` приняла вход ДЕРЕВА (ADR-1111), а предмет
+        # этих проб — доставка сообщения, не сборка. Заглушка обязана отвечать как
+        # настоящая функция; сужать её сигнатуру значило бы краснеть не по предмету.
+        self.m.build_digest = lambda *_a, **_k: ("raw", "digest text")
         saved = sys.modules.get("spa_core.telegram.bot")
         sys.modules["spa_core.telegram.bot"] = fake_mod
         try:
@@ -615,9 +621,9 @@ class CiStatusIsMeasuredNotNarrated(unittest.TestCase):
     # ── проводка: источник действительно доходит до текста сводки ──────────
     def test_the_block_reaches_the_digest_even_when_the_llm_is_unavailable(self):
         m = self.m
-        with mock.patch.object(m, "_gather_journal", lambda day: ("- сделано", [])), \
-             mock.patch.object(m, "_gather_session_changes", lambda s, e: ("", [])), \
-             mock.patch.object(m, "_gather_commits", lambda day: ("", [])), \
+        with mock.patch.object(m, "_gather_journal", lambda *_a, **_k: ("- сделано", [])), \
+             mock.patch.object(m, "_gather_session_changes", lambda *_a, **_k: ("", [])), \
+             mock.patch.object(m, "_gather_commits", lambda *_a, **_k: ("", [])), \
              mock.patch.object(m, "ci_status", lambda now=None: (
                  "АВТОПРОВЕРКА КОДА: КРАСНАЯ. «SPA Tests» красное 14.4 суток "
                  "(последний зелёный 2026-08-26T22:25:03Z).", [])), \
@@ -629,9 +635,9 @@ class CiStatusIsMeasuredNotNarrated(unittest.TestCase):
 
     def test_unmeasured_ci_reaches_the_unread_footer(self):
         m = self.m
-        with mock.patch.object(m, "_gather_journal", lambda day: ("", [])), \
-             mock.patch.object(m, "_gather_session_changes", lambda s, e: ("", [])), \
-             mock.patch.object(m, "_gather_commits", lambda day: ("", [])), \
+        with mock.patch.object(m, "_gather_journal", lambda *_a, **_k: ("", [])), \
+             mock.patch.object(m, "_gather_session_changes", lambda *_a, **_k: ("", [])), \
+             mock.patch.object(m, "_gather_commits", lambda *_a, **_k: ("", [])), \
              mock.patch.object(m, "ci_status", lambda now=None: (
                  "", ["статус автопроверки кода НЕ измерен — Keychain молчит"])):
             _raw, human = m.build_digest(datetime(2026, 9, 10, 9, 0))
@@ -813,6 +819,183 @@ class DeliveredZeroIsSpokenAloudTests(unittest.TestCase):
                  and n.func.id == "_delivery_block"]
         self.assertEqual(len(calls), 1, "зов блока обязан быть ровно один — на единый хвост")
 
+
+
+class WorkTreeIsAnInputTests(unittest.TestCase):
+    """ADR-1111 — дерево работы это ВХОД, а не расположение файла сводки.
+
+    Замер 26.11 (цикл #1257): починка ADR-1106 лежала в стеке простоя доставки и была
+    НЕ ИСПОЛНИМА даже рукой — читатель брал дерево из своего расположения, поэтому запуск
+    из стека отвечал про СТЕК (там ``data/session_changes.jsonl`` — замороженный
+    git-канон), а не про живую работу. Починка о простое не применялась во время простоя.
+
+    Каждая проба ниже — положительный контроль: она КРАСНА на коде без входа.
+    """
+
+    def setUp(self):
+        self.m = _load_module()
+        self._a = TemporaryDirectory()
+        self._b = TemporaryDirectory()
+        self.a, self.b = Path(self._a.name), Path(self._b.name)
+        for root in (self.a, self.b):
+            (root / "docs" / "journal").mkdir(parents=True, exist_ok=True)
+            (root / "data").mkdir(parents=True, exist_ok=True)
+            (root / "data" / "session_changes.jsonl").write_text("", encoding="utf-8")
+        # Умолчание указывает на дерево A: мимо входа сводка прочитает ЕГО, и именно это
+        # делает пробы контролями, а не проверкой того, что каталоги разные.
+        self.m._REPO = self.a
+        # День берётся у самого модуля — литеральной даты в сцене нет НАМЕРЕННО
+        # (.claude/rules/deployment.md § «Время в тестах»): иначе проба начала бы
+        # краснеть от календаря, а не от кода.
+        _, _, self.day = self.m._yesterday_bounds(datetime.now())
+
+    def tearDown(self):
+        self._a.cleanup()
+        self._b.cleanup()
+
+    def _git_ok_capturing_cwd(self, seen: list):
+        def run(cmd, **kw):
+            argv = list(cmd)
+            seen.append((argv[:3], kw.get("cwd")))
+            if argv[:2] == ["git", "fetch"]:
+                return subprocess.CompletedProcess(argv, 0, b"", b"")
+            if argv[:1] == ["git"]:
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            raise OSError("claude binary not available in tests")
+        return run
+
+    def test_default_is_the_files_own_tree_and_is_named_as_such(self):
+        root, how = self.m.resolve_repo_root([])
+        self.assertEqual(root, self.a)
+        self.assertIn("УМОЛЧАНИЕ", how)
+
+    def test_a_named_readable_tree_wins_over_the_default(self):
+        root, how = self.m.resolve_repo_root(["--repo-root", str(_REPO_ROOT)])
+        self.assertEqual(root, _REPO_ROOT.resolve())
+        self.assertEqual(how, "НАЗВАНО")
+
+    def test_the_equals_form_is_read_too(self):
+        root, _ = self.m.resolve_repo_root([f"--repo-root={_REPO_ROOT}"])
+        self.assertEqual(root, _REPO_ROOT.resolve())
+
+    def test_named_without_a_value_is_refused_not_defaulted(self):
+        with self.assertRaises(self.m.TreeNotMeasured) as cm:
+            self.m.resolve_repo_root(["--repo-root"])
+        self.assertIn("без значения", str(cm.exception))
+
+    def test_a_path_that_is_not_a_directory_is_refused(self):
+        missing = self.b / "net-takogo-dereva"
+        with self.assertRaises(self.m.TreeNotMeasured) as cm:
+            self.m.resolve_repo_root(["--repo-root", str(missing)])
+        self.assertIn(str(missing), str(cm.exception))
+        # ПРИЧИНА внутри «не измерено» обязана быть замером, а не любой причиной
+        # (ADR-1058): сняв проверку каталога, отказ всё равно случится — но уже от
+        # того, что git не нашёл рабочего каталога, и это ДРУГОЕ утверждение о мире.
+        self.assertIn("не является каталогом", str(cm.exception))
+
+    def test_a_directory_that_is_not_a_repository_is_refused(self):
+        """«git там не отвечает» — ЗАМЕР, а не догадка: иначе `_gather_commits`
+        молча вернул бы пустой список коммитов как измеренный ноль."""
+        with self.assertRaises(self.m.TreeNotMeasured) as cm:
+            self.m.resolve_repo_root(["--repo-root", str(self.b)])
+        self.assertIn("репозиторием", str(cm.exception))
+
+    def test_the_journal_gatherer_reads_the_named_tree(self):
+        self.fixture_journal(self.a, "запись дерева A")
+        self.fixture_journal(self.b, "запись дерева B")
+        text_a, _ = _text_and_unread(self.m._gather_journal(self.day, self.a))
+        text_b, _ = _text_and_unread(self.m._gather_journal(self.day, self.b))
+        self.assertIn("дерева A", text_a)
+        self.assertIn("дерева B", text_b)
+        self.assertNotIn("дерева A", text_b)
+
+    def test_the_changes_gatherer_reads_the_named_tree(self):
+        start, end, _ = self.m._yesterday_bounds(datetime.now())
+        stamp = (start + (end - start) / 2).replace(tzinfo=timezone.utc).isoformat()
+        (self.b / "data" / "session_changes.jsonl").write_text(
+            json.dumps({"ts": stamp, "summary": "работа дерева B"}) + "\n", encoding="utf-8")
+        text_b, _ = _text_and_unread(self.m._gather_session_changes(start, end, self.b))
+        text_a, _ = _text_and_unread(self.m._gather_session_changes(start, end, self.a))
+        self.assertIn("дерева B", text_b)
+        self.assertEqual(text_a.strip(), "", "дерево умолчания пусто — иначе сцена не различает")
+
+    def test_the_commit_gatherer_runs_git_in_the_named_tree(self):
+        seen: list = []
+        with mock.patch("subprocess.run", self._git_ok_capturing_cwd(seen)):
+            self.m._gather_commits(self.day, self.b)
+        self.assertTrue(seen, "git не позван вовсе — сцена ничего не измерила")
+        for argv, cwd in seen:
+            self.assertEqual(Path(str(cwd)), self.b, f"{argv} позван не в названном дереве")
+
+    def test_build_digest_threads_the_named_tree_into_every_gatherer(self):
+        """Положительный контроль ПРОВОДКИ по AST: вход, дошедший не до всех проб, —
+        ровно тот дефект, из-за которого названный каталог данных не доезжал (ADR-1107)."""
+        import ast
+        tree = ast.parse(Path(self.m.__file__).read_text(encoding="utf-8"))
+        fn = next(n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == "build_digest")
+        wired = set()
+        for node in ast.walk(fn):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id in {"_gather_journal", "_gather_session_changes",
+                                         "_gather_commits"}):
+                names = {a.id for a in node.args if isinstance(a, ast.Name)}
+                names |= {k.value.id for k in node.keywords
+                          if isinstance(k.value, ast.Name)}
+                if "repo" in names:
+                    wired.add(node.func.id)
+        self.assertEqual(wired, {"_gather_journal", "_gather_session_changes",
+                                 "_gather_commits"},
+                         "дерево дошло не до всех трёх источников")
+
+    def test_main_refuses_an_unreadable_named_tree_with_code_two(self):
+        err = io.StringIO()
+        missing = self.b / "net-takogo-dereva"
+        with mock.patch.object(sys, "argv", ["x", "--repo-root", str(missing)]), \
+                mock.patch.dict(sys.modules, {}, clear=False), \
+                contextlib.redirect_stderr(err):
+            with mock.patch.object(self.m, "build_digest",
+                                   side_effect=AssertionError("сборка не должна начаться")):
+                rc = self.m.main()
+        self.assertEqual(rc, 2, "нечитаемое НАЗВАННОЕ дерево обязано быть третьим исходом")
+        self.assertIn("НЕ ИЗМЕРЕНО", err.getvalue())
+        self.assertNotIn("digest sent", err.getvalue())
+
+    def test_main_prints_the_tree_it_chose_even_on_the_default(self):
+        err = io.StringIO()
+        with mock.patch.object(sys, "argv", ["x", "--dry-run"]), \
+                mock.patch.object(self.m, "build_digest", return_value=("", "текст")), \
+                contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(err):
+            rc = self.m.main()
+        self.assertEqual(rc, 0)
+        self.assertIn(str(self.a), err.getvalue())
+        self.assertIn("УМОЛЧАНИЕ", err.getvalue())
+
+    def test_main_hands_the_resolved_tree_to_the_build(self):
+        """Дыра, найденную мутацией: `main` могла решить дерево и собрать сводку БЕЗ него.
+
+        Проба смотрит на ФАКТИЧЕСКИЙ аргумент, а не на AST: подстрока «repo=» в тексте
+        файла зачла бы и упоминание в докстринге (урок #1217).
+        """
+        seen: dict = {}
+
+        def fake_build(*a, **k):
+            seen.update(k)
+            return ("", "текст")
+
+        with mock.patch.object(sys, "argv", ["x", "--dry-run", "--repo-root", str(_REPO_ROOT)]), \
+                mock.patch.object(self.m, "build_digest", fake_build), \
+                contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            rc = self.m.main()
+        self.assertEqual(rc, 0)
+        self.assertEqual(seen.get("repo"), _REPO_ROOT.resolve(),
+                         "решённое дерево до сборки не дошло — вход решили и выбросили")
+
+    def fixture_journal(self, root: Path, body: str) -> None:
+        (root / "docs" / "journal" / "week.md").write_text(
+            f"## {self.day} · сцена\n{body}\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
