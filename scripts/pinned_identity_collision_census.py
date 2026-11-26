@@ -315,8 +315,15 @@ def format_report(r: dict) -> list[str]:
         ceil = row["structural_ceiling"]
         ceil_s = ("НЕ ИЗМЕРЕН" if ceil is None
                   else f"{ceil:.0%}{' (ЧАСТИЧНО)' if row['structural_ceiling_partial'] else ''}")
+        # Вложенная строка ТОЙ ЖЕ кавычкой внутри поля f-string разбирается только
+        # Python 3.12+, а контрольный прогон идёт на 3.11 (сторож
+        # `spa_core/tests/test_fstring_ci_python_compat.py`): на origin этот файл в
+        # CI НЕ РАЗБИРАЛСЯ вовсе. Выражение вынесено наружу; ни один знак вывода не
+        # изменён — сверено прогоном прибора до и после.
+        matches = row["matches"]
+        pairs = ", ".join("%s=`%s`" % (p, matches.get(p)) for p in row["protocols"])
         out.append(f"  ОДИН ПУЛ, {len(row['protocols'])} КЛЮЧА  {row['pool_id'][:8]}: "
-                   f"{', '.join(f'{p}=`{row['matches'].get(p)}`' for p in row['protocols'])} — "
+                   f"{pairs} — "
                    f"структурный предел {ceil_s}, потолок корзины T2 {r['t2_bucket_cap']:.0%}"
                    f"{' — ПРЕВЫШЕН' if row['exceeds_t2_bucket'] else ''}"
                    f"{' [В КНИГЕ: ' + ', '.join(row['funded']) + ']' if row['funded'] else ''}")

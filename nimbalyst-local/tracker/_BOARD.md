@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T22:06:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T23:47:40Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (68b65b6b4) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (c333fd64f).
 >
-> Всего карточек: **1704** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1705** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (995)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (996)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1300,6 +1300,7 @@
 - Притязание injected-clock подтверждается, когда дверь к часам достигается ВНУТРИ процесса через продукционный код (не подпроцесс): на этом покраснел CI, население 51 файла НЕ ИЗМЕРЕНО  ·  `inbox-prityazanie-injected-clock-podtverzhdaet.md` · 2026-11-23
 - Привязка читателя к блоку по ДОРОГЕ значения — ось «судит о населении „все“» осталась НЕ ИЗМЕРЕННОЙ (ADR-856)  ·  `inbox-privyazka-chitatelya-k-bloku-po-doroge-z.md` · 2026-10-29
 - Проба двери доставки считает ПОЛОМКУ сторожа его отказом (катч-олл в приёмке ADR-714)  ·  `inbox-proba-dveri-dostavki-schitaet-polomku-st.md` · 2026-10-15
+- Проба критерия §49 «No regression» не принимает вход data_dir — сборную пару деревьев о ней спросить нельзя  ·  `inbox-proba-kriteriya-49-no-regression-ne-prin.md` · 2026-11-26
 - Проба приёмки идёт 464 с при таймауте 180 с, и фитиль растёт вместе с журналом  ·  `inbox-proba-priemki-idet-464-s-pri-taimaute-18.md` · 2026-10-29
 - Проба приёмки карточек даёт разное число из прода и из worktree, и ни одно дерево не даёт полного — SPA_DATA_DIR её не лечит  ·  `inbox-proba-priemki-kartochek-daet-raznoe-chis.md` · 2026-10-22
 - Проба приёмки мерит соседнюю дверь: прибор ввозится по имени, а не из измеряемого дерева (3 из 51)  ·  `inbox-proba-priemki-merit-sosednyuyu-dver-prib.md` · 2026-10-14

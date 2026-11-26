@@ -238,15 +238,38 @@ def test_reasons_differing_ONLY_BY_THE_TREE_PATH_count_as_the_SAME_reason(two_tr
 
 
 def test_genuinely_different_reasons_are_named_so_and_claim_NOTHING_more(two_trees):
+    """Прибор НЕ имеет права УТВЕРЖДАТЬ, что сборное дерево ответило бы.
+
+    ⚠️ Проверка ОСЛАБЛЕНА в одном месте и УСИЛЕНА в другом, намеренно (цикл #1264,
+    ADR-1119), и обоснование обязано стоять здесь, а не в журнале одного человека
+    (инв. #16).
+
+    Прежняя редакция запрещала ПОДСТРОКУ «сборн» в строке критерия. Запрет был
+    верен, пока прибор о сборном дереве не знал ничего: любое упоминание тогда
+    могло быть только догадкой. С ADR-1119 прибор пару СПРАШИВАЕТ, и строка обязана
+    сказать, чем кончился вопрос — в этой сцене «НЕ ИЗМЕРЕНА, потому что проба не
+    объявляет входа `data_dir`». Подстрочный запрет краснел бы на ЧЕСТНОМ
+    «не измерено», то есть заставлял бы прибор молчать о том, спрашивал ли он
+    вообще, — ровно тот дефект, против которого инвариант #17.
+
+    Предмет теста сохранён и мерится теперь СТРУКТУРОЙ, а не подстрокой (ADR-333:
+    подстрока критерием зачёта не является): вердикт остаётся «слепы все, причины
+    разные», ось пары стои́т в `unmeasured` с НАЗВАННОЙ причиной, и ни одного
+    утверждения об ответе пары в строке нет.
+    """
     a, b = two_trees
     doc, _ = measure([a, b], {a: [row("A", BLIND, "газ наблюдён слишком давно")],
                               b: [row("A", BLIND, "вердикта нет в каталоге")]})
     got = next(r for r in doc["rows"] if r["criterion"] == "A")
     assert got["verdict"] == atc.BLIND_REASONS_DIFFER
-    # Прибор НЕ имеет права утверждать, что сборное дерево ответило бы: какая из
-    # причин есть свойство дерева, он не мерил.
+    assert got["verdict"] != atc.ANSWERABLE_BY_PAIRING
     assert "НЕ ДОКЛАДЫВАЕТ" in got["detail"]
-    assert "сборн" not in got["detail"].lower()
+    # Ось спрошена и ОТКАЗАЛА с причиной — это не ответ о сборном дереве.
+    assert got["pairing"]["status"] == atc.PAIRING_UNMEASURED, got["pairing"]
+    assert got["pairing"]["reason"], got["pairing"]
+    assert got["pairing"]["answered_by"] == [], got["pairing"]
+    assert "ПАРА ответила" not in got["detail"], got["detail"]
+    assert "ОТВЕТИМ" not in got["detail"], got["detail"]
 
 
 def test_no_instrument_anywhere_is_NOT_a_finding_about_the_tree(two_trees):

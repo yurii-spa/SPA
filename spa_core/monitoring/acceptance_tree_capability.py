@@ -45,6 +45,46 @@ git-окружения в ADR-479).
 догадку за замер; именно поэтому класс назван по НАБЛЮДЕНИЮ («причины разные»), а
 не по гипотезе («нужно сборное дерево»).
 
+### Поправка ADR-1119 (цикл #1264): догадку заменил ЗАМЕР, и он РАЗЛИЧАЕТ
+
+Абзац выше сохранён дословно: он верен про ДОГАДКУ и неверен про возможность
+замера. «Сборное дерево ответило бы» и правда нельзя утверждать словами — но
+**можно СПРОСИТЬ**, и дверь для этого уже существовала: сводка §49
+(`cio_acceptance_rollup.measure`) принимает `measure_tree` и `data_dir`
+РАЗДЕЛЬНО и сама печатает «СБОРНЫЙ ЗАМЕР … такого дерева НЕ СУЩЕСТВУЕТ». Прибор
+этой двери не звал ни разу, поэтому `blind_everywhere_*` был КОНЦОМ вопроса там,
+где он был его серединой.
+
+Замер 2026-11-27 (цикл #1264, два настоящих дерева: прод `~/Documents/SPA_Claude`
+и зеркало `~/Documents/SPA_mirror`; слепых повсюду критериев **5**):
+
+| исход сборной пары | критерии |
+|---|---|
+| **ПАРА ОТВЕЧАЕТ** — 1 | `Owner visibility`: поверхности из зеркала × артефакты из прод-`data/` дают **ВЫПОЛНЕН, 12 из 12** |
+| пара спрошена и слепа — 3 | `Determinism`, `Auditability`, `Shadow verification`: артефакт протух в проде и отсутствует в зеркале ⇒ причина есть свойство МИРА (`com.spa.decision_loop` выключен), а не дерева |
+| **пару СПРОСИТЬ НЕЛЬЗЯ** — 1 | `No regression`: проба не объявляет входа `data_dir`, пара сводится к дереву поверхностей и о СБОРНОМ дереве не отвечает (класс ADR-1107) |
+
+Ось **РАЗЛИЧАЕТ**, а не отвечает «ответила бы» всегда: 1 из 5. Именно поэтому
+она есть замер, а не та догадка, которую абзац выше правильно запрещал. И
+`Owner visibility` — критерий ПРИКАЗА ВЛАДЕЛЬЦА, который числился слепым
+повсюду, будучи ОТВЕТИМЫМ.
+
+Три исхода оси разведены и не склеиваются (инв. #17): `answered` · `blind`
+(пара спрошена и тоже слепа) · `unmeasured` с НАЗВАННОЙ причиной. Четвёртый,
+`not_asked`, стои́т у критерия, который слепым повсюду не оказался: «вопрос не
+стои́т» обязано быть отличимо от «спросили и не нашли».
+
+**Ответ пары НЕ делает пару деревом.** Такого дерева не существует, и вердикт о
+нём не есть вердикт ни об одном из двух; поэтому исход назван
+`answerable_by_a_tree_pairing`, а не `tree_bound`, и пара ПЕЧАТАЕТСЯ поимённо.
+
+**Ось платит отдельным прогоном настоящих проб за КАЖДУЮ пару**, поэтому она
+спрашивается только при непустом населении слепых и только до объявленного
+потолка пар (:data:`MAX_PAIRINGS`). Потолок превышен ⇒ `unmeasured` с названной
+причиной, а не молчаливое усечение перечня: ответ о паре, которой не
+спрашивали, хуже отсутствия ответа. Цена ИЗМЕРЯЕТСЯ и ПЕЧАТАЕТСЯ (замер #1264:
+83.7 с без оси, пара ≈ 42 с).
+
 Два положения дел дают `unmeasured` и названы по отдельности, а не слиты: реестр
 проб РАЗОШЁЛСЯ между деревьями (деревья исполняют разный код — находка о
 доставке) и критерий объявлен мерой сразу у НЕСКОЛЬКИХ проб (мерок больше одной,
@@ -73,8 +113,10 @@ git-окружения в ADR-479).
 * **Верность самой пробы.** «Дерево ответило» не значит «ответило правильно»;
   правду мерки держит её собственный контроль в обе стороны
   (`.claude/rules/acceptance.md`, п. 3).
-* **Какая из разных причин есть свойство дерева.** См. выше — это решение, а не
-  замер.
+* **Какая из разных причин есть свойство дерева** — по ОТДЕЛЬНОСТИ. Ось сборной
+  пары (ADR-1119) отвечает о ПАРЕ целиком: «эта пара отвечает» либо «эта пара
+  тоже слепа». Разложить слепоту на вклад каждой причины она не берётся, и
+  утверждать такое разложение по-прежнему значило бы продать догадку за замер.
 * **Полноту перечня деревьев.** Население деревьев ОБЪЯВЛЕНО (CLI / аргумент), а
   не найдено обходом диска: угаданное дерево отвечало бы на вопрос, которого
   читатель не задавал.
@@ -97,6 +139,7 @@ import datetime as dt
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
@@ -143,23 +186,50 @@ TREE_INDEPENDENT = "tree_independent"
 TREE_BOUND = "tree_bound"
 BLIND_SAME_REASON = "blind_everywhere_same_reason"
 BLIND_REASONS_DIFFER = "blind_everywhere_reasons_differ"
+#: Ни одно ОДИНОЧНОЕ дерево не ответило, а СБОРНАЯ ПАРА (поверхности из одного ×
+#: артефакты из другого) ответила. Имя намеренно не `tree_bound`: дерева с такой
+#: парой НЕ СУЩЕСТВУЕТ, и выдать пару за дерево значило бы назвать местом приёмки
+#: то, чего нет на диске (ADR-1119).
+ANSWERABLE_BY_PAIRING = "answerable_by_a_tree_pairing"
 NO_INSTRUMENT = "no_instrument"
 VERDICT_UNMEASURED = "unmeasured"
 
 VERDICTS = (TREE_INDEPENDENT, TREE_BOUND, BLIND_SAME_REASON,
-            BLIND_REASONS_DIFFER, NO_INSTRUMENT, VERDICT_UNMEASURED)
+            BLIND_REASONS_DIFFER, ANSWERABLE_BY_PAIRING, NO_INSTRUMENT,
+            VERDICT_UNMEASURED)
+
+#: Исходы ОСИ СБОРНОЙ ПАРЫ у одного критерия. Четыре, и они не склеиваются:
+#: «вопрос не стои́т» обязано быть отличимо от «спросили и не нашли», а оба —
+#: от «спросить нельзя, и вот почему» (инв. #17).
+PAIRING_NOT_ASKED = "not_asked"
+PAIRING_ANSWERED = "answered"
+PAIRING_BLIND = "blind"
+PAIRING_UNMEASURED = "unmeasured"
+
+PAIRING_STATES = (PAIRING_NOT_ASKED, PAIRING_ANSWERED, PAIRING_BLIND,
+                  PAIRING_UNMEASURED)
+
+#: Потолок числа УПОРЯДОЧЕННЫХ пар, которые ось берётся спросить. Каждая пара —
+#: отдельный прогон настоящих проб (замер #1264: ≈42 с), поэтому цена растёт как
+#: N·(N−1). Потолок превышен ⇒ ось отвечает `unmeasured` с названной причиной, а
+#: НЕ усекает перечень молча: ответ о паре, которой не спрашивали, хуже отсутствия
+#: ответа. Шесть = полный набор пар для трёх деревьев.
+MAX_PAIRINGS = 6
 
 #: Находка = критерий, у которого МЕСТО приёмки или его отсутствие решает дело.
 #: `no_instrument` находкой здесь НЕ является намеренно: его цену уже назвал
 #: заказ G93 п. 1, и повторять её под другим заголовком значило бы считать одну
 #: дыру дважды.
-FINDING_VERDICTS = (TREE_BOUND, BLIND_SAME_REASON, BLIND_REASONS_DIFFER)
+FINDING_VERDICTS = (TREE_BOUND, BLIND_SAME_REASON, BLIND_REASONS_DIFFER,
+                    ANSWERABLE_BY_PAIRING)
 
 VERDICT_RU = {
     TREE_INDEPENDENT: "ответили все измеренные деревья — место приёмки не решает",
     TREE_BOUND: "отвечает одно дерево, другое слепо — место приёмки РЕШАЕТ",
     BLIND_SAME_REASON: "слепы все деревья, причина ОДНА — наблюдения нет в мире",
     BLIND_REASONS_DIFFER: "слепы все деревья, причины РАЗНЫЕ — переход не лечит",
+    ANSWERABLE_BY_PAIRING: ("одиночное дерево не ответило, а СБОРНАЯ ПАРА "
+                            "ответила — критерий ОТВЕТИМ, дерева с такой парой нет"),
     NO_INSTRUMENT: "мерки нет ни в одном дереве — вопрос не о дереве",
     VERDICT_UNMEASURED: "дифференциал не состоялся",
 }
@@ -251,6 +321,196 @@ def _tree_rows(tree: str, *, ref: str, card_rel: Optional[str],
             "criteria": [r["criterion"] for r in report.get("rows") or ()]}
 
 
+def _pairing_rows(surfaces: str, data_tree: str, *, ref: str,
+                  card_rel: Optional[str], probe_runner: Optional[Callable],
+                  rollup) -> dict:
+    """Один СБОРНЫЙ замер: поверхности из `surfaces`, артефакты из `data_tree`/data.
+
+    Дерева с таким составом НЕ СУЩЕСТВУЕТ — сводка §49 это и печатает сама. Здесь
+    важно, что `measure_tree` и `data_dir` подаются РАЗДЕЛЬНО: подай их вместе, и
+    замер выродился бы в уже снятый вердикт об одном дереве, то есть ось отвечала
+    бы на вопрос, который прибор задал два раза.
+
+    Население читается из дерева ПОВЕРХНОСТЕЙ — тем же правилом, что у
+    :func:`_tree_rows`. Равенство населений деревьев проверено вызывающим ДО оси,
+    поэтому выбор здесь не решает вердикта, но назван, а не оставлен неявным.
+    """
+    kw: dict = {"measure_tree": surfaces, "ref": ref,
+                "data_dir": os.path.join(data_tree, "data")}
+    if card_rel is not None:
+        kw["card_rel"] = card_rel
+    if probe_runner is not None:
+        kw["probe_runner"] = probe_runner
+    try:
+        report = rollup.measure(surfaces, **kw)
+    except rollup.Unmeasured as exc:
+        return {"state": PAIRING_UNMEASURED,
+                "reason": f"сводка §49 о сборной паре не снята: {exc}"}
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return {"state": PAIRING_UNMEASURED,
+                "reason": f"сводка §49 о сборной паре упала: "
+                          f"{type(exc).__name__}: {exc}"}
+    rows = {}
+    for row in report.get("rows") or ():
+        rows[row["criterion"]] = {
+            "verdict": row.get("verdict"),
+            "detail": row.get("detail") or "",
+            "declared": list(row.get("tree_inputs_declared") or ()),
+            "reached": list(row.get("tree_inputs_reached") or ()),
+        }
+    return {"state": "measured", "rows": rows}
+
+
+def _pairing_verdict(criterion: str, seen: Sequence[dict]) -> dict:
+    """Свести ответы всех пар об ОДНОМ критерии в один исход оси.
+
+    Старшинство: ответ пары сильнее всего (он снимает вопрос) · затем
+    РАССОГЛАСОВАНИЕ (пара ответила, не получив `data_dir`, — значит она равна
+    дереву поверхностей, а то дерево слепо: два замера спорят, и выдать спор за
+    ответ нельзя) · затем «спрошена и слепа» · затем названная причина, почему
+    спросить не вышло. Пустой перечень есть `unmeasured`, а не `blind`: ноль пар
+    не является утверждением о парах.
+    """
+    answered = [s for s in seen if s.get("outcome") == PAIRING_ANSWERED]
+    if answered:
+        return {"status": PAIRING_ANSWERED, "tried": len(seen),
+                "answered_by": [{"surfaces": s["surfaces"], "data_dir": s["data_dir"],
+                                 "probe_verdict": s["probe_verdict"],
+                                 "detail": s.get("detail", "")[:400]}
+                                for s in answered],
+                "pairings": [_pairing_brief(s) for s in seen]}
+    contradicting = [s for s in seen if s.get("outcome") == "contradiction"]
+    if contradicting:
+        first = contradicting[0]
+        return {"status": PAIRING_UNMEASURED, "tried": len(seen), "answered_by": [],
+                "reason": (f"пара (поверхности {first['surfaces']} × артефакты "
+                           f"{first['data_dir']}) вынесла вердикт "
+                           f"{first['probe_verdict']}, НЕ получив входа `data_dir` "
+                           f"(дошли: {', '.join(first['reached']) or '—'}) — значит "
+                           f"она равна дереву поверхностей, а оно слепо: два замера "
+                           f"СПОРЯТ, и спор ответом о сборном дереве не является"),
+                "pairings": [_pairing_brief(s) for s in seen]}
+    blind = [s for s in seen if s.get("outcome") == PAIRING_BLIND]
+    if blind:
+        return {"status": PAIRING_BLIND, "tried": len(seen), "answered_by": [],
+                "reason": (f"спрошено пар: {len(blind)}, и каждая тоже слепа ⇒ "
+                           f"причина слепоты есть свойство МИРА, а не дерева: "
+                           + blind[0].get("detail", "")[:200]),
+                "pairings": [_pairing_brief(s) for s in seen]}
+    if not seen:
+        return {"status": PAIRING_UNMEASURED, "tried": 0, "answered_by": [],
+                "reason": "ни одна пара о критерии не ответила ВОВСЕ — перечень пар "
+                          "пуст, и ноль пар утверждением о парах не является",
+                "pairings": []}
+    return {"status": PAIRING_UNMEASURED, "tried": len(seen), "answered_by": [],
+            "reason": seen[0].get("reason")
+                      or "причина, по которой пару спросить не вышло, НЕ НАЗВАНА",
+            "pairings": [_pairing_brief(s) for s in seen]}
+
+
+def _pairing_brief(seen: dict) -> dict:
+    """Пара в отчёте называется ПОИМЁННО: иначе «ось спрошена» нечем проверить."""
+    return {"surfaces": seen.get("surfaces"), "data_dir": seen.get("data_dir"),
+            "outcome": seen.get("outcome"), "probe_verdict": seen.get("probe_verdict"),
+            "reached": list(seen.get("reached") or ()),
+            "declared": list(seen.get("declared") or ())}
+
+
+def ask_pairings(trees: Sequence[str], blind: Sequence[str], *, ref: str,
+                 card_rel: Optional[str], probe_runner: Optional[Callable],
+                 rollup, clock: Optional[Callable] = None) -> tuple[dict, dict]:
+    """Спросить СБОРНЫЕ пары о критериях, слепых во ВСЕХ измеренных деревьях.
+
+    Возвращает `(критерий → исход оси, сводка оси)`. Пары УПОРЯДОЧЕННЫЕ: «поверхности
+    из A, артефакты из B» и обратное — РАЗНЫЕ вопросы (замер #1264: отвечает ровно
+    одна сторона из двух), и считать их одной парой значило бы потерять половину.
+
+    Цена МЕРИТСЯ, а не оценивается: ось платит отдельным прогоном настоящих проб за
+    каждую пару, и число секунд печатается рядом с вердиктом.
+    """
+    tick = clock or time.monotonic
+    ordered = [(a, b) for a in trees for b in trees
+               if os.path.abspath(a) != os.path.abspath(b)]
+    meta: dict = {"pairings_declared": len(ordered), "blind_population": len(blind),
+                  "cap": MAX_PAIRINGS, "seconds": 0.0, "pairings": []}
+    if not blind:
+        meta["reason"] = ("слепых повсюду критериев нет — вопрос о сборном дереве "
+                          "не стои́т, и ось не спрашивалась")
+        return {}, meta
+    if not ordered:
+        reason = ("упорядоченных пар из измеренных деревьев не получилось ни одной — "
+                  "о сборном дереве спросить нечем")
+        meta["reason"] = reason
+        return ({c: {"status": PAIRING_UNMEASURED, "tried": 0, "answered_by": [],
+                     "reason": reason, "pairings": []} for c in blind}, meta)
+    if len(ordered) > MAX_PAIRINGS:
+        reason = (f"пар {len(ordered)} при объявленном потолке {MAX_PAIRINGS}: каждая "
+                  f"пара стои́т отдельного прогона настоящих проб, а усечь перечень "
+                  f"молча значило бы ответить о паре, которой не спрашивали")
+        meta["reason"] = reason
+        return ({c: {"status": PAIRING_UNMEASURED, "tried": 0, "answered_by": [],
+                     "reason": reason, "pairings": []} for c in blind}, meta)
+
+    seen: dict[str, list[dict]] = {c: [] for c in blind}
+    started = tick()
+    for surfaces, data_tree in ordered:
+        data_dir = os.path.join(data_tree, "data")
+        taken = _pairing_rows(surfaces, data_tree, ref=ref, card_rel=card_rel,
+                              probe_runner=probe_runner, rollup=rollup)
+        meta["pairings"].append({"surfaces": surfaces, "data_dir": data_dir,
+                                 "state": taken["state"],
+                                 "reason": taken.get("reason")})
+        if taken["state"] != "measured":
+            for criterion in blind:
+                seen[criterion].append({"surfaces": surfaces, "data_dir": data_dir,
+                                        "outcome": PAIRING_UNMEASURED,
+                                        "reason": taken.get("reason"),
+                                        "probe_verdict": None, "reached": [],
+                                        "declared": []})
+            continue
+        for criterion in blind:
+            got = (taken["rows"] or {}).get(criterion)
+            if got is None:
+                seen[criterion].append({
+                    "surfaces": surfaces, "data_dir": data_dir,
+                    "outcome": PAIRING_UNMEASURED, "probe_verdict": None,
+                    "reached": [], "declared": [],
+                    "reason": (f"сводка сборной пары о критерии {criterion!r} строки "
+                               f"не дала — населения пары и деревьев РАСХОДЯТСЯ, и "
+                               f"молчание о критерии ответом не является")})
+                continue
+            reached = list(got.get("reached") or ())
+            declared = list(got.get("declared") or ())
+            verdict = got.get("verdict")
+            assembled = "data_dir" in reached and "repo_root" in reached
+            if verdict in (SATISFIED, NOT_SATISFIED):
+                outcome = PAIRING_ANSWERED if assembled else "contradiction"
+            elif assembled:
+                outcome = PAIRING_BLIND
+            elif "data_dir" not in declared:
+                outcome = PAIRING_UNMEASURED
+            else:
+                outcome = PAIRING_UNMEASURED
+            entry = {"surfaces": surfaces, "data_dir": data_dir, "outcome": outcome,
+                     "probe_verdict": verdict, "reached": reached,
+                     "declared": declared, "detail": got.get("detail", "")}
+            if outcome == PAIRING_UNMEASURED:
+                if "data_dir" not in declared:
+                    entry["reason"] = (
+                        f"проба критерия не объявляет входа `data_dir` (объявлено: "
+                        f"{', '.join(declared) or '—'}) — сборная пара сводится к "
+                        f"дереву поверхностей {surfaces} и о СБОРНОМ дереве не "
+                        f"отвечает; это НЕ «пара тоже слепа»")
+                else:
+                    entry["reason"] = (
+                        f"вход `data_dir` до пробы НЕ ДОШЁЛ (объявлено: "
+                        f"{', '.join(declared) or '—'}; дошло: "
+                        f"{', '.join(reached) or '—'}) — о сборном дереве замера нет")
+            seen[criterion].append(entry)
+    meta["seconds"] = round(tick() - started, 3)
+    return ({c: _pairing_verdict(c, seen[c]) for c in blind}, meta)
+
+
 def classify(criterion: str, per_tree: dict, trees: Sequence[str]) -> dict:
     """Свести исходы ОДНОГО критерия по деревьям в один вердикт.
 
@@ -324,7 +584,8 @@ def classify(criterion: str, per_tree: dict, trees: Sequence[str]) -> dict:
 
 def measure(repo_root: str | Path = _REPO_ROOT, *, trees: Optional[Sequence[str]] = None,
             ref: str = "origin/main", card_rel: Optional[str] = None,
-            probe_runner: Optional[Callable] = None, rollup=None, now=None) -> dict:
+            probe_runner: Optional[Callable] = None, rollup=None, now=None,
+            pairings: bool = True, clock: Optional[Callable] = None) -> dict:
     """Свести способность деревьев отвечать на §49. Бросает :class:`Unmeasured`.
 
     `repo_root` здесь — НЕ место чтения населения (его читает каждое дерево у
@@ -394,9 +655,66 @@ def measure(repo_root: str | Path = _REPO_ROOT, *, trees: Optional[Sequence[str]
                            for t, v in per_tree.items()}
         rows.append(row)
 
+    # --- ось СБОРНОЙ ПАРЫ (ADR-1119): «слепы все деревья» не есть конец вопроса.
+    # Спрашивается ТОЛЬКО о слепых повсюду критериях: у остальных пара ничего не
+    # добавляет, а стои́т отдельного прогона настоящих проб. Ось ВЫКЛЮЧАЕМА входом,
+    # и выключенная она отвечает `unmeasured` с названной причиной, а НЕ молчит:
+    # молчание сделало бы «не спрашивали» неотличимым от «спросили и не нашли».
+    blind_everywhere = [r["criterion"] for r in rows
+                        if r["verdict"] in (BLIND_SAME_REASON, BLIND_REASONS_DIFFER)]
+    if pairings:
+        pair_verdicts, pair_meta = ask_pairings(
+            sorted(measured), blind_everywhere, ref=ref, card_rel=card_rel,
+            probe_runner=probe_runner, rollup=rollup, clock=clock)
+    else:
+        pair_meta = {"pairings_declared": 0, "blind_population": len(blind_everywhere),
+                     "cap": MAX_PAIRINGS, "seconds": 0.0, "pairings": [],
+                     "reason": "ось сборной пары ВЫКЛЮЧЕНА входом `pairings=False` — "
+                               "о сборном дереве не сказано ничего"}
+        pair_verdicts = {c: {"status": PAIRING_UNMEASURED, "tried": 0,
+                             "answered_by": [], "pairings": [],
+                             "reason": pair_meta["reason"]}
+                         for c in blind_everywhere}
+
+    for row in rows:
+        criterion = row["criterion"]
+        if criterion not in pair_verdicts:
+            row["pairing"] = {
+                "status": PAIRING_NOT_ASKED, "tried": 0, "answered_by": [],
+                "pairings": [],
+                "reason": ("критерий слепым во ВСЕХ деревьях не оказался — вопрос о "
+                           "сборном дереве не стои́т; это НЕ «спросили и не нашли»")}
+            continue
+        axis = pair_verdicts[criterion]
+        row["pairing"] = axis
+        if axis["status"] == PAIRING_ANSWERED:
+            named = " · ".join(f"поверхности {a['surfaces']} × артефакты "
+                               f"{a['data_dir']} ⇒ {a['probe_verdict']}"
+                               for a in axis["answered_by"])
+            # Прежний вердикт о ДЕРЕВЬЯХ не стирается: он верен и несёт причины
+            # по каждому дереву. Меняется ответ на вопрос «есть ли ответ вообще».
+            row["blind_detail"] = row["detail"]
+            row["verdict"] = ANSWERABLE_BY_PAIRING
+            row["detail"] = (
+                f"ни одно ОДИНОЧНОЕ дерево не ответило, а СБОРНАЯ ПАРА ответила: "
+                f"{named}. Критерий ОТВЕТИМ, и «слепы все деревья» концом вопроса не "
+                f"является; дерева с такой парой НЕ СУЩЕСТВУЕТ — замер сборный. "
+                f"Слепота по деревьям: {row['blind_detail']}")
+        elif axis["status"] == PAIRING_BLIND:
+            row["detail"] = (f"{row['detail']} || ОСЬ СБОРНОЙ ПАРЫ СПРОШЕНА и тоже "
+                             f"слепа ({axis.get('tried')} пар(ы)) ⇒ причина есть "
+                             f"свойство МИРА, а не дерева")
+        else:
+            row["detail"] = (f"{row['detail']} || ось сборной пары НЕ ИЗМЕРЕНА: "
+                             f"{axis.get('reason', 'причина не названа')}")
+
     counts = {v: 0 for v in VERDICTS}
     for row in rows:
         counts[row["verdict"]] = counts.get(row["verdict"], 0) + 1
+    pairing_counts = {s: 0 for s in PAIRING_STATES}
+    for row in rows:
+        state = (row.get("pairing") or {}).get("status")
+        pairing_counts[state] = pairing_counts.get(state, 0) + 1
 
     answered_by_tree = {t: sum(1 for r in rows
                                if t in (r.get("answered_in") or ()))
@@ -434,6 +752,7 @@ def measure(repo_root: str | Path = _REPO_ROOT, *, trees: Optional[Sequence[str]
             "answered_by_tree": answered_by_tree,
             "acceptance_tree": acceptance_tree,
             "acceptance_detail": acceptance_detail,
+            "pairing_counts": pairing_counts, "pairing_axis": pair_meta,
             "findings": sum(counts.get(v, 0) for v in FINDING_VERDICTS)}
 
 
@@ -494,6 +813,7 @@ def report(doc: dict, max_rows: int = 25) -> list[str]:
         f"({', '.join(doc.get('trees_measured') or ())})")
     lines.append("  " + " · ".join(f"{v} {counts.get(v, 0)}" for v in VERDICTS))
     lines.append(f"  ОТВЕТ: {doc.get('acceptance_detail')}")
+    lines += _pairing_lines(doc)
     for row in doc.get("trees_excluded") or ():
         lines.append(f"  ⚠️  дерево ВЫБЫЛО из дифференциала: {row.get('reason')}")
     shown = 0
@@ -508,10 +828,39 @@ def report(doc: dict, max_rows: int = 25) -> list[str]:
     if rest > 0:
         lines.append(f"  … ещё {rest} находк(и) того же вида (полный перечень — `--json`)")
     lines.append("  НЕ ДОКЛАДЫВАЕТ: верна ли сама проба (ответ дерева не есть "
-                 "правильный ответ) · какая из РАЗНЫХ причин есть свойство дерева, а "
-                 "какая свойство мира · полноту перечня деревьев (он объявлен, а не "
-                 "найден обходом диска)")
+                 "правильный ответ) · ВКЛАД КАЖДОЙ из разных причин по отдельности "
+                 "(ось сборной пары отвечает о паре ЦЕЛИКОМ, а не о разложении "
+                 "слепоты) · полноту перечня деревьев (он объявлен, а не найден "
+                 "обходом диска) · существование дерева, равного сборной паре — "
+                 "такого дерева НЕТ, и ответ пары местом приёмки не является")
     lines.append("  ADVISORY: прибор только ЧИТАЕТ (applied=False)")
+    return lines
+
+
+def _pairing_lines(doc: dict) -> list[str]:
+    """Ось сборной пары печатается ВСЕГДА, в том числе когда её не спрашивали.
+
+    Молчащая ось неотличима от оси, не нашедшей ничего, — ровно тот дефект, против
+    которого инвариант #17. Поэтому строка есть и у «вопрос не стои́т», и у
+    «выключена входом», и цена оси печатается числом, а не словом «дорого».
+    """
+    axis = observed(doc, "pairing_axis", kind=dict)
+    counts = observed(doc, "pairing_counts", kind=dict)
+    if axis is None or counts is None:
+        return ["  ось СБОРНОЙ ПАРЫ: НЕ ИЗМЕРЕНА — вердикт снят прибором без этой "
+                "оси, и ноль её находок утверждением о парах не является"]
+    head = ("  ось СБОРНОЙ ПАРЫ (поверхности из одного дерева × артефакты из "
+            "другого): " + " · ".join(f"{s} {counts.get(s, 0)}" for s in PAIRING_STATES))
+    lines = [head]
+    lines.append(f"     пар объявлено {axis.get('pairings_declared')} при потолке "
+                 f"{axis.get('cap')} · слепых повсюду критериев "
+                 f"{axis.get('blind_population')} · цена оси "
+                 f"{axis.get('seconds')} с"
+                 + (f" · {axis['reason']}" if axis.get("reason") else ""))
+    for pair in axis.get("pairings") or ():
+        lines.append(f"     [пара] поверхности {pair.get('surfaces')} × артефакты "
+                     f"{pair.get('data_dir')} — {pair.get('state')}"
+                     + (f": {pair['reason']}" if pair.get("reason") else ""))
     return lines
 
 
@@ -534,10 +883,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--no-write", action="store_true")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--max-rows", type=int, default=25)
+    ap.add_argument("--no-pairings", action="store_true",
+                    help="НЕ спрашивать сборные пары о слепых повсюду критериях "
+                         "(каждая пара — отдельный прогон настоящих проб, ≈42 с). "
+                         "Выключенная ось отвечает «НЕ ИЗМЕРЕНО» с причиной, а не "
+                         "молчит")
     args = ap.parse_args(argv)
 
     try:
-        doc = measure(args.repo_root, trees=args.tree, ref=args.ref)
+        doc = measure(args.repo_root, trees=args.tree, ref=args.ref,
+                      pairings=not args.no_pairings)
     except Unmeasured as exc:
         doc = {"status": "UNMEASURED", "reason": str(exc)}
     if not args.no_write:

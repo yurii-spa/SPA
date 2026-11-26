@@ -247,6 +247,7 @@
 | ADR-1116 | ADR-1116 — Перечень обязательных полей отчёта СПРАШИВАЕТ производителя: мерка есть, и предмет был ОДИН, а не два | Accepted | [ADR-1116](ADR-1116-producer-is-asked-whether-the-required-field-list-is-complete.md) |
 | ADR-1117 | ADR-1117 — Исключение из переходника снимка объявляется ЗАМЕРОМ СПРОСА, а не словами «не нужно»: 61 путь судится дорогой значения, читают 42, не читает никто 323 | Accepted | [ADR-1117](ADR-1117-snapshot-view-exclusions-are-measured-demand.md) |
 | ADR-1118 | ADR-1118 — Ответ владельца: одобрить публикацию чисел трека (вариант 1); одобренные байты УЖЕ на origin, и это ИЗМЕРЕНО побайтово | Accepted | [ADR-1118](ADR-1118-owner-approved-track-snapshot-numbers-already-on-origin.md) |
+| ADR-1119 | ADR-1119 — «Слепы все деревья» не есть конец вопроса: сборная пара СПРАШИВАЕТСЯ, и у приказа владельца один критерий §49 ОТВЕТИМ (1 из 5, ось различает) | Accepted | [ADR-1119](ADR-1119-blind-everywhere-is-not-the-end-of-the-question.md) |
 
 ## Соглашения
 
