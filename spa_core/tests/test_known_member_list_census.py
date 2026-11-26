@@ -437,9 +437,16 @@ def test_the_card_probe_refuses_an_instrument_blind_to_direction(tmp_path):
     прибором пробу не кормил ни один тест. Дыра МОЕГО покрытия, не кода.
     """
     from spa_core.monitoring import card_acceptance as ca
+    # Якорь переставлен циклом #1261 вместе с рефакторингом `classify_role`:
+    # обход сверок вынесен в ЕДИНСТВЕННУЮ дверь `comparison_sites`, и прежней
+    # строки `if positive:` в приборе больше нет. Мутация та же ПО ДЕЙСТВИЮ —
+    # вердикт перестаёт зависеть от НАПРАВЛЕНИЯ сверки и становится
+    # `positive_control` при любой сверке, то есть белый список зачитывается
+    # нашим классом. Проверка НЕ ослаблена: контроль по-прежнему кормит пробу
+    # прибором, слепым к направлению, и требует НЕ ВЫПОЛНЕН.
     root = _probe_scene(tmp_path, patch=(
-        "    if positive:\n        return POSITIVE_CONTROL",
-        "    if True:\n        return POSITIVE_CONTROL"))
+        "        if role in votes:",
+        "        if votes:"))
     status, detail = ca._probe_known_member_list_completeness_is_asked(
         None, repo_root=root)
     assert status == ca.NOT_SATISFIED, detail
@@ -487,3 +494,340 @@ def test_the_card_probe_fails_when_the_declaration_is_gone(tmp_path):
         None, repo_root=str(tmp_path))
     assert status == ca.NOT_SATISFIED
     assert "НЕ СПРАШИВАЕТСЯ" in detail or "не объявила" in detail
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ТРЕТЬЯ ПОЛОВИНА (`--sources`, ADR-1115): есть ли у перечня ФОРМЫ внешний
+# источник полноты ВООБЩЕ. Заказ G1089 п. 2 запретил выдумывать мерку до того,
+# как задан этот вопрос, и замер его подтвердил: признак «операнд приходит
+# извне» НЕОБХОДИМ, но НЕ ДОСТАТОЧЕН — из 10 кандидатов ручной приговор
+# подтвердил ДВА.
+#
+# Положительный контроль у каждого теста ниже — либо НАСТОЯЩИЙ сайт дерева
+# (четыре замеренных руками, п. 4 метода карточки: прибор, не воспроизводящий
+# ручной замер, ОПРОВЕРГНУТ), либо дефект ПЕРВОЙ редакции этой половины:
+#   · порог MIN_ENTRIES не был общим с `measure_surface`, и 3 перечня из 157
+#     выпали в «НЕ ИЗМЕРЕНО» — нашёл это собственный счётчик 154 ≠ 157;
+#   · ведро звалось «источник ЕСТЬ» и зачло `sys.modules` источником полноты —
+#     ошибка в сторону НАХОДКИ.
+# ═════════════════════════════════════════════════════════════════════════════
+def _sources(tmp_path: pathlib.Path, body: str):
+    """Сцена → (вердикты провенанса, причины НЕ ИЗМЕРЕНО)."""
+    root = _scene(tmp_path, body)
+    entries, _ = kmlc.measure_surface(root)
+    return kmlc.measure_sources(root, entries)
+
+
+def test_an_operand_read_from_a_file_is_a_candidate_not_a_verdict(tmp_path):
+    """Дверь наружу в привязке операнда ⇒ кандидат `external_read`."""
+    v, unm = _sources(tmp_path, '''
+import json, pathlib
+REQUIRED = ("a", "b")
+def check(p):
+    stored = json.loads(pathlib.Path(p).read_text())
+    return [k for k in REQUIRED if k not in stored]
+''')
+    assert unm == []
+    assert [(x.name, x.provenance) for x in v] == [("REQUIRED", kmlc.EXTERNAL_READ)]
+    assert kmlc.EXTERNAL_READ in kmlc.OPERAND_FROM_OUTSIDE
+
+
+def test_a_door_inside_the_operand_itself_outranks_any_binding(tmp_path):
+    """`NAME - set(json.load(f))`: дверь в САМОМ операнде сильнее имён."""
+    v, _ = _sources(tmp_path, '''
+import json
+REQUIRED = ("a", "b")
+def check(f):
+    return REQUIRED - set(json.load(f))
+''')
+    assert [x.provenance for x in v] == [kmlc.EXTERNAL_READ]
+
+
+def test_an_imported_operand_is_a_candidate(tmp_path):
+    v, _ = _sources(tmp_path, '''
+import other
+REQUIRED = ("a", "b")
+def check():
+    return REQUIRED - other.LIVE
+''')
+    assert [x.provenance for x in v] == [kmlc.IMPORTED]
+
+
+def test_a_parameter_operand_names_the_callers_contract_not_this_module(tmp_path):
+    """Настоящая форма `architect_contract.validate_output(doc)`."""
+    v, _ = _sources(tmp_path, '''
+REQUIRED = ("a", "b")
+def validate(doc):
+    for s in REQUIRED:
+        if s not in doc:
+            raise ValueError(s)
+''')
+    assert [x.provenance for x in v] == [kmlc.PARAMETER]
+    assert "КОНТРАКТ зовущего" in v[0].detail
+
+
+def test_a_module_local_operand_is_not_an_external_source(tmp_path):
+    """Настоящая форма `registry.validate_registry` — сверка со своим модулем."""
+    v, _ = _sources(tmp_path, '''
+META = {"x": {"module": 1}}
+REQUIRED = {"module", "class"}
+def check():
+    out = []
+    for k, meta in META.items():
+        out.append(REQUIRED - set(meta.keys()))
+    return out
+''')
+    assert [x.provenance for x in v] == [kmlc.MODULE_LOCAL]
+    assert kmlc.MODULE_LOCAL not in kmlc.OPERAND_FROM_OUTSIDE
+
+
+def test_a_string_operand_means_completeness_is_not_a_defined_question(tmp_path):
+    """Настоящая форма `agent_quarantine.check_protected` — поиск ПОДСТРОКИ.
+
+    У строки нет элементов: объявить такой перечень «неполным» значило бы родить
+    находку, которой в мире нет. Поэтому ведро существует отдельно и НЕ является
+    находкой (код возврата это проверяет ниже).
+    """
+    v, _ = _sources(tmp_path, '''
+WORDS = ("kill", "risk")
+def check(label, entry):
+    hay = f"{label} {entry.get('role','')}".lower()
+    for w in WORDS:
+        if w in hay:
+            raise ValueError(w)
+''')
+    assert [x.provenance for x in v] == [kmlc.HAYSTACK]
+    assert kmlc.HAYSTACK in kmlc.NO_QUESTION
+    assert kmlc.HAYSTACK not in kmlc.OPERAND_FROM_OUTSIDE
+
+
+def test_two_different_bindings_are_the_third_outcome_not_a_chosen_side(tmp_path):
+    """Разные привязки ⇒ `several`: выбрать сторону значило бы угадать.
+
+    Выбрать «внешний» пригласило бы мерку туда, где её, возможно, не определить;
+    выбрать «нет источника» — списать настоящий пробел. Ни одна ошибка не честнее.
+    """
+    v, _ = _sources(tmp_path, '''
+import json, other
+REQUIRED = ("a", "b")
+def one(p):
+    stored = json.loads(p.read_text())
+    return [k for k in REQUIRED if k not in stored]
+def two():
+    return REQUIRED - other.LIVE
+''')
+    assert [x.provenance for x in v] == [kmlc.SEVERAL]
+    assert v[0].sites == 2
+    assert kmlc.EXTERNAL_READ in v[0].detail and kmlc.IMPORTED in v[0].detail
+
+
+def test_an_unbound_operand_is_unresolved_not_silently_local(tmp_path):
+    v, _ = _sources(tmp_path, '''
+REQUIRED = ("a", "b")
+def check():
+    return REQUIRED - mystery
+''')
+    assert [x.provenance for x in v] == [kmlc.PROV_UNRESOLVED]
+
+
+def test_every_form_member_gets_exactly_one_bucket(tmp_path):
+    """Вёдра ИСЧЕРПЫВАЮТ форму: сумма по вёдрам равна числу перечней формы.
+
+    Дефект первой редакции был ровно здесь: порог MIN_ENTRIES не совпадал с
+    `measure_surface`, и трое выпадали в «НЕ ИЗМЕРЕНО» — счётчик показал 154
+    против 157, и это нашла не вычитка, а сама строка итога.
+    """
+    root = _scene(tmp_path, '''
+import json
+AB = ("a", "b")
+def check(p):
+    stored = json.loads(p.read_text())
+    return [k for k in AB if k not in stored]
+''')
+    entries, _ = kmlc.measure_surface(root)
+    form = [e for e in entries
+            if e.role == kmlc.POSITIVE_CONTROL and not e.declares]
+    verdicts, unmeasured = kmlc.measure_sources(root, entries)
+    assert len(verdicts) + len(unmeasured) == len(form) == 1
+    assert sum(1 for v in verdicts if v.provenance in kmlc.PROVENANCES) == len(verdicts)
+
+
+def test_a_short_literal_operand_is_judged_by_both_halves_alike(tmp_path):
+    """Порог MIN_ENTRIES ОБЩИЙ у половин — положительный контроль на тот дефект.
+
+    РАЗЛИЧАЮЩАЯ сцена, и первая редакция теста ею НЕ БЫЛА: мутация «порог у
+    половин снова РАЗНЫЙ» на ней ВЫЖИЛА (замер #1261, M06). Сцена с операндом
+    `json.loads(...)` вердикта не меняет — корень операнда не является закрытым
+    литералом, поэтому шире `closed` или уже, роль воспроизводится одинаково.
+    Различает только операнд, который САМ есть короткий закрытый литерал: при
+    общем пороге `SHORT` (1 элемент) в `closed` НЕ входит ⇒ операнд считается
+    ВЫЧИСЛЕННЫМ ⇒ роль `positive_control` воспроизводится; при разошедшемся
+    пороге `SHORT` попадает в `closed`, операнд перестаёт быть вычисленным, и
+    вторая половина докладывает НЕ ИЗМЕРЕНО о перечне, который первая числит
+    предметом.
+    """
+    root = _scene(tmp_path, 'SHORT = ("q",)\nPAIR = ("a", "b")\n'
+                            'def check():\n    return PAIR - SHORT\n')
+    entries, _ = kmlc.measure_surface(root)
+    form = [e for e in entries
+            if e.role == kmlc.POSITIVE_CONTROL and not e.declares]
+    assert [e.name for e in form] == ["PAIR"], [e.name for e in form]
+    verdicts, unmeasured = kmlc.measure_sources(root, entries)
+    assert unmeasured == [], unmeasured
+    assert [(v.name, v.provenance) for v in verdicts] == [("PAIR", kmlc.MODULE_LOCAL)]
+
+
+def test_the_role_and_the_provenance_read_the_same_comparisons(tmp_path):
+    """ОДНА дверь к сверкам: роль `positive_control` ⟺ есть второй операнд.
+
+    Своя копия обхода у второй половины означала бы, что половины судят о РАЗНЫХ
+    наборах сверок, а счётчики при этом складываются — расхождение было бы молчаливым.
+    """
+    import ast as _ast
+    body = '''
+import json, other
+A = ("a", "b")
+B = ("c", "d")
+C = ("e", "f")
+def f(p, doc):
+    stored = json.loads(p.read_text())
+    x = [k for k in A if k not in stored]
+    y = B - other.LIVE
+    z = "e" in C
+    return x, y, z
+'''
+    tree = _ast.parse(body)
+    closed = {"A", "B", "C"}
+    for name in sorted(closed):
+        sites = kmlc.comparison_sites(tree, name, closed)
+        role = kmlc.classify_role(tree, name, closed)
+        positive = [op for vote, op in sites
+                    if vote == kmlc.POSITIVE_CONTROL and op is not None]
+        assert (role == kmlc.POSITIVE_CONTROL) == bool(positive), (name, role)
+
+
+def test_the_four_hand_measured_sites_are_reproduced(tmp_path):
+    """НАСТОЯЩАЯ история, а не выдуманная сцена (п. 4 метода карточки).
+
+    Четыре сайта дерева прочитаны руками ДО написания классификатора, и прибор
+    обязан воспроизвести все четыре. Не воспроизводит — ОПРОВЕРГНУТ: он отвечает
+    не о том мире, в котором живёт.
+    """
+    hand = {
+        "scripts/cartographer/brief.py::REQUIRED_DIFF_KEYS": kmlc.EXTERNAL_READ,
+        "scripts/agent_quarantine.py::PROTECTED_WORDS": kmlc.HAYSTACK,
+        "scripts/cartographer/architect_contract.py::REQUIRED_SECTIONS": kmlc.PARAMETER,
+        "spa_core/adapters/registry.py::_REQUIRED_KEYS": kmlc.MODULE_LOCAL,
+    }
+    missing = [rel.split("::")[0] for rel in hand
+               if not (REPO / rel.split("::")[0]).is_file()]
+    if missing:
+        pytest.fail("НЕ ИЗМЕРЕНО: сайтов ручного замера нет в дереве: "
+                    f"{missing} — это предпосылка теста, а не вердикт о приборе")
+    entries, _ = kmlc.measure_surface(REPO)
+    got = {f"{v.path}::{v.name}": v.provenance
+           for v in kmlc.measure_sources(REPO, entries)[0]}
+    for key, want in hand.items():
+        assert got.get(key) == want, (key, want, got.get(key))
+
+
+def test_a_candidate_without_a_sentence_is_a_finding(monkeypatch, tmp_path):
+    """Выросший кандидат БЕЗ приговора — находка, а не молчание.
+
+    Это тот же механизм, который ADR-1113 нашёл сломанным у соседа: закрытый
+    перечень, не спрашивающий о своей полноте, зелен ПО ПОСТРОЕНИЮ.
+    """
+    v = [kmlc.SourceVerdict("scripts/m.py", "NEW", 3, kmlc.EXTERNAL_READ, "д", 1)]
+    monkeypatch.setattr(kmlc, "ADJUDICATED", {})
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 1
+    assert "КАНДИДАТ БЕЗ ПРИГОВОРА" in text and "scripts/m.py::NEW" in text
+
+
+def test_a_sentence_without_a_candidate_is_named_as_stale(monkeypatch, tmp_path):
+    monkeypatch.setattr(kmlc, "ADJUDICATED",
+                        {"scripts/gone.py::OLD": (kmlc.REJECTED, "причина")})
+    text, code = kmlc.render_sources(tmp_path, [], [])
+    assert code == 1
+    assert "ПРИГОВОР УСТАРЕЛ" in text and "scripts/gone.py::OLD" in text
+
+
+def test_a_rejected_candidate_is_not_a_finding(monkeypatch, tmp_path):
+    """ОТКЛОНЁННЫЙ кандидат мерки НЕ требует — иначе прибор рождал бы находки.
+
+    Обратная половина обязательна: подтверждённый источник, которого никто не
+    спрашивает, находкой БЫТЬ ОБЯЗАН, иначе половина молчит всегда.
+    """
+    v = [kmlc.SourceVerdict("scripts/m.py", "X", 3, kmlc.EXTERNAL_READ, "д", 1)]
+    monkeypatch.setattr(kmlc, "ADJUDICATED",
+                        {"scripts/m.py::X": (kmlc.REJECTED, "стог, не контракт")})
+    _, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 0
+
+    monkeypatch.setattr(kmlc, "ADJUDICATED",
+                        {"scripts/m.py::X": (kmlc.CONFIRMED, "писатель объявил контракт")})
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 1
+    assert kmlc.CONFIRMED in text
+
+
+def test_a_string_bucket_alone_exits_zero(monkeypatch, tmp_path):
+    """Ведро «ВОПРОСА НЕТ» одно по себе кодом 1 не становится."""
+    v = [kmlc.SourceVerdict("scripts/m.py", "W", 3, kmlc.HAYSTACK, "строка", 1)]
+    monkeypatch.setattr(kmlc, "ADJUDICATED", {})
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 0
+    assert "ВОПРОСА О ПОЛНОТЕ НЕТ" in text
+
+
+def test_an_unreadable_scene_is_the_third_outcome_not_zero(tmp_path):
+    """Нечитаемый файл при пустом замере — НЕ ИЗМЕРЕНО (код 2), не «чисто»."""
+    text, code = kmlc.render_sources(tmp_path, [], ["scripts/x.py: SyntaxError"])
+    assert code == 2
+    assert "НЕ ИЗМЕРЕНО" in text
+
+
+def test_the_two_halves_agree_on_the_live_tree():
+    """Вёдра ИСЧЕРПЫВАЮТ форму на ЖИВОМ дереве, и НЕ ИЗМЕРЕНО там пусто.
+
+    Это тот самый счётчик, который нашёл дефект первой редакции: половины
+    разошлись порогом `MIN_ENTRIES`, и строка итога показала **154 против 157**.
+    Нужен он и как контроль ПОВЕРХНОСТИ: расширь `measure_sources` на белые
+    списки — и они, не давая ни одного операнда роли `positive_control`, уедут
+    в НЕ ИЗМЕРЕНО, то есть прибор начнёт докладывать «судить было нечем» о
+    перечнях, которых его вопрос не касается вовсе (мутация M15 замера #1261
+    ВЫЖИЛА ровно на отсутствии этой проверки — дыра МОЕГО покрытия, не кода).
+    """
+    entries, surface_unparsed = kmlc.measure_surface(REPO)
+    form = [e for e in entries
+            if e.role == kmlc.POSITIVE_CONTROL and not e.declares]
+    verdicts, unmeasured = kmlc.measure_sources(REPO, entries)
+    assert unmeasured == [], unmeasured
+    assert len(verdicts) == len(form), (len(verdicts), len(form))
+    assert all(v.provenance in kmlc.PROVENANCES for v in verdicts)
+    # поверхность третьей половины — РОВНО форма, ни шире, ни уже
+    assert {f"{v.path}::{v.name}" for v in verdicts} == \
+        {f"{e.path}::{e.name}" for e in form}
+
+
+def test_the_live_tree_has_every_candidate_sentenced():
+    """На живом дереве приговорён КАЖДЫЙ кандидат, и приговоры не устарели."""
+    entries, _ = kmlc.measure_surface(REPO)
+    verdicts, _ = kmlc.measure_sources(REPO, entries)
+    keys = {f"{v.path}::{v.name}" for v in verdicts
+            if v.provenance in kmlc.OPERAND_FROM_OUTSIDE}
+    assert keys - set(kmlc.ADJUDICATED) == set(), "кандидат без приговора"
+    assert set(kmlc.ADJUDICATED) - keys == set(), "приговор без кандидата"
+    assert all(kmlc.ADJUDICATED[k][1].strip() for k in kmlc.ADJUDICATED), \
+        "приговор без причины приговором не является"
+
+
+def test_the_sources_half_does_not_drag_the_other_two(tmp_path, capsys):
+    """`--sources` отвечает на СВОЙ вопрос и печатает выбор дерева."""
+    _scene(tmp_path, 'A = ("a", "b")\n')
+    code = kmlc.main(["--sources", "--repo-root", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert "ВНЕШНИЙ ИСТОЧНИК ПОЛНОТЫ" in out
+    assert "ВЕРДИКТ по объявившим источник" not in out
+    assert str(tmp_path) in out
+    assert code in (0, 1, 2)

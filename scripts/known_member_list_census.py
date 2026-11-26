@@ -18,13 +18,18 @@
 НЕ ИЗМЕРЕНО, и нулём это не считалось (инв. #17). Карточка —
 `inbox-zakrytyi-perechen-izvestnyh-chlenov-klas`, заказ G1088 п. 2.
 
-ДВЕ ПОЛОВИНЫ, И ОНИ ОТВЕЧАЮТ НА РАЗНЫЕ ВОПРОСЫ
+ТРИ ПОЛОВИНЫ, И ОНИ ОТВЕЧАЮТ НА РАЗНЫЕ ВОПРОСЫ
 ───────────────────────────────────────────────────────────────────────────────
   `--surface`   НАСЕЛЕНИЕ: какие перечни стоя́т положительным контролем и
                 НЕ спрашивают, полны ли они.
   `--verdict`   ВЕРДИКТ по перечню, ОБЪЯВИВШЕМУ источник полноты:
                 ПОЛОН на сегодня · ОТСТАЛ (пропущенные названы поимённо) ·
                 НЕ ИЗМЕРЕНО с названной причиной.
+  `--sources`   ЕСТЬ ЛИ внешний источник полноты ВООБЩЕ у перечня ФОРМЫ
+                (ADR-1115, заказ G1089 п. 2). Мерится ПРОВЕНАНС второго
+                операнда сверки; признак «операнд извне» НЕОБХОДИМ и НЕ
+                ДОСТАТОЧЕН, поэтому ведро зовётся КАНДИДАТОМ, а приговор
+                каждому объявлен в `ADJUDICATED` с причиной.
 
 РОЛЬ, А НЕ ИМЯ (п. 1 метода карточки)
 ───────────────────────────────────────────────────────────────────────────────
@@ -278,20 +283,29 @@ def _computed(node: ast.AST, names: set[str]) -> bool:
     return True
 
 
-def classify_role(tree: ast.AST, name: str, closed_names: set[str]) -> str:
-    """Роль вхождения имени `name` — по НАПРАВЛЕНИЮ сверки."""
-    positive = allow = unresolved = False
+def comparison_sites(tree: ast.AST, name: str, closed_names: set[str],
+                     ) -> list[tuple[str, ast.expr | None]]:
+    """Пары «голос за роль · ВТОРОЙ ОПЕРАНД сверки» для имени `name`.
+
+    ЕДИНСТВЕННАЯ дверь к сверкам, и у неё ДВА потребителя: роль вхождения
+    (`classify_role`) и провенанс источника полноты (`measure_sources`). Своя
+    копия обхода у второго означала бы, что половины судят о РАЗНЫХ наборах
+    сверок, а счётчики при этом складываются — то есть расходились бы молча.
+    Второй операнд у голоса `allowlist` отсутствует (`None`): там перечень сам
+    является правой стороной, и спрашивать его провенанс не о чем.
+    """
+    sites: list[tuple[str, ast.expr | None]] = []
 
     for node in ast.walk(tree):
         # NAME - computed  /  computed - NAME
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Sub):
             left, right = _root_name(node.left), _root_name(node.right)
             if left == name:
-                positive = positive or _computed(node.right, closed_names)
-                unresolved = unresolved or not _computed(node.right, closed_names)
+                sites.append((POSITIVE_CONTROL if _computed(node.right, closed_names)
+                              else UNRESOLVED_ROLE, node.right))
             elif right == name:
-                allow = allow or _computed(node.left, closed_names)
-                unresolved = unresolved or not _computed(node.left, closed_names)
+                sites.append((ALLOWLIST if _computed(node.left, closed_names)
+                              else UNRESOLVED_ROLE, node.left))
 
         # for k in NAME: ... k not in computed     (включая comprehension)
         gens: list[ast.comprehension] = []
@@ -313,10 +327,9 @@ def classify_role(tree: ast.AST, name: str, closed_names: set[str]) -> str:
                         if not isinstance(op, (ast.In, ast.NotIn)):
                             continue
                         if _root_name(cmp_node.left) in bound:
-                            if _computed(comparator, closed_names):
-                                positive = True
-                            else:
-                                unresolved = True
+                            sites.append(
+                                (POSITIVE_CONTROL if _computed(comparator, closed_names)
+                                 else UNRESOLVED_ROLE, comparator))
 
         # x not in NAME  — предмет обязан быть внутри перечня (белый список)
         if isinstance(node, ast.Compare):
@@ -324,14 +337,17 @@ def classify_role(tree: ast.AST, name: str, closed_names: set[str]) -> str:
                 if isinstance(op, (ast.In, ast.NotIn)) \
                         and _root_name(comparator) == name \
                         and _root_name(node.left) != name:
-                    allow = True
+                    sites.append((ALLOWLIST, None))
 
-    if positive:
-        return POSITIVE_CONTROL
-    if unresolved:
-        return UNRESOLVED_ROLE
-    if allow:
-        return ALLOWLIST
+    return sites
+
+
+def classify_role(tree: ast.AST, name: str, closed_names: set[str]) -> str:
+    """Роль вхождения имени `name` — по НАПРАВЛЕНИЮ сверки."""
+    votes = {vote for vote, _ in comparison_sites(tree, name, closed_names)}
+    for role in (POSITIVE_CONTROL, UNRESOLVED_ROLE, ALLOWLIST):
+        if role in votes:
+            return role
     return NO_COMPARISON
 
 
@@ -342,6 +358,308 @@ def _tests_in(node: ast.For | ast.AsyncFor) -> list[ast.expr]:
 
 def _bound_names(target: ast.AST) -> set[str]:
     return {n.id for n in ast.walk(target) if isinstance(n, ast.Name)}
+
+
+# ───────── провенанс ВТОРОГО ОПЕРАНДА: есть ли внешний источник ВООБЩЕ ──────
+# Замер ADR-1114 назвал ФОРМУ класса (157 перечней) и честно сказал, что реестр
+# решений об их полноте ответить НЕ МОЖЕТ: ни одного ADR в элементах нет. Заказ
+# G1089 п. 2 запретил выдумывать им мерку до того, как задан предыдущий вопрос:
+# **есть ли у такого перечня внешний источник полноты ВООБЩЕ.** У «обязательных
+# полей отчёта» им был бы КОНТРАКТ артефакта, а не реестр; у списка слов-маркеров
+# его нет вовсе, и объявить такой перечень «неполным» значило бы родить находку,
+# которой в мире нет.
+#
+# Вопрос измерим: внешний источник живёт там, откуда берётся ВТОРОЙ ОПЕРАНД
+# сверки. Поэтому мерится ПРОВЕНАНС операнда, а НЕ имя константы — искать по
+# словам `REQUIRED`/`FIELDS`/`MARKERS` значило бы повторить дословно урок
+# ADR-1074 (`ast.walk` вместо каталога) и ADR-1096 (белый список имён).
+EXTERNAL_READ = "external_read"      # операнд ЧИТАЕТСЯ извне модуля (файл, каталог, процесс)
+IMPORTED = "imported"                # операнд ВВЕЗЁН из другого модуля
+PARAMETER = "parameter"              # операнд — ПАРАМЕТР: источник есть КОНТРАКТ зовущего
+MODULE_LOCAL = "module_local"        # операнд собран в этом же модуле
+HAYSTACK = "haystack"                # операнд — СТРОКА: полнота НЕ ОПРЕДЕЛЕНА как вопрос
+SEVERAL = "several"                  # привязок несколько и они РАЗНЫЕ
+PROV_UNRESOLVED = "prov_unresolved"  # не разобрано
+PROVENANCES: tuple[str, ...] = (EXTERNAL_READ, IMPORTED, PARAMETER, MODULE_LOCAL,
+                                HAYSTACK, SEVERAL, PROV_UNRESOLVED)
+
+#: операнд приходит ИЗВНЕ модуля. Это КАНДИДАТ, а НЕ вердикт «источник есть»:
+#: признак НЕОБХОДИМ, но НЕ ДОСТАТОЧЕН, и замер это показал. Из 10 кандидатов
+#: ручной приговор подтвердил ДВА: у остальных прочитанное извне есть СТОГ —
+#: один экземпляр артефакта либо текст, в котором ищут элементы перечня, — а
+#: один экземпляр полного набора не определяет. Объявить все 10 «источник есть»
+#: значило бы пригласить мерку туда, где её не определить: первая редакция так и
+#: сделала, и ошибка шла в сторону НАХОДКИ.
+OPERAND_FROM_OUTSIDE: frozenset[str] = frozenset({EXTERNAL_READ, IMPORTED})
+#: вопрос «полон ли» не определён вовсе ⇒ это НЕ находка и мерки не требует
+NO_QUESTION: frozenset[str] = frozenset({HAYSTACK})
+
+#: двери НАРУЖУ модуля. Имя двери ПЕЧАТАЕТСЯ в подробности, чтобы «внешний»
+#: не приходилось принимать на слово.
+_READ_DOORS: frozenset[str] = frozenset({
+    "read_text", "read_bytes", "readlines", "readline", "load", "loads",
+    "open", "glob", "rglob", "iterdir", "listdir", "walk", "scandir",
+    "check_output", "run", "getenv", "environ", "parse_file",
+})
+#: сборка СТРОКИ: у строки нет элементов, поэтому «полнота» к ней не применима
+_STR_BUILDERS: frozenset[str] = frozenset({"join", "lower", "upper", "format",
+                                           "strip", "casefold", "read_text"})
+
+
+CONFIRMED = "ПОДТВЕРЖДЁН"
+REJECTED = "ОТКЛОНЁН"
+
+#: Приговор КАЖДОМУ кандидату (операнд приходит извне модуля). Устроен так же,
+#: как объявление источника полноты у соседней половины: кандидатов производит
+#: ПРИБОР, а приговор выносит человек — значит выросший и НЕ ПРИГОВОРЁННЫЙ
+#: кандидат есть НАХОДКА, а не молчание, и устаревший приговор тоже называется.
+#: Это и есть ответ на собственный класс: перечень спрашивает о своей полноте у
+#: внешнего источника (замера), а не у себя.
+ADJUDICATED: dict[str, tuple[str, str]] = {
+    "scripts/cartographer/brief.py::REQUIRED_DIFF_KEYS": (
+        CONFIRMED,
+        "писатель diff.json объявляет СВОЙ контракт `diff_mod.DIFF_SCHEMA`, и он "
+        "сверяется двумя строками выше: источник полноты есть ПРОИЗВОДИТЕЛЬ"),
+    "spa_core/tests/test_site_snapshot_view_shape.py::NOT_IN_VIEW": (
+        CONFIRMED,
+        "живой снимок — власть над тем, какие пути существуют; объявленное "
+        "исключение, которого в снимке нет, названо УСТАРЕВШИМ"),
+    "scripts/cartographer/brief.py::REACHING_MODULES": (
+        REJECTED,
+        "`sys.modules` — СТОГ (что случилось загрузиться), а не власть над тем, "
+        "какие модули считаются тянущимися наружу"),
+    "scripts/cartographer/portal.py::REACHING_MODULES": (
+        REJECTED, "то же, что у соседа: `sys.modules` есть стог, а не источник"),
+    "spa_core/monitoring/card_acceptance.py::_LPC_OFFICE_ANCHORS": (
+        REJECTED,
+        "якоря ищутся ПОДСТРОКОЙ в исходнике чужого модуля: текст есть стог, "
+        "полнота набора якорей им не определяется"),
+    "spa_core/monitoring/rule_second_copy_census.py::FRESHNESS_STAMPS": (
+        REJECTED,
+        "один документ несёт те отметки, какие несёт; набор ВСЕХ имён отметок "
+        "одним экземпляром не определяется"),
+    "spa_core/monitoring/slo_keepability.py::ATTRIBUTION_CODE_KEYS": (
+        REJECTED, "то же: ключи ОДНОГО прочитанного документа — экземпляр, не контракт"),
+    "spa_core/monitoring/slo_keepability.py::DOMAIN_DATE_KEYS": (
+        REJECTED, "то же: ключи ОДНОГО прочитанного документа — экземпляр, не контракт"),
+    "spa_core/tests/_framework_entry.py::DECLARATION": (
+        REJECTED,
+        "ввезённый `fates.SILENCING_FATES` — власть над ЗНАЧЕНИЕМ поля `fate`, "
+        "а не над составом объявленных родов входа"),
+    "spa_core/tests/test_digest_wrapper_honest_exit.py::WRAPPERS": (
+        REJECTED,
+        "имя обёртки ищется ПОДСТРОКОЙ в прочитанном тексте: стог, не контракт"),
+}
+
+
+def _parents(tree: ast.AST) -> dict[int, ast.AST]:
+    """Карта «узел → родитель» (по `id`): нужна, чтобы найти объемлющую функцию."""
+    out: dict[int, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            out[id(child)] = parent
+    return out
+
+
+def _enclosing_function(node: ast.AST, parents: dict[int, ast.AST]):
+    """Ближайшая объемлющая функция узла, либо `None` — узел на уровне модуля."""
+    cur = parents.get(id(node))
+    while cur is not None:
+        if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return cur
+        cur = parents.get(id(cur))
+    return None
+
+
+def _read_door_in(node: ast.AST) -> str | None:
+    """Имя двери наружу, если узел её зовёт; иначе `None`."""
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Call):
+            func = sub.func
+            if isinstance(func, ast.Attribute) and func.attr in _READ_DOORS:
+                return func.attr
+            if isinstance(func, ast.Name) and func.id in _READ_DOORS:
+                return func.id
+    return None
+
+
+def _is_string_build(node: ast.AST) -> bool:
+    """Узел даёт СТРОКУ: f-строка, строковый литерал, `sep.join(...)`, `.lower()`."""
+    if isinstance(node, ast.JoinedStr):
+        return True
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return True
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Mod)):
+        return _is_string_build(node.left) or _is_string_build(node.right)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+            and node.func.attr in _STR_BUILDERS:
+        # `"x".join(...)` и `s.lower()` — строка; `path.read_text()` тоже строка,
+        # но у неё ЕСТЬ внешний источник, и он сильнее: решает вызывающий код.
+        #
+        # ⚠️ Оговорка ИЗМЕРЕНА (#1261, мутация M17): этот `!= "read_text"` в
+        # решающем пути НЕДОСТИЖИМ, и мутант «вернуть True» ЭКВИВАЛЕНТЕН —
+        # вердикт не меняется НИ У ОДНОГО из 158 перечней живого дерева. Причина
+        # в ПОРЯДКЕ вопросов у `operand_provenance`: дверь наружу по привязке
+        # спрашивается ДО сборки строки, а `read_text` сама есть дверь наружу,
+        # поэтому до этой строки такой случай не доходит. Оговорка оставлена
+        # защитой на случай смены порядка и сторожем НЕ считается.
+        return node.func.attr != "read_text"
+    return False
+
+
+def _imported_names(tree: ast.AST) -> set[str]:
+    """Имена, привязанные `import` на любом уровне модуля."""
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                out.add(alias.asname or alias.name.split(".")[0])
+    return out
+
+
+def _assignments_to(name: str, scope: ast.AST) -> list[ast.expr]:
+    """Правые части всех привязок имени `name` внутри области `scope`."""
+    out: list[ast.expr] = []
+    for node in ast.walk(scope):
+        if isinstance(node, ast.Assign) and node.value is not None:
+            if any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
+                out.append(node.value)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            if isinstance(node.target, ast.Name) and node.target.id == name:
+                out.append(node.value)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            if name in _bound_names(node.target):
+                out.append(node.iter)
+        elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+            if name in _bound_names(node.optional_vars):
+                out.append(node.context_expr)
+    return out
+
+
+def _params_of(func) -> set[str]:
+    a = func.args
+    names = {p.arg for p in (*a.posonlyargs, *a.args, *a.kwonlyargs)}
+    for extra in (a.vararg, a.kwarg):
+        if extra is not None:
+            names.add(extra.arg)
+    return names
+
+
+def operand_provenance(operand: ast.expr, tree: ast.AST,
+                       parents: dict[int, ast.AST],
+                       imported: set[str]) -> tuple[str, str]:
+    """Провенанс второго операнда: ведро + ПОДРОБНОСТЬ, которой его можно поверить.
+
+    Порядок вопросов не произволен. Сперва спрашивается сам операнд: дверь
+    наружу в НЁМ сильнее любой привязки (`NAME - set(json.load(f))` внешний,
+    как бы ни звалось промежуточное имя). Только потом разбирается имя.
+    """
+    door = _read_door_in(operand)
+    if door is not None:
+        return EXTERNAL_READ, f"дверь наружу в самом операнде: {door}()"
+
+    root = _root_name(operand)
+    if root is None:
+        return PROV_UNRESOLVED, "корневое имя операнда не разобрано"
+    if root in imported:
+        return IMPORTED, f"имя `{root}` ввезено import-ом"
+
+    func = _enclosing_function(operand, parents)
+    if func is not None:
+        if root in _params_of(func):
+            return PARAMETER, (f"`{root}` — параметр `{func.name}()`: источник "
+                               f"полноты есть КОНТРАКТ зовущего, а не этот модуль")
+        local = _assignments_to(root, func)
+        if local:
+            for rhs in local:
+                inner = _read_door_in(rhs)
+                if inner is not None:
+                    return EXTERNAL_READ, (f"`{root}` привязан в `{func.name}()` "
+                                           f"через {inner}()")
+            if all(_is_string_build(rhs) for rhs in local):
+                return HAYSTACK, (f"`{root}` в `{func.name}()` — СТРОКА: у строки "
+                                  f"нет элементов, «полнота» к ней не применима")
+            for rhs in local:
+                nested = _root_name(rhs)
+                if nested is not None and nested in imported:
+                    return IMPORTED, f"`{root}` взят от ввезённого `{nested}`"
+            return MODULE_LOCAL, f"`{root}` собран внутри `{func.name}()`"
+
+    at_module = _assignments_to(root, tree)
+    if at_module:
+        for rhs in at_module:
+            inner = _read_door_in(rhs)
+            if inner is not None:
+                return EXTERNAL_READ, f"`{root}` на уровне модуля через {inner}()"
+        return MODULE_LOCAL, f"`{root}` — имя уровня модуля"
+    return PROV_UNRESOLVED, f"привязка имени `{root}` не найдена в разобранной области"
+
+
+class SourceVerdict:
+    __slots__ = ("path", "name", "entries", "provenance", "detail", "sites")
+
+    def __init__(self, path: str, name: str, entries: int, provenance: str,
+                 detail: str, sites: int) -> None:
+        self.path, self.name, self.entries = path, name, entries
+        self.provenance, self.detail, self.sites = provenance, detail, sites
+
+
+def measure_sources(root: pathlib.Path, entries: list["Entry"],
+                    ) -> tuple[list[SourceVerdict], list[str]]:
+    """Провенанс источника полноты у перечней ФОРМЫ. Второе — причины НЕ ИЗМЕРЕНО.
+
+    Поверхность — РОВНО форма (`positive_control` без объявленного источника):
+    спрашивать провенанс у белого списка значило бы мерить другой класс, а у
+    объявившего источник он уже назван и сверяется половиной `--verdict`.
+    """
+    form = [e for e in entries if e.role == POSITIVE_CONTROL and not e.declares]
+    by_file: dict[str, list[Entry]] = {}
+    for e in form:
+        by_file.setdefault(e.path, []).append(e)
+
+    out: list[SourceVerdict] = []
+    unmeasured: list[str] = []
+    for rel, group in sorted(by_file.items()):
+        try:
+            tree = ast.parse((root / rel).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeDecodeError, ValueError) as exc:
+            unmeasured.append(f"{rel}: {type(exc).__name__}: {exc}")
+            continue
+        closed = {e.name for e in group}
+        for stmt in tree.body:
+            if isinstance(stmt, (ast.Assign, ast.AnnAssign)) and stmt.value is not None:
+                targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
+                # Порог MIN_ENTRIES обязан быть ТОТ ЖЕ, что у `measure_surface`.
+                # Без него `closed` здесь ШИРЕ, `_computed()` чаще отвечает
+                # «не вычислен», и роль не воспроизводится: первая редакция так
+                # потеряла 3 перечня из 157 и доложила их как НЕ ИЗМЕРЕНО.
+                n = _is_closed_string_collection(stmt.value)
+                if n is not None and n >= MIN_ENTRIES:
+                    closed.update(t.id for t in targets if isinstance(t, ast.Name))
+        parents = _parents(tree)
+        imported = _imported_names(tree)
+        for e in group:
+            operands = [op for vote, op in comparison_sites(tree, e.name, closed)
+                        if vote == POSITIVE_CONTROL and op is not None]
+            if not operands:
+                unmeasured.append(f"{rel}::{e.name}: сверка роли не воспроизведена "
+                                  f"при повторном разборе")
+                continue
+            judged = [operand_provenance(op, tree, parents, imported)
+                      for op in operands]
+            buckets = {b for b, _ in judged}
+            if len(buckets) == 1:
+                bucket, detail = judged[0][0], judged[0][1]
+            else:
+                # Несколько РАЗНЫХ привязок — третий исход, а не выбор стороны.
+                # Выбрать «внешний» значило бы пригласить мерку туда, где её,
+                # возможно, не определить; выбрать «нет источника» — списать
+                # настоящий пробел. Обе ошибки вредны, и ни одна не честнее.
+                bucket = SEVERAL
+                detail = "разные привязки: " + "; ".join(sorted(buckets))
+            out.append(SourceVerdict(rel, e.name, e.entries, bucket, detail,
+                                     len(operands)))
+    return out, unmeasured
 
 
 class Entry:
@@ -499,6 +817,106 @@ def render_surface(root: pathlib.Path, entries: list[Entry],
     return "\n".join(lines), code
 
 
+def render_sources(root: pathlib.Path, verdicts: list[SourceVerdict],
+                   unmeasured: list[str]) -> tuple[str, int]:
+    """Ответ на вопрос G1089 п. 2: есть ли у перечня ФОРМЫ внешний источник ВООБЩЕ."""
+    counts = {b: sum(1 for v in verdicts if v.provenance == b) for b in PROVENANCES}
+    has = [v for v in verdicts if v.provenance in OPERAND_FROM_OUTSIDE]
+    keys = {f"{v.path}::{v.name}" for v in has}
+    unsentenced = sorted(keys - set(ADJUDICATED))
+    stale = sorted(set(ADJUDICATED) - keys)
+    confirmed = sorted(k for k in keys
+                       if ADJUDICATED.get(k, (None,))[0] == CONFIRMED)
+    none_q = [v for v in verdicts if v.provenance in NO_QUESTION]
+    one_hop = [v for v in verdicts
+               if v.provenance in (PARAMETER, MODULE_LOCAL)]
+    unres = [v for v in verdicts
+             if v.provenance in (SEVERAL, PROV_UNRESOLVED)]
+
+    lines = [
+        f"дерево: {root}  (ВЫБОР НАПЕЧАТАН, не угадан)",
+        f"охват: {', '.join(SOURCE_DIRS)} — ГРАНИЦА охвата, а не замер пустоты остального",
+        f"перечней ФОРМЫ под вопросом: {len(verdicts)}",
+        "",
+        "ЕСТЬ ЛИ ВНЕШНИЙ ИСТОЧНИК ПОЛНОТЫ ВООБЩЕ (провенанс ВТОРОГО ОПЕРАНДА сверки):",
+        f"  ИСТОЧНИК ПОДТВЕРЖДЁН ручным приговором: {len(confirmed)}",
+        f"  операнд ИЗВНЕ модуля — КАНДИДАТ, не вердикт: {len(has)}",
+        f"      {EXTERNAL_READ}: {counts[EXTERNAL_READ]} · {IMPORTED}: {counts[IMPORTED]}",
+        f"  ВОПРОСА НЕТ — операнд СТРОКА, «полнота» не определена (НЕ находка): "
+        f"{len(none_q)}",
+        f"  ОДИН ХОП — источник у зовущего либо в этом же модуле: {len(one_hop)}",
+        f"      {PARAMETER}: {counts[PARAMETER]} · {MODULE_LOCAL}: {counts[MODULE_LOCAL]}",
+        f"  НЕ РАЗОБРАНО — третий исход, НЕ ноль: {len(unres)}",
+        f"      {SEVERAL}: {counts[SEVERAL]} · {PROV_UNRESOLVED}: "
+        f"{counts[PROV_UNRESOLVED]}",
+    ]
+    if unmeasured:
+        lines.append(f"  НЕ ИЗМЕРЕНО (файл/сверка не прочитаны): {len(unmeasured)} — "
+                     f"{'; '.join(unmeasured[:3])}")
+    if unsentenced:
+        lines.append("")
+        lines.append(f"🚨 КАНДИДАТ БЕЗ ПРИГОВОРА: {len(unsentenced)} — перечень вырос, "
+                     f"а приговор ему не вынесен. Это НАХОДКА, не молчание:")
+        for k in unsentenced:
+            lines.append(f"  ! {k}")
+    if stale:
+        lines.append("")
+        lines.append(f"⚠️ ПРИГОВОР УСТАРЕЛ: {len(stale)} — приговорённого кандидата "
+                     f"в замере больше нет (сверка ушла или сменила форму):")
+        for k in stale:
+            lines.append(f"  ~ {k} — {ADJUDICATED[k][0]}: {ADJUDICATED[k][1]}")
+    lines.append("")
+    lines.append(f"ВИЛКА предмета мерки: {len(confirmed)} … "
+                 f"{len(has) + len(one_hop) + len(unres)} — нижняя граница это те, "
+                 f"у кого источник НАЗВАН; верхняя включает один хоп и неразобранное")
+    lines.append("")
+    lines.append("⚠️ `ADJUDICATED` этого прибора САМ является членом ФОРМЫ (156 → "
+                 "157 → 158 с его появлением): сверка «приговор без кандидата» "
+                 "имеет форму положительного контроля. Его полнота СПРАШИВАЕТСЯ — "
+                 "строкой «КАНДИДАТ БЕЗ ПРИГОВОРА» выше, — но признак `declares` "
+                 "знает только объявление ПО РЕЕСТРУ РЕШЕНИЙ, а у приговоров "
+                 "источник другой (кандидатов производит сам замер). Поэтому "
+                 "половина `--surface` числит его НЕ спрашивающим, и это граница "
+                 "признака, а не дефект перечня.")
+    lines.append("")
+    lines.append("⚠️ Ведро «ВОПРОСА НЕТ» мерки НЕ ТРЕБУЕТ и находкой НЕ является: "
+                 "у строки нет элементов, и объявить такой перечень неполным значило "
+                 "бы родить находку, которой в мире нет (G1089 п. 2).")
+    if has:
+        lines.append("")
+        lines.append("КАНДИДАТЫ С ПРИГОВОРОМ — ПОИМЁННО (признак НЕОБХОДИМ, но не "
+                     "ДОСТАТОЧЕН: прочитанный экземпляр полного набора не определяет):")
+        for v in sorted(has, key=lambda v: (v.path, v.name)):
+            key = f"{v.path}::{v.name}"
+            sentence, why = ADJUDICATED.get(key, ("БЕЗ ПРИГОВОРА", "не приговорён"))
+            mark = "•" if sentence == CONFIRMED else ("!" if sentence ==
+                                                      "БЕЗ ПРИГОВОРА" else "×")
+            lines.append(f"  {mark} {key} ({v.entries} эл.) — {v.provenance}: "
+                         f"{v.detail}")
+            lines.append(f"      ПРИГОВОР {sentence}: {why}")
+    if none_q:
+        lines.append("")
+        lines.append("ВОПРОСА О ПОЛНОТЕ НЕТ — ПОИМЁННО (мерку им не выдумывать):")
+        for v in sorted(none_q, key=lambda v: (v.path, v.name)):
+            lines.append(f"  · {v.path}::{v.name} ({v.entries} эл.) — {v.detail}")
+    if unres:
+        lines.append("")
+        lines.append("НЕ РАЗОБРАНО — ПОИМЁННО (это не ноль):")
+        for v in sorted(unres, key=lambda v: (v.path, v.name)):
+            lines.append(f"  ? {v.path}::{v.name} ({v.entries} эл.) — "
+                         f"{v.provenance}: {v.detail}")
+    # Код 1 — «находки НАЗВАНЫ»: перечень, у которого внешний источник ЕСТЬ, а
+    # спросить его никто не спрашивает, и есть предмет следующей работы. Пустой
+    # замер при НЕ ИЗМЕРЕНО нулём не объявляется (инв. #17).
+    # Код 1 — находки НАЗВАНЫ: подтверждённый источник, которого никто не
+    # спрашивает, ЛИБО кандидат без приговора, ЛИБО устаревший приговор.
+    # Кандидат с приговором ОТКЛОНЁН находкой НЕ является: у него внешнего
+    # источника полноты нет, и мерки он не требует (G1089 п. 2).
+    code = 2 if unmeasured and not verdicts else (
+        1 if confirmed or unsentenced or stale or unmeasured else 0)
+    return "\n".join(lines), code
+
+
 def _declaration_of(root: pathlib.Path, rel: str) -> tuple[dict | None, set[str], str]:
     """Объявление и номера ADR самого перечня — РАЗБОРОМ, без исполнения байтов.
 
@@ -577,6 +995,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--surface", action="store_true", help="население класса")
     ap.add_argument("--verdict", action="store_true",
                     help="ПОЛОН / ОТСТАЛ / НЕ ИЗМЕРЕНО по объявившим источник")
+    ap.add_argument("--sources", action="store_true",
+                    help="есть ли у перечня ФОРМЫ внешний источник полноты ВООБЩЕ")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -609,10 +1029,35 @@ def main(argv: list[str] | None = None) -> int:
             "registry_rows": len(rows),
             "registry_unreadable": unreadable,
         }
+        if args.sources:
+            verdicts, src_unmeasured = measure_sources(root, entries)
+            payload["sources"] = {
+                "counts": {b: sum(1 for v in verdicts if v.provenance == b)
+                           for b in PROVENANCES},
+                "candidates": [f"{v.path}::{v.name}" for v in verdicts
+                               if v.provenance in OPERAND_FROM_OUTSIDE],
+                "confirmed": sorted(
+                    f"{v.path}::{v.name}" for v in verdicts
+                    if v.provenance in OPERAND_FROM_OUTSIDE
+                    and ADJUDICATED.get(f"{v.path}::{v.name}",
+                                        (None,))[0] == CONFIRMED),
+                "unsentenced": sorted(
+                    {f"{v.path}::{v.name}" for v in verdicts
+                     if v.provenance in OPERAND_FROM_OUTSIDE} - set(ADJUDICATED)),
+                "no_question": [f"{v.path}::{v.name}" for v in verdicts
+                                if v.provenance in NO_QUESTION],
+                "unmeasured": src_unmeasured,
+            }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 1 if payload["subject"] or unparsed else 0
 
     codes = []
+    if args.sources:
+        verdicts, src_unmeasured = measure_sources(root, entries)
+        text, code = render_sources(root, verdicts, src_unmeasured)
+        print("— ЕСТЬ ЛИ У ПЕРЕЧНЯ ФОРМЫ ВНЕШНИЙ ИСТОЧНИК ПОЛНОТЫ ВООБЩЕ —")
+        print(text)
+        return code
     if args.verdict or not args.surface:
         text, code = render_verdicts(root, entries)
         print("— ВЕРДИКТ по объявившим источник полноты —")
