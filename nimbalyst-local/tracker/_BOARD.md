@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-25T23:14:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T01:06:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ea5199701) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (ea5199701) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1698** · ждёт владельца: **17** · занято сессиями: **14**.
 
@@ -649,6 +649,7 @@
 - купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-7.md` · 2026-10-29
 - купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-8.md` · 2026-11-01
 - Локальные сессии на Маке рассуждают по устаревшим docs/ — зеркало origin + SessionStart-хук  ·  `inbox-lokalnye-sessii-rassuzhdayut-po-ustarevshim-docs.md` · 2026-08-26
+- Ловушка населения кромки сработала: корпус вырос 35 -> 47, число заказа #103 перевыведено НЕ было  ·  `inbox-lovushka-naseleniya-kromki-srabotala-kor.md` · 2026-11-24
 - Мандат «3 трека параллельно» — поднять в top-приоритет. Порядок: шаг 1 (фикс пе…  ·  `inbox-mandat-3-treka-parallelno-podnyat-v-top.md` · 2026-08-19
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
 - Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
@@ -787,6 +788,7 @@
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
 - Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец  ·  `inbox-perepis-chitatelei-zhurnala-slepa-k-20-h.md` · 2026-09-16
+- Перепись границ данных краснеет на чистом main: населения 39 против зафиксированных 35  ·  `inbox-perepis-granits-dannyh-krasneet-na-chist.md` · 2026-10-23
 - Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой  ·  `inbox-perepis-klassa-adr-875-ne-vidit-polyarno.md` · 2026-10-31
 - Перепись перечней сливает чтения по ГОЛОМУ ИМЕНИ: одно противоядие снимает с предмета все одноимённые (368 имён, 1365 объявлений)  ·  `inbox-perepis-perechnei-slivaet-chteniya-po-go.md` · 2026-11-07
 - Перепись порядка списков ответа не называет ЗВАВШЕГО — вторая ось заказа G801 неизмерима по построению  ·  `inbox-perepis-poryadka-spiskov-otveta-ne-nazyv.md` · 2026-10-24
@@ -1173,7 +1175,6 @@
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
 - Личность держателя карточки распорота по полям: release читает метку, а takeover обновляет pid  ·  `inbox-lichnost-derzhatelya-kartochki-rasporota.md` · 2026-11-14
 - live_registry_scene_census — сирота, вскрытая ужесточением детектора: её «вызывающим» был путь её же теста  ·  `inbox-live-registry-scene-census-sirota-vskryt.md` · 2026-10-27
-- Ловушка населения кромки сработала: корпус вырос 35 -> 47, число заказа #103 перевыведено НЕ было  ·  `inbox-lovushka-naseleniya-kromki-srabotala-kor.md` · 2026-11-24
 - main КРАСЕН: храповик инварианта #17 вырос на три координаты из двух чужих доставок  ·  `inbox-main-krasen-hrapovik-invarianta-17-vyros.md` · 2026-10-08
 - manifest.json уехал с indent=2 вместо канонического indent=1 — следующая регенерация выдаст 10 000 строк диффа за чужой счёт  ·  `inbox-manifest-json-uehal-s-indent-2-vmesto-ka.md` · 2026-10-08
 - Медленную группу приёмки CIO держит ОДИН тест: 1703 с на обходе всего дерева (замер #985, заказ G867 п. 10)  ·  `inbox-medlennuyu-gruppu-priemki-cio-derzhit-od.md` · 2026-10-30
@@ -1244,7 +1245,6 @@
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
 - Перепись cd-перед-git КРАСНА на main: deploy_all.sh берёт каталог из окружения  ·  `inbox-perepis-cd-pered-git-krasna-na-main-depl.md` · 2026-10-07
 - Перепись читателей не укладывается в порог шага: два срока в одной дороге спорят (900 с против 180 с)  ·  `inbox-perepis-chitatelei-ne-ukladyvaetsya-v-po.md` · 2026-10-09
-- Перепись границ данных краснеет на чистом main: населения 39 против зафиксированных 35  ·  `inbox-perepis-granits-dannyh-krasneet-na-chist.md` · 2026-10-23
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись оси работника написана и не позвана: храповик сирот красен на чистой вершине  ·  `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv.md` · 2026-10-15
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24

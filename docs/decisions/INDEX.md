@@ -237,6 +237,7 @@
 | ADR-1106 | ADR-1106 — Ноль доставленных коммитов печатался владельцу как ПУСТОТА | Accepted | [ADR-1106](ADR-1106-delivered-zero-printed-as-emptiness.md) |
 | ADR-1107 | ADR-1107 — Названный каталог чисел обязан ДОХОДИТЬ до пробы, а «не измерено» обязано винить себя, а не дерево | Accepted | [ADR-1107](ADR-1107-named-numbers-tree-must-reach-the-probe.md) |
 | ADR-1108 | ADR-1108 — Класс «названный каталог данных до читателя не дошёл» ИЗМЕРЕН за пределами реестра проб: предмет ПУСТ, вилка 0…1, НЕ ИЗМЕРЕНО 2 | Accepted | [ADR-1108](ADR-1108-named-data-dir-class-measured-outside-the-probe-registry.md) |
+| ADR-1109 | ADR-1109 — Ловушка населения кромки перевыведена ЗАМЕРОМ (35 → 47), а ожидание переведено со СЧЁТЧИКОВ на КАРТУ ИМЁН | Accepted | [ADR-1109](ADR-1109-edge-corpus-trap-rederived-by-name-map.md) |
 
 ## Соглашения
 

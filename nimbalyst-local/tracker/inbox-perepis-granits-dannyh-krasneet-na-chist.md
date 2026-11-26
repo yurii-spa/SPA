@@ -2,9 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Перепись границ данных краснеет на чистом main: населения 39 против зафиксированных 35"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-23
+acceptance_probe: edge_corpus_screen_pinned_by_name
+status_trail:
+  - "2026-11-26T01:03:26.426649+00:00 new -> done · queue.set_status/closed_by:цикл #1254 (ADR-1109)/evidence:ТОТ ЖЕ предмет, что у inbox-lovushka-naseleniya-kromki-srabotala-kor: та же ловушка, тот же красный тест (23.10 он давал 39!=35, 26.11 — 47!=35). Оба вопроса карточки отвечены замером: (а) население д · cycle-49525"
 ---
 
 ## Что случилось

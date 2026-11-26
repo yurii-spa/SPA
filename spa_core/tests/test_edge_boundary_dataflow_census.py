@@ -41,6 +41,81 @@ import edge_boundary_dataflow_census as bdc  # noqa: E402
 
 FACTS = {"full": 852, "train": 482, "test": 370}
 
+# ── ЧТО ЗАКРЕПЛЕНО: КАРТА «имя → ведро», а не четыре счётчика ────────────────
+# Перевыведено 2026-11-26 (цикл #1254) ЗАМЕРОМ, 35 -> 47, и форма ожидания при этом
+# УСИЛЕНА — инв. #16, обоснование ниже в докстринге теста и в `docs/journal/2026-W48.md`.
+#
+# ПОЧЕМУ КАРТА, А НЕ ЧИСЛА. Счётчики слепы ровно к тому классу, ради которого ловушка
+# написана, и это ИЗМЕРЕНО, а не предположено: в возмущённой копии живого корпуса ОДИН
+# член остатка (`edge_presence_threshold.py`) переименован — население осталось 47, а
+# ведра дословно 30/4/7/6. Прежнее ожидание на четырёх числах осталось бы ЗЕЛЁНЫМ, пока
+# член остатка #103 подменён. Карта имён такую подмену НАЗЫВАЕТ; четыре числа не могут
+# по построению. Числа ниже сохранены рядом (defence in depth и читаемость опубликованных
+# величин заказа #103 в диффе), но несущее утверждение — карта.
+#
+# Прибавление к корпусу — НЕ дефект и гасить его правкой числа нельзя: новый модуль
+# кромки есть новый АДРЕС заказа #103, и перевыведение без называния этого адреса
+# «retire that address silently» (слова самого теста ниже).
+
+CENSUS_100_SCREEN = {
+    "BOUNDARY USED, BUT NEVER AS A SLICE INDEX": (
+        "edge_aggregation_cost_law.py",
+        "edge_aum_scaled_toll.py",
+        "edge_biss_real_panel.py",
+        "edge_calm_fp_tax.py",
+        "edge_capital_recycling.py",
+        "edge_carry3_vs_quiet.py",
+        "edge_carry_quality_ratio.py",
+        "edge_carry_quiet_real_panel.py",
+        "edge_causal_liveness_selector.py",
+        "edge_cost_convention_decomposition.py",
+        "edge_cps_conditional_suspension.py",
+        "edge_crash_funding_hedge.py",
+        "edge_crisis_recovery_profile.py",
+        "edge_decision_hold.py",
+        "edge_dispersion_gated_demotion.py",
+        "edge_displacement_budget.py",
+        "edge_drift_gated_overlay.py",
+        "edge_drift_portfolio.py",
+        "edge_duration_liquidity_pt.py",
+        "edge_event_time_scoring.py",
+        "edge_gross_to_net_toll.py",
+        "edge_multi_horizon_ensemble.py",
+        "edge_pde_real_panel.py",
+        "edge_presence_threshold.py",
+        "edge_rebalance_drift_tax.py",
+        "edge_relative_drawdown_weighting.py",
+        "edge_score_proportional.py",
+        "edge_single_book_turnover_cap.py",
+        "edge_static_tilt_transfer.py",
+        "edge_xdsr_real_panel.py",
+    ),   # 30
+    "OUTPUT-SPLIT (CARRY by construction)": (
+        "edge_carry_momentum_switch.py",
+        "edge_cost_internalised_timing.py",
+        "edge_mhfc_backtest.py",
+        "edge_rkaw_running_calmar_weighting.py",
+    ),   # 4
+    "RE-RUNS ON THE SLICE": (
+        "edge_cost_quote_divergence.py",
+        "edge_downside_parity.py",
+        "edge_leg_aware_timing.py",
+        "edge_measurable_population.py",
+        "edge_overlay_domain_admissibility.py",
+        "edge_real_panel_ensemble.py",
+        "edge_trim_proceeds_destination.py",
+    ),   # 7
+    "NO BOUNDARY-AWARE FUNCTION": (
+        "edge_criterion_choice.py",
+        "edge_criterion_consensus.py",
+        "edge_cross_sectional_demotion.py",
+        "edge_exposure_depth.py",
+        "edge_redundancy_demotion.py",
+        "edge_signal_latency.py",
+    ),   # 6
+}
+
+
 
 def _tape(decision=(), metric=()):
     tape = bdc.OperatorTape()
@@ -241,6 +316,41 @@ class TestTheObserverIsNotPartOfItsOwnPopulation(unittest.TestCase):
         What this test must NEVER become is a number nudged to match whatever the corpus happens
         to hold: a new module that screens into RE-RUNS is a new ADDRESS for the #103 order, and
         re-deriving here without saying so would retire that address silently.
+
+        RE-DERIVED AGAIN 2026-11-26 (цикл #1254), 35 -> 47, и форма ожидания УСИЛЕНА.
+        Инв. #16: обоснование здесь и в `docs/journal/2026-W48.md`; карточка —
+        `inbox-lovushka-naseleniya-kromki-srabotala-kor` (ловушка СРАБОТАЛА 24.11 и держала
+        прогон красным; предыдущее перевыведение — 11.09).
+
+        БАЗА ВОСПРОИЗВЕДЕНА, А НЕ ВСПОМНЕНА. Корпус коммита `d2d51ba9a` (11.09, где
+        закреплялось 35) извлечён из ПОЛНОГО зеркала — прод-клон усечён и на вопрос об
+        истории отвечать не способен — и прогон того же прибора по той базе дал ДОСЛОВНО
+        `35 = 21/2/6/6`. Только после этого контроля разница названа разницей.
+
+        ЧТО ИМЕННО СДВИНУЛОСЬ (замер, не чтение): прибавилось **12** модулей, ушло **0**,
+        сменили ведро молча **0**.
+
+          остаток «BOUNDARY USED, BUT NEVER AS A SLICE INDEX»  21 -> 30  (+9)
+          OUTPUT-SPLIT (CARRY by construction)                  2 ->  4  (+2)
+          RE-RUNS ON THE SLICE                                  6 ->  7  (+1)
+          NO BOUNDARY-AWARE FUNCTION                            6 ->  6  ( 0)
+
+        ОСТАТОК #103 СДВИНУЛСЯ, и это ОТДЕЛЬНОЕ утверждение, а не правка константы:
+        у заказа #103 появилось **ДЕВЯТЬ** новых адресов — `edge_biss_real_panel.py`,
+        `edge_carry3_vs_quiet.py`, `edge_carry_quiet_real_panel.py`,
+        `edge_cps_conditional_suspension.py`, `edge_crash_funding_hedge.py`,
+        `edge_crisis_recovery_profile.py`, `edge_duration_liquidity_pt.py`,
+        `edge_presence_threshold.py`, `edge_xdsr_real_panel.py`. Опубликованный вердикт
+        #103 вынесен о 21 модуле и о девяти новых НЕ вынесен — это долг заказа, НАЗВАННЫЙ
+        здесь поимённо, а не закрытый этой правкой. Остальные три: `edge_measurable_population.py`
+        -> RE-RUNS, `edge_carry_momentum_switch.py` и `edge_rkaw_running_calmar_weighting.py`
+        -> OUTPUT-SPLIT.
+
+        ЧТЕНИЕ «наблюдатель начал считать сам себя» ОПРОВЕРГНУТО ЗАМЕРОМ, а не доводом:
+        ни `edge_boundary_dataflow_census.py`, ни соседний `edge_split_protocol_diagnostic.py`
+        в население не входят, и ни один из 47 членов не носит имени прибора/переписи. Все
+        12 прибавившихся — исследовательские модули кромки. То есть верно прочтение (а):
+        корпус вырос.
         """
         import contextlib
         import io
@@ -250,14 +360,28 @@ class TestTheObserverIsNotPartOfItsOwnPopulation(unittest.TestCase):
         with bdc.corpus_without_self(SCRIPTS) as mirror:
             with contextlib.redirect_stdout(io.StringIO()):
                 census = spd.section1_census(Path(mirror))
-        self.assertEqual(census["population"], 35)
+        # Несущее утверждение — КАРТА «имя → ведро». Переименование члена при неизменных
+        # счётчиках измерено (см. `CENSUS_100_SCREEN` выше): четыре числа его пропускают,
+        # карта — называет.
+        measured = {k: tuple(sorted(Path(m).name for m in v))
+                    for k, v in census["buckets"].items()}
+        self.assertEqual(measured, {k: tuple(sorted(v)) for k, v in CENSUS_100_SCREEN.items()},
+                         "корпус кромки сдвинулся: ведро и ИМЯ каждого сдвинувшегося модуля "
+                         "названы в диффе выше. Перевыведение — прогоном "
+                         "`spd.section1_census` по корпусу плюс запись в journal (инв. #16), "
+                         "а НЕ правка числа до зелёного; модуль, попавший в остаток, есть "
+                         "НОВЫЙ АДРЕС заказа #103 и обязан быть назван вслух")
+
+        # Опубликованные величины заказа #103 — рядом и literal'ом, чтобы их сдвиг был
+        # виден в диффе сам по себе, а не только внутри карты.
         buckets = {k: len(v) for k, v in census["buckets"].items()}
-        self.assertEqual(buckets["BOUNDARY USED, BUT NEVER AS A SLICE INDEX"], 21)
-        self.assertEqual(buckets["RE-RUNS ON THE SLICE"], 6)
+        self.assertEqual(census["population"], 47)
+        self.assertEqual(buckets["BOUNDARY USED, BUT NEVER AS A SLICE INDEX"], 30)
+        self.assertEqual(buckets["RE-RUNS ON THE SLICE"], 7)
         self.assertIn("edge_downside_parity.py",
                       [Path(m).name for m in census["buckets"]["RE-RUNS ON THE SLICE"]],
-                      "the 35th module must be the one that was ADDED, not some other module "
-                      "that quietly changed bucket while the totals happened to add up")
+                      "модуль, ради которого RE-RUNS двигали 11.09, обязан остаться в "
+                      "RE-RUNS: иначе ведро сменилось молча, а итоги сошлись")
 
 
 class TestDayExtentIsMeasuredNotAssumedFromTheFirstArgument(unittest.TestCase):

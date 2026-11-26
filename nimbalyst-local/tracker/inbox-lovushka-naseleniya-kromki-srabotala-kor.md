@@ -2,11 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Ловушка населения кромки сработала: корпус вырос 35 -> 47, число заказа #103 перевыведено НЕ было"
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-24
 twin_key: "sha256:6233020b5aad156fe174301944b67a22307d1fe03715af7f202da15ead045855"
 intake_kind: task
+acceptance_probe: edge_corpus_screen_pinned_by_name
+status_trail:
+  - "2026-11-26T01:03:04.151246+00:00 new -> done · queue.set_status/closed_by:цикл #1254 (ADR-1109)/evidence:проба edge_corpus_screen_pinned_by_name = satisfied; база d2d51ba9a воспроизведена замером (35=21/2/6/6), живой корпус 47=30/4/7/6, прибавилось 12 / ушло 0 / сменили ведро 0; остаток #103 21->30, девя · cycle-49525"
 ---
 
 ## Что случилось и почему это важно

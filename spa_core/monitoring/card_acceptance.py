@@ -22431,6 +22431,191 @@ def _probe_named_data_dir_class_measurable(
         f"что различает (член/запаска/ранний возврат — три разных вердикта)")
 
 
+def _probe_edge_corpus_screen_pinned_by_name(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: ловушка населения кромки зелена ПЕРЕВЫВЕДЕНИЕМ и больше не подгоняема числом.
+
+    Предмет — карточка `inbox-lovushka-naseleniya-kromki-srabotala-kor` (ADR-1108):
+    сторож `spa_core/tests/test_edge_boundary_dataflow_census.py::
+    TestTheObserverIsNotPartOfItsOwnPopulation::test_the_census_screens_the_population_100_published`
+    краснел на чистом `origin/main` с 24.11 (`47 != 35`). Его собственный докстринг
+    говорит, чем он НЕ имеет права стать: «a number nudged to match whatever the corpus
+    happens to hold».
+
+    **Меряется ИСХОД, а не структура, и ответ спрашивается ЗНАЧЕНИЕМ.** Проба не ищет
+    в тесте ни слова «перевыведено», ни номера цикла, ни строки журнала: она зовёт
+    настоящий прибор (`edge_split_protocol_diagnostic.section1_census`) по настоящему
+    корпусу и сверяет ЕГО вердикт с тем, что тест закрепил. Подстрокой проба не
+    проходит (ADR-333) — объявление, лежащее в комментарии, критерия не выполняет.
+
+    Контроль в обе стороны — ВНУТРИ самой проверки, и положительный контроль
+    воспроизводит НАСТОЯЩУЮ слепоту прежней редакции (замер цикла #1254):
+
+    * **форма ожидания.** Тест обязан закреплять КАРТУ «имя → ведро»
+      (`CENSUS_100_SCREEN`). Карты нет ⇒ `not_satisfied`: ожидание на четырёх
+      счётчиках гасится правкой одной цифры, и именно так пропадает адрес заказа #103;
+    * **живой корпус.** Карта обязана РОВНО совпасть с замером живого корпуса;
+      разошлась ⇒ `not_satisfied` с ИМЕНАМИ сдвинувшихся модулей, а не с числом;
+    * **положительный контроль — молчаливая подмена члена.** В одноразовой копии
+      корпуса ОДИН член остатка переименован. Сцена обязана оставить ВСЕ ЧЕТЫРЕ
+      счётчика дословно теми же (иначе синтезирована не та слепота ⇒ `unmeasured`:
+      о классе ответить нечем) И при этом карта обязана РАЗОЙТИСЬ. Карта, не
+      заметившая подмены при тех же числах, критерия не выполняет ⇒ `not_satisfied`;
+    * **третий исход различим** (инв. #17): прибора нет · прибор не импортируется ·
+      корпус не читается · у теста нет двери `CENSUS_100_SCREEN` — каждый свой
+      `unmeasured` с НАЗВАННОЙ причиной, и ни один не выдаётся за «чисто».
+
+    Чего проба НЕ меряет, и это сказано вслух: ОСМЫСЛЕННОСТЬ записи в журнале и
+    полноту вердикта заказа #103 о девяти новых адресах. Первое судит независимый
+    ревьюер (тот же порядок, что у `Change-Record:` в `.claude/rules/site-copy.md`),
+    второе есть отдельный долг заказа, НАЗВАННЫЙ поимённо, а не закрытый пробой.
+
+    Дерево — ВХОД (`repo_root`). Проба только ЧИТАЕТ: живое `data/`, часы, pid,
+    git-окружение и сеть она не спрашивает, подпроцессов не поднимает; корпус
+    возмущается в одноразовой копии, дерево не трогается.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "ОДНА ловушка населения, пофайловой формы у него нет")
+
+    import contextlib as _ctx
+    import importlib.util as _ilu
+    import io as _io
+    import shutil as _shutil
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    scripts = root / "scripts"
+    test_path = root / "spa_core" / "tests" / "test_edge_boundary_dataflow_census.py"
+    if not test_path.is_file():
+        return UNMEASURED, f"ловушки нет в названном дереве: {test_path} отсутствует"
+    if not scripts.is_dir():
+        return UNMEASURED, f"корпус не читается: {scripts} не каталог"
+
+    _edge_names = ("edge_boundary_dataflow_census", "edge_split_protocol_diagnostic")
+    _saved_path = list(_sys.path)
+    _saved_mods = {n: _sys.modules.pop(n, None) for n in _edge_names}
+    try:
+        _sys.path.insert(0, str(scripts))
+        try:
+            spec = _ilu.spec_from_file_location("spa_edge_trap_probe", test_path)
+            tmod = _ilu.module_from_spec(spec)            # type: ignore[arg-type]
+            _sys.modules["spa_edge_trap_probe"] = tmod
+            spec.loader.exec_module(tmod)                 # type: ignore[union-attr]
+        except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+            return UNMEASURED, f"ловушка не импортируется: {type(exc).__name__}: {exc}"
+
+        pinned_raw = getattr(tmod, "CENSUS_100_SCREEN", None)
+        if not isinstance(pinned_raw, dict) or not pinned_raw:
+            return NOT_SATISFIED, (
+                "у ловушки НЕТ двери `CENSUS_100_SCREEN`: ожидание держится на "
+                "счётчиках, а счётчик гасится правкой одной цифры — молчаливая "
+                "подмена члена остатка #103 прошла бы зелёной")
+        try:
+            pinned = {str(k): tuple(sorted(str(n) for n in v))
+                      for k, v in pinned_raw.items()}
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, f"`CENSUS_100_SCREEN` не разбирается: {type(exc).__name__}: {exc}"
+
+        bdc = getattr(tmod, "bdc", None)
+        if bdc is None or not hasattr(bdc, "corpus_without_self"):
+            return UNMEASURED, ("у ловушки нет двери `bdc.corpus_without_self` — "
+                                "корпус без наблюдателя построить нечем")
+        try:
+            spd = _ilu.module_from_spec(
+                _ilu.spec_from_file_location(                      # type: ignore[arg-type]
+                    "spa_edge_spd_probe", scripts / "edge_split_protocol_diagnostic.py"))
+            _sys.modules["spa_edge_spd_probe"] = spd
+            _sys.modules["edge_split_protocol_diagnostic"] = spd
+            spd.__spec__.loader.exec_module(spd)                   # type: ignore[union-attr]
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, f"прибор переписи не импортируется: {type(exc).__name__}: {exc}"
+        if not hasattr(spd, "section1_census"):
+            return UNMEASURED, ("у прибора нет двери `section1_census` — спрашивать "
+                                "вердикт значением нечем")
+
+        def _screen(corpus: _pathlib.Path) -> dict[str, tuple[str, ...]]:
+            with _ctx.redirect_stdout(_io.StringIO()):
+                census = spd.section1_census(corpus)
+            return {str(k): tuple(sorted(_pathlib.Path(m).name for m in v))
+                    for k, v in census["buckets"].items()}
+
+        # ── 1. живой корпус: карта обязана РОВНО совпасть с замером ───────────
+        try:
+            with bdc.corpus_without_self(scripts) as mirror:
+                live = _screen(_pathlib.Path(mirror))
+                scene_root = _pathlib.Path(_tempfile.mkdtemp(prefix="spa_edge_probe_"))
+                perturbed_corpus = scene_root / "corpus"
+                _shutil.copytree(mirror, perturbed_corpus)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, f"корпус не померен: {type(exc).__name__}: {exc}"
+
+        try:
+            if live != pinned:
+                drift = []
+                lmap = {n: k for k, v in live.items() for n in v}
+                pmap = {n: k for k, v in pinned.items() for n in v}
+                for n in sorted(set(lmap) - set(pmap)):
+                    drift.append(f"ПРИБАВИЛСЯ {n} → {lmap[n]}")
+                for n in sorted(set(pmap) - set(lmap)):
+                    drift.append(f"УШЁЛ {n} ← {pmap[n]}")
+                for n in sorted(set(pmap) & set(lmap)):
+                    if pmap[n] != lmap[n]:
+                        drift.append(f"СМЕНИЛ ВЕДРО {n}: {pmap[n]} → {lmap[n]}")
+                return NOT_SATISFIED, (
+                    "корпус кромки разошёлся с закреплённой картой — перевыводить "
+                    "прогоном прибора и записью в journal (инв. #16), а не правкой "
+                    f"числа: {'; '.join(drift[:12])}"
+                    + (f" … всего {len(drift)}" if len(drift) > 12 else ""))
+
+            # ── 2. положительный контроль: молчаливая подмена члена ───────────
+            members = sorted(n for v in live.values() for n in v)
+            if not members:
+                return UNMEASURED, "население пусто — подменять нечего, о классе ответить нечем"
+            victim = members[0]
+            (perturbed_corpus / victim).rename(
+                perturbed_corpus / (victim[:-3] + "_renamed_by_probe.py"))
+            try:
+                perturbed = _screen(perturbed_corpus)
+            except BaseException as exc:  # noqa: BLE001
+                return UNMEASURED, (f"возмущённый корпус не померен: "
+                                    f"{type(exc).__name__}: {exc}")
+
+            counts_live = {k: len(v) for k, v in live.items()}
+            counts_pert = {k: len(v) for k, v in perturbed.items()}
+            if counts_live != counts_pert:
+                return UNMEASURED, (
+                    "синтезирована НЕ та слепота: переименование сдвинуло счётчики "
+                    f"({counts_live} → {counts_pert}), то есть сцена не воспроизводит "
+                    "класс «итоги сошлись, а член подменён» — о классе ответить нечем")
+            if perturbed == pinned:
+                return NOT_SATISFIED, (
+                    f"карта НЕ заметила подмены члена ({victim} переименован) при "
+                    "дословно тех же счётчиках — ровно та слепота, ради которой "
+                    "форма ожидания менялась")
+        finally:
+            _shutil.rmtree(scene_root, ignore_errors=True)
+    finally:
+        _sys.path[:] = _saved_path
+        for n, m in _saved_mods.items():
+            if m is None:
+                _sys.modules.pop(n, None)
+            else:
+                _sys.modules[n] = m
+        _sys.modules.pop("spa_edge_trap_probe", None)
+        _sys.modules.pop("spa_edge_spd_probe", None)
+
+    pop = sum(len(v) for v in pinned.values())
+    return SATISFIED, (
+        f"ловушка населения кромки зелена ПЕРЕВЫВЕДЕНИЕМ: карта «имя → ведро» на "
+        f"{pop} членов РОВНО совпала с замером живого корпуса "
+        f"({ {k: len(v) for k, v in sorted(pinned.items())} }), и она ловит "
+        f"молчаливую подмену члена ({victim}) при дословно тех же счётчиках — "
+        "то есть число больше не подгоняемо")
+
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "named_data_dir_class_measurable":
         _probe_named_data_dir_class_measurable,
@@ -22626,6 +22811,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_orphan_sweep_names_an_unregistered_copy,
     "derived_artifact_class_population_named":
         _probe_derived_artifact_class_population_named,
+    "edge_corpus_screen_pinned_by_name":
+        _probe_edge_corpus_screen_pinned_by_name,
     "delivery_tree_input_class_population_named":
         _probe_delivery_tree_input_class_population_named,
     "ci_only_red_class_determinism_named":
