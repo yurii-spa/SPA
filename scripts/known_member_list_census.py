@@ -817,6 +817,82 @@ def render_surface(root: pathlib.Path, entries: list[Entry],
     return "\n".join(lines), code
 
 
+MEASURE_ABSENT = "МЕРКИ НЕТ"
+
+#: ТРЕТЬЯ ось того же вопроса (ADR-1116). `ADJUDICATED` отвечает «есть ли у кого
+#: спрашивать», и ADR-1115 закончил прозой: «мерки у них по-прежнему нет». Проза
+#: вердиктом не является и устарела в тот же день — перемер цикла #1262 показал, что у
+#: второго подтверждённого мерка ЕСТЬ и давно. Поэтому АДРЕС мерки объявляется здесь и
+#: ПРОВЕРЯЕТСЯ: файл обязан существовать и НАЗЫВАТЬ перечень (разбором, не подстрокой —
+#: упоминание в докстринге зовом не является). Три исхода: адрес назван и найден ·
+#: `MEASURE_ABSENT` = долг НАЗВАН (находка, а не молчание) · адрес есть, а перечня не
+#: называет ⇒ находка со своей причиной.
+MEASURES: dict[str, tuple[str, str]] = {
+    "scripts/cartographer/brief.py::REQUIRED_DIFF_KEYS": (
+        "spa_core/tests/test_brief_required_diff_keys_complete.py",
+        "контракт ПРОИЗВОДИТЕЛЯ спрашивается ДВУМЯ дверьми (настоящий прогон "
+        "`compare()` + AST литерала), и пара «требуем / освобождено С ПРИЧИНОЙ» обязана "
+        "его исчерпать; расхождение дверей — НЕ ИЗМЕРЕНО (ADR-1116)"),
+    "spa_core/tests/test_site_snapshot_view_shape.py::NOT_IN_VIEW": (
+        "spa_core/tests/test_site_snapshot_view_shape.py",
+        "снимок ⊆ переходник ∪ объявленное · объявленное ⊆ снимка (устаревшее названо) · "
+        "у каждого исключения причина · положительный контроль снятием НАСТОЯЩЕГО поля. "
+        "Мерка ЕСТЬ и ИСПОЛНЯЕТСЯ; «мерка есть» и «мерка зелена» — разные наблюдения"),
+}
+
+
+def _measure_names_the_list(root: pathlib.Path, rel: str,
+                            listname: str) -> tuple[bool, str]:
+    """Называет ли мерка перечень — РАЗБОРОМ. Подстрока зачла бы докстринг за зов."""
+    path = root / rel
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError, ValueError) as exc:
+        return False, f"адрес не разобран: {type(exc).__name__}: {exc}"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == listname:
+            return True, "перечень назван именем"
+        if isinstance(node, ast.Attribute) and node.attr == listname:
+            return True, "перечень назван атрибутом модуля"
+    return False, f"адрес есть, а имени `{listname}` в нём не названо"
+
+
+def render_measures(root: pathlib.Path, confirmed: list[str]) -> tuple[list[str], int]:
+    """Спросить у КАЖДОГО подтверждённого источника, названа ли его мерка и жива ли она."""
+    lines = ["", "ЕСТЬ ЛИ У ПОДТВЕРЖДЁННОГО ИСТОЧНИКА МЕРКА (ось ADR-1116):"]
+    undeclared = sorted(set(confirmed) - set(MEASURES))
+    stale = sorted(set(MEASURES) - set(confirmed))
+    named = absent = broken = 0
+    for key in confirmed:
+        if key not in MEASURES:
+            continue
+        rel, why = MEASURES[key]
+        if rel == MEASURE_ABSENT:
+            absent += 1
+            lines.append(f"  🚨 {key} — МЕРКИ НЕТ: {why}")
+            continue
+        ok, detail = _measure_names_the_list(root, rel, key.split("::", 1)[1])
+        if ok:
+            named += 1
+            lines.append(f"  ✅ {key} → {rel} ({detail})")
+            lines.append(f"      {why}")
+        else:
+            broken += 1
+            lines.append(f"  🚨 {key} → {rel}: {detail} — объявленный адрес мерки "
+                         f"мерки не содержит")
+    lines.append(f"  итог: мерка НАЗВАНА и найдена {named} · долг НАЗВАН {absent} · "
+                 f"адрес не подтверждён {broken} · подтверждённый без объявления "
+                 f"{len(undeclared)} · объявление устарело {len(stale)}")
+    for key in undeclared:
+        lines.append(f"  🚨 ПОДТВЕРЖДЁННЫЙ БЕЗ ОБЪЯВЛЕНИЯ МЕРКИ: {key} — источник "
+                     f"есть, а спросили его или нет, не сказано")
+    for key in stale:
+        lines.append(f"  ⚠️ ОБЪЯВЛЕНИЕ МЕРКИ УСТАРЕЛО: {key} — подтверждённым "
+                     f"кандидатом он в этом замере не является")
+    code = 1 if (absent or broken or undeclared or stale) else 0
+    return lines, code
+
+
 def render_sources(root: pathlib.Path, verdicts: list[SourceVerdict],
                    unmeasured: list[str]) -> tuple[str, int]:
     """Ответ на вопрос G1089 п. 2: есть ли у перечня ФОРМЫ внешний источник ВООБЩЕ."""
@@ -908,12 +984,23 @@ def render_sources(root: pathlib.Path, verdicts: list[SourceVerdict],
     # Код 1 — «находки НАЗВАНЫ»: перечень, у которого внешний источник ЕСТЬ, а
     # спросить его никто не спрашивает, и есть предмет следующей работы. Пустой
     # замер при НЕ ИЗМЕРЕНО нулём не объявляется (инв. #17).
-    # Код 1 — находки НАЗВАНЫ: подтверждённый источник, которого никто не
-    # спрашивает, ЛИБО кандидат без приговора, ЛИБО устаревший приговор.
-    # Кандидат с приговором ОТКЛОНЁН находкой НЕ является: у него внешнего
-    # источника полноты нет, и мерки он не требует (G1089 п. 2).
+    # Код 1 — находки НАЗВАНЫ: кандидат без приговора, устаревший приговор ЛИБО
+    # подтверждённый источник, которого НИКТО НЕ СПРАШИВАЕТ. Кандидат с приговором
+    # ОТКЛОНЁН находкой НЕ является: у него внешнего источника полноты нет, и мерки
+    # он не требует (G1089 п. 2).
+    #
+    # ADR-1116: «которого никто не спрашивает» до сих пор заменялось ПРОКСИ — само
+    # наличие подтверждённого источника (`1 if confirmed`). Прокси был верен, пока ни
+    # у одного из них мерки не было, и стал неверен в тот день, когда она появилась:
+    # он не умеет сказать «спросили» и держал бы код 1 навсегда. Теперь вопрос
+    # задаётся ПРЯМО (`render_measures`), и код 1 поднимает именно его ответ —
+    # долг, неподтверждённый адрес, подтверждённый без объявления, устаревшее
+    # объявление. Это УТОЧНЕНИЕ условия, а не снятие проверки: новый подтверждённый
+    # кандидат без строки в `MEASURES` по-прежнему даёт код 1.
+    measure_lines, measure_code = render_measures(root, confirmed)
+    lines.extend(measure_lines)
     code = 2 if unmeasured and not verdicts else (
-        1 if confirmed or unsentenced or stale or unmeasured else 0)
+        1 if unsentenced or stale or unmeasured or measure_code else 0)
     return "\n".join(lines), code
 
 

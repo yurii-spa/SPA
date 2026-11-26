@@ -55,6 +55,30 @@ REQUIRED_DIFF_KEYS = ('schema_version', 'inputs', 'counts', 'changes', 'findings
                       'limitations', 'component_counts', 'semantic_digest',
                       'owner_decision_candidates')
 
+#: The other side of the same question: a key the producer DOES emit and this reader
+#: deliberately does NOT require, with the reason it is safe to miss. Together with
+#: REQUIRED_DIFF_KEYS this must exhaust the producer's document — a new top-level key in
+#: `diff.py` then has to be require-or-exempt, never silently neither. The completeness of
+#: the pair is asked of the PRODUCER (ADR-1116), not of this file:
+#: `spa_core/tests/test_brief_required_diff_keys_complete.py`.
+#: Reasons below are MEASURED against this module, not assumed (occurrence counts, cycle #1262).
+NOT_REQUIRED_DIFF_KEYS = {
+    'generated_at': 'read softly as `comparison_generated_at` via .get(): a missing key '
+                    'becomes None, which is a distinguishable "not observed" rather than a '
+                    'wrong timestamp; refusing the whole briefing would be stricter than '
+                    'the subject',
+    'volatile_fields': "the PRODUCER's own list of volatile fields; this briefing declares "
+                       'its own (`page_generated_at`) and never reads that one',
+    'derived_state': 'self-description of the producer run; this reader does not take it on '
+                     'trust — `_load_stored_diff` RECOMPUTES the comparison',
+    'offline': 'same self-description; the recomputation is what makes it true here',
+    'offline_note': 'prose about the producer run; nothing in the briefing reads it',
+    'ignored_by_design': "the producer's ignore list; this briefing neither prints nor "
+                         'reads it',
+    'process_counts': 'process tables turn over constantly and are not compared row by '
+                      'row (the producer says so itself); the briefing does not read them',
+}
+
 
 def _load_stored_diff(path, old_set, new_set, checks):
     """Reuse a stored comparison only if it IS the comparison of these two sets.

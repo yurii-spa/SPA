@@ -761,6 +761,10 @@ def test_a_rejected_candidate_is_not_a_finding(monkeypatch, tmp_path):
     v = [kmlc.SourceVerdict("scripts/m.py", "X", 3, kmlc.EXTERNAL_READ, "д", 1)]
     monkeypatch.setattr(kmlc, "ADJUDICATED",
                         {"scripts/m.py::X": (kmlc.REJECTED, "стог, не контракт")})
+    # Предмет этой сцены — ведро ПРИГОВОРОВ. Ось мерки (ADR-1116) объявляется пустой,
+    # иначе боевые строки `MEASURES` на выдуманном дереве читались бы устаревшими и
+    # красили сцену по чужой причине. Своя сцена у оси мерки ниже.
+    monkeypatch.setattr(kmlc, "MEASURES", {})
     _, code = kmlc.render_sources(tmp_path, v, [])
     assert code == 0
 
@@ -775,9 +779,72 @@ def test_a_string_bucket_alone_exits_zero(monkeypatch, tmp_path):
     """Ведро «ВОПРОСА НЕТ» одно по себе кодом 1 не становится."""
     v = [kmlc.SourceVerdict("scripts/m.py", "W", 3, kmlc.HAYSTACK, "строка", 1)]
     monkeypatch.setattr(kmlc, "ADJUDICATED", {})
+    monkeypatch.setattr(kmlc, "MEASURES", {})  # предмет сцены — ведро строк
     text, code = kmlc.render_sources(tmp_path, v, [])
     assert code == 0
     assert "ВОПРОСА О ПОЛНОТЕ НЕТ" in text
+
+
+def _confirmed_scene(monkeypatch, measures):
+    """Одна подтверждённая сверка и объявленная ось мерки — минимальная сцена ADR-1116."""
+    v = [kmlc.SourceVerdict("scripts/m.py", "LIST", 3, kmlc.EXTERNAL_READ, "д", 1)]
+    monkeypatch.setattr(kmlc, "ADJUDICATED",
+                        {"scripts/m.py::LIST": (kmlc.CONFIRMED, "писатель объявил контракт")})
+    monkeypatch.setattr(kmlc, "MEASURES", measures)
+    return v
+
+
+def test_a_confirmed_source_without_a_declared_measure_is_a_finding(monkeypatch, tmp_path):
+    """Источник ЕСТЬ, а спросили его или нет — не сказано. Это находка, не молчание."""
+    v = _confirmed_scene(monkeypatch, {})
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 1
+    assert "ПОДТВЕРЖДЁННЫЙ БЕЗ ОБЪЯВЛЕНИЯ МЕРКИ" in text
+
+
+def test_a_measure_declared_absent_is_the_named_debt(monkeypatch, tmp_path):
+    v = _confirmed_scene(monkeypatch, {"scripts/m.py::LIST": (kmlc.MEASURE_ABSENT, "долг")})
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 1
+    assert kmlc.MEASURE_ABSENT in text
+
+
+def test_a_measure_that_names_the_list_exits_zero(monkeypatch, tmp_path):
+    v = _confirmed_scene(monkeypatch, {"scripts/m.py::LIST": ("t.py", "причина")})
+    (tmp_path / "t.py").write_text("from m import LIST\nassert LIST\n", encoding="utf-8")
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 0, text
+    assert "мерка НАЗВАНА и найдена 1" in text
+
+
+def test_an_address_that_only_mentions_the_list_in_prose_is_not_a_measure(monkeypatch,
+                                                                          tmp_path):
+    """Анти-подстрочный контроль: упоминание в докстринге зовом НЕ является.
+
+    Ровно тот дефект, который цикл #1217 нашёл у собственной пробы — имя двери
+    искалось подстрокой и находилось в тексте о ней, а не в коде.
+    """
+    v = _confirmed_scene(monkeypatch, {"scripts/m.py::LIST": ("t.py", "причина")})
+    (tmp_path / "t.py").write_text('"""Про LIST тут написано, а зова нет."""\nx = 1\n',
+                                   encoding="utf-8")
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 1
+    assert "мерки не содержит" in text
+
+
+def test_a_measure_address_that_cannot_be_parsed_is_not_a_pass(monkeypatch, tmp_path):
+    v = _confirmed_scene(monkeypatch, {"scripts/m.py::LIST": ("missing.py", "причина")})
+    text, code = kmlc.render_sources(tmp_path, v, [])
+    assert code == 1
+    assert "адрес не разобран" in text
+
+
+def test_a_measure_declared_for_a_vanished_candidate_is_stale(monkeypatch, tmp_path):
+    monkeypatch.setattr(kmlc, "ADJUDICATED", {})
+    monkeypatch.setattr(kmlc, "MEASURES", {"scripts/gone.py::OLD": ("t.py", "причина")})
+    text, code = kmlc.render_sources(tmp_path, [], [])
+    assert code == 1
+    assert "ОБЪЯВЛЕНИЕ МЕРКИ УСТАРЕЛО" in text
 
 
 def test_an_unreadable_scene_is_the_third_outcome_not_zero(tmp_path):
