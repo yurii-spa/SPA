@@ -241,6 +241,7 @@
 | ADR-1110 | ADR-1110 — Класс «сторож закрепляет СЧЁТЧИК там, где предмет — СОСТАВ» ИЗМЕРЕН: предмет ПУСТ при вилке 0…3, траектория формы 1310 → 0 | Accepted | [ADR-1110](ADR-1110-counter-vs-composition-class-measured.md) |
 | ADR-1111 | ADR-1111 — Дерево работы у утренней сводки было РАСПОЛОЖЕНИЕМ файла, а не входом: починка о простое не применима во время простоя | Accepted | [ADR-1111](ADR-1111-work-tree-is-an-input-to-the-morning-digest.md) |
 | ADR-1112 | ADR-1112 — Доставка не спрашивала, РАСТИТ ли она долг непроверенных чтений `origin/main`: предмет храповика 50 → 80 при базе, замороженной 22.09 | Accepted | [ADR-1112](ADR-1112-delivery-asks-whether-it-grows-ungated-ref-reads.md) |
+| ADR-1113 | ADR-1113 — Закрытый перечень известных членов не растёт сам: положительный контроль переписи был зелен ПО ПОСТРОЕНИЮ (3 из 4), предмет 121 → 412 | Accepted | [ADR-1113](ADR-1113-closed-known-member-list-makes-the-control-green-by-construction.md) |
 
 ## Соглашения
 

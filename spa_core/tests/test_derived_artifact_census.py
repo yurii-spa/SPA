@@ -238,9 +238,15 @@ class SurvivorsOfTheMutationRunOfCycle1223(unittest.TestCase):
             "spa_core/tests/test_untiered_census.py",
             "spa_core/tests/test_tracker_board_matches_cards.py",
             "spa_core/tests/test_adr_index_titles.py",
+            # ЧЕТВЁРТЫЙ дочитан циклом #1259 (ADR-1113), и это УСИЛЕНИЕ якоря, а
+            # не его ослабление (инв. #16): перечень был заморожен на трёх, член
+            # найден 26.11 (ADR-1112), и прибор печатал «все 3 из 3 ВНУТРИ
+            # предмета» — правду о СПИСКЕ вместо ответа о КЛАССЕ. Контроль, не
+            # знающий о члене, не может быть им опровергнут.
+            "spa_core/tests/test_python_git_ref_provenance.py",
         }, "перечень известных членов класса разошёлся с независимым якорем: "
-           "каждый из трёх найден поимённо ПОСЛЕ того, как красное уехало на "
-           "`main` (ADR-1073 · ADR-1060 · ADR-889)")
+           "каждый найден поимённо ПОСЛЕ того, как красное уехало на "
+           "`main` (ADR-1073 · ADR-1060 · ADR-889 · ADR-1112)")
         for path, why in mod.KNOWN_MEMBERS.items():
             with self.subTest(member=path):
                 self.assertTrue(str(why).strip(),
@@ -551,3 +557,215 @@ class TheProbeMeasuresTheOutcomeNotTheProse(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheTwoDoorsThatTheFourthKnownMemberNeeded(unittest.TestCase):
+    """Замер #1259: ни одна из двух дверей в одиночку члена 4 не возвращает.
+
+    Поломка, которую воспроизводит КАЖДАЯ проба ниже, измерена на живом дереве
+    `fbb0fa45a`: `spa_core/tests/test_python_git_ref_provenance.py` (ADR-1112)
+    отсутствовал в поверхности ВОВСЕ — `_repo_helpers` отдавал `[]`, а
+    `_named_source_dirs` отдавал `[]`, — при том что прибор печатал «все 3
+    известных члена ВНУТРИ предмета». Правда о списке за ответ о классе.
+    """
+
+    #: Сцена четвёртого члена ДОСЛОВНО по форме: каталог на `sys.path`, ввоз
+    #: помощника БАРЕ-ИМЕНЕМ, корень репозитория привязкой, перечисление — в
+    #: помощнике по аргументу. Обе двери нужны одновременно.
+    MEMBER4_FORM = (
+        "import sys\n"
+        "from pathlib import Path\n"
+        "REPO = Path(__file__).resolve().parents[2]\n"
+        "sys.path.insert(0, str(REPO / 'scripts'))\n"
+        "from zz_tool_of_the_scene import main\n"
+        "def test_x():\n"
+        "    assert main(['--root', str(REPO)]) == 0\n")
+
+    HELPER = ("import pathlib\n"
+              "def python_files(root):\n"
+              "    return sorted(root.rglob('*.py'))\n"
+              "def main(argv):\n"
+              "    return 0 if python_files(pathlib.Path(argv[1])) else 1\n")
+
+    def _scene_of_member4(self, root: pathlib.Path) -> None:
+        helper = root / "scripts" / "zz_tool_of_the_scene.py"
+        helper.parent.mkdir(parents=True, exist_ok=True)
+        helper.write_text(self.HELPER, encoding="utf-8")
+        _scene(root, "like_member_four", self.MEMBER4_FORM)
+
+    def test_a_helper_imported_by_BARE_NAME_after_sys_path_insert_is_found(self):
+        """Дверь 1. Голова баре-ввоза каталога не называет — найти его можно
+
+        только через каталоги, которые файл САМ положил на `sys.path`. До #1259
+        поиск помощников знал лишь пунктирную форму (`scripts.x`), и помощник
+        четвёртого члена был невидим.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_bare_") as d:
+            root = pathlib.Path(d)
+            self._scene_of_member4(root)
+            path = root / "spa_core" / "tests" / "test_like_member_four.py"
+            import ast as _ast
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+            res = mod._PathResolver(tree, pathlib.PurePosixPath(
+                "spa_core/tests/test_like_member_four.py"))
+            helpers = [h.relative_to(root).as_posix()
+                       for h in mod._repo_helpers(root, tree, res)]
+        self.assertIn("scripts/zz_tool_of_the_scene.py", helpers,
+                      "помощник, ввезённый БАРЕ-ИМЕНЕМ после `sys.path.insert`, "
+                      "не найден — хоп через него не состоится, и член класса "
+                      "окажется ВНЕ поверхности молча")
+
+    def test_sys_path_dirs_asks_the_RECEIVER_not_the_method_name(self):
+        """Обратная половина двери 1: `insert` носят десятки списков.
+
+        Совпадение по ИМЕНИ МЕТОДА — ровно тот дефект, из-за которого в
+        поверхность попали 547 зовов `ast.walk` (ADR-1074). Здесь каталог
+        кладётся в ОБЫЧНЫЙ список, и каталогом на пути поиска он не является.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_recv_") as d:
+            root = pathlib.Path(d)
+            (root / "scripts").mkdir(parents=True, exist_ok=True)
+            _scene(root, "not_sys_path",
+                   "from pathlib import Path\n"
+                   "REPO = Path(__file__).resolve().parents[2]\n"
+                   "bag = []\n"
+                   "bag.insert(0, str(REPO / 'scripts'))\n"
+                   "def test_x():\n"
+                   "    assert bag\n")
+            path = root / "spa_core" / "tests" / "test_not_sys_path.py"
+            import ast as _ast
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+            res = mod._PathResolver(tree, pathlib.PurePosixPath(
+                "spa_core/tests/test_not_sys_path.py"))
+            dirs = [str(x) for x in mod._sys_path_dirs(root, tree, res)]
+        self.assertEqual([], dirs,
+                         "каталог, положенный в ОБЫЧНЫЙ список, объявлен лежащим "
+                         "на `sys.path` — мерка отвечает на вопрос «как называется "
+                         "метод», а не «что на пути поиска»")
+
+    def test_the_repo_ROOT_is_a_source_dir_and_not_an_empty_path(self):
+        """Дверь 2. Корень репозитория — МАКСИМАЛЬНЫЙ каталог исходников.
+
+        До #1259 `_named_source_dirs` отбрасывал путь с пустыми `parts`, то есть
+        отвечал на вопрос «назван ли ПОДКАТАЛОГ». Сторож, чей помощник
+        перечисляет `REPO.rglob('*.py')`, краснеет от ЛЮБОГО нового `*.py` —
+        это самый сильный член класса, и отбрасывать его значило ошибаться в
+        сторону «чисто».
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_root_") as d:
+            root = pathlib.Path(d)
+            self._scene_of_member4(root)
+            path = root / "spa_core" / "tests" / "test_like_member_four.py"
+            import ast as _ast
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+            res = mod._PathResolver(tree, pathlib.PurePosixPath(
+                "spa_core/tests/test_like_member_four.py"))
+            named = mod._named_source_dirs(root, res)
+        self.assertIn(".", named,
+                      "корень репозитория не назван каталогом исходников — "
+                      "сторож, перечисляющий всё дерево, выпадает из предмета")
+
+    def test_the_state_dir_is_STILL_not_a_source_dir(self):
+        """Обратная половина двери 2: `data/` предметом не стало.
+
+        Правка «пустые `parts` больше не отказ» могла снять и отсев каталога
+        СОСТОЯНИЯ — тогда предмет вырос бы на сторожей, чей набор доставкой кода
+        не растёт вовсе. Проба закрепляет, что отсев жив.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_state_") as d:
+            root = pathlib.Path(d)
+            (root / "data").mkdir(parents=True, exist_ok=True)
+            (root / "scripts").mkdir(parents=True, exist_ok=True)
+            _scene(root, "state_named",
+                   "from pathlib import Path\n"
+                   "REPO = Path(__file__).resolve().parents[2]\n"
+                   "DATA = REPO / 'data'\n"
+                   "def test_x():\n"
+                   "    assert DATA.is_dir()\n")
+            path = root / "spa_core" / "tests" / "test_state_named.py"
+            import ast as _ast
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+            res = mod._PathResolver(tree, pathlib.PurePosixPath(
+                "spa_core/tests/test_state_named.py"))
+            named = mod._named_source_dirs(root, res)
+        self.assertNotIn("data", named,
+                         "каталог СОСТОЯНИЯ объявлен каталогом исходников — "
+                         "доставкой кода его набор не растёт, и предмет раздулся "
+                         "бы на сторожей вне класса")
+
+    def test_BOTH_doors_are_needed_for_the_member4_form(self):
+        """Несущее утверждение #1259: ни одна дверь в одиночку члена не вернёт.
+
+        Замер на живом дереве дал это тремя редакциями (121 / 123 / 401 — член
+        ВНЕ предмета у всех трёх, 412 — ВНУТРИ). Здесь то же утверждение
+        закреплено сценой: у формы члена 4 отбирается по одной двери, и предмет
+        обязан ПОТЕРЯТЬ файл в обоих случаях.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_both_") as d:
+            root = pathlib.Path(d)
+            self._scene_of_member4(root)
+            rel = "spa_core/tests/test_like_member_four.py"
+
+            with_both = {e.path for e in mod.measure_surface(root).subject}
+            self.assertIn(rel, with_both,
+                          "обе двери на месте, а член формы 4 вне предмета")
+
+            # дверь 1 отобрана: каталоги `sys.path` не спрашиваются
+            orig_sys = mod._sys_path_dirs
+            try:
+                mod._sys_path_dirs = lambda *a, **k: []
+                без_двери1 = {e.path for e in mod.measure_surface(root).subject}
+            finally:
+                mod._sys_path_dirs = orig_sys
+            self.assertNotIn(rel, без_двери1,
+                             "без двери 1 член формы 4 ВСЁ ЕЩЁ в предмете — "
+                             "значит проба закрепляет не ту дверь")
+
+            # дверь 2 отобрана: корень репозитория снова отбрасывается
+            orig_named = mod._named_source_dirs
+            try:
+                mod._named_source_dirs = (
+                    lambda r, res: [x for x in orig_named(r, res) if x != "."])
+                без_двери2 = {e.path for e in mod.measure_surface(root).subject}
+            finally:
+                mod._named_source_dirs = orig_named
+            self.assertNotIn(rel, без_двери2,
+                             "без двери 2 член формы 4 ВСЁ ЕЩЁ в предмете — "
+                             "значит корень репозитория был не нужен")
+
+    def test_the_INERT_plant_boundary_is_PRINTED_not_left_in_prose(self):
+        """Граница зонда обязана быть в ОТЧЁТЕ, а не только в докстринге.
+
+        Замер #1259 на четвёртом члене: инертный зонд оставил предмет храповика
+        на 80, содержательный довёл до 81. Значит «не предмет» у такого сторожа
+        есть ответ О ЗОНДЕ. Читатель отчёта обязан это видеть — иначе он примет
+        ответ о зонде за ответ о классе.
+        """
+        mod = _load()
+        empty = mod.Differential(root="/nowhere", entries=[])
+        text = mod.render_differential(empty)
+        self.assertIn("ЗОНД ИНЕРТЕН", text,
+                      "граница зонда в отчёте не напечатана")
+        self.assertIn("80", mod.PLANTED_INERT,
+                      "у границы зонда нет ЗАМЕРА — осторожность вместо числа")
+
+    def test_an_already_red_guard_is_not_called_not_a_subject(self):
+        """Премиса дифференциала: «красен ДО» — третий исход, а не «не предмет».
+
+        Четвёртый член класса красен на чистом `main` (долг храповика 80 против
+        базы 50 — ADR-1112 назвал это верным), и дифференциал по нему дал
+        `already_red`. Прочитать это как «не предмет» значило бы объявить
+        члена класса не-членом по причине, к классу не относящейся.
+        """
+        mod = _load()
+        kind, why = mod._classify("failed=1,passed=47", "failed=1,passed=47")
+        self.assertEqual(mod.ALREADY_RED, kind)
+        self.assertNotEqual(mod.NOT_SUBJECT, kind,
+                            "красный ДО подкладывания объявлен «не предметом»")
+        self.assertIn("зелёным", why,
+                      "причина не называет недоступную премису")
