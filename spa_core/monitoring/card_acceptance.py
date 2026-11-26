@@ -22918,7 +22918,146 @@ def _probe_known_member_list_completeness_is_asked(
                        f"НЕ РАЗОБРАНО файлов {len(unparsed)}")
 
 
+def _probe_snapshot_view_exclusions_are_measured(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: ни одно поле снимка не может напечатать «undefined» молча.
+
+    Предмет — карточка `inbox-perehodnik-snimka-ne-otdaet-61-put-stran`, заказ
+    G1091 п. 3 приказа владельца «Portfolio CIO». Сторож формы
+    `test_site_snapshot_view_shape.py` краснел на **61** пути переходника
+    `landing/src/lib/snapshot_view.js`, и у каждого честных исходов ровно два:
+    поле читают ⇒ его место в переходнике; не читает никто ⇒ объявить в
+    `NOT_IN_VIEW` с ИЗМЕРЕННОЙ причиной (ADR-1117).
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в сторожe ни числа 61, ни
+    имени константы: она (1) сверяет форму снимка с формой переходника теми же
+    дверями, что и сторож, и (2) ТРЕБУЕТ, чтобы дверь замера спроса
+    РАЗЛИЧАЛА мир — на одноразовой сцене, где поле читают, путь обязан уйти из
+    «не читает никто». Дверь, отвечающая «не читает» всегда, зачла бы любую
+    выдумку за причину, и проба такую дверь ОТКЛОНЯЕТ. Подстрокой проба не
+    проходит (ADR-333).
+
+    Три исхода различимы (инв. #17): нет `node`, нет прибора, нет сайта в этом
+    дереве ⇒ `unmeasured` с названной причиной, а не «выполнено».
+
+    Дерево — ВХОД (`repo_root`). Проба только ЧИТАЕТ: ни переходника, ни снимка,
+    ни страниц, ни живого `data/` она не правит.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "форма переходника целиком, пофайловой формы у него нет")
+
+    import importlib.util as _ilu
+    import json as _json
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    tool = root / "scripts" / "snapshot_view_field_demand.py"
+    if not tool.is_file():
+        return NOT_SATISFIED, (f"прибора замера спроса нет: {tool} отсутствует — причину "
+                               "исключения перемерить нечем, она снова обещание")
+    guard_file = root / "spa_core" / "tests" / "test_site_snapshot_view_shape.py"
+    if not guard_file.is_file():
+        return UNMEASURED, f"сторожа формы нет в этом дереве: {guard_file}"
+    snapshot = root / "landing" / "src" / "data" / "track_snapshot.json"
+    if not snapshot.is_file():
+        return UNMEASURED, f"сайт не развёрнут в этом дереве: нет {snapshot}"
+
+    def _import(path: "_pathlib.Path", name: str):
+        spec = _ilu.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"не ввозится: {path}")
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    try:
+        demand = _import(tool, "spa_svfd_probe")
+        guard = _import(guard_file, "spa_svs_probe")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"прибор или сторож не ввозится: {exc}"
+
+    for door in ("measure", "not_read_paths", "NOT_READ", "READ_VIEW"):
+        if not hasattr(demand, door):
+            return NOT_SATISFIED, f"у прибора нет двери `{door}` — спрос спрашивать нечем"
+
+    # (1) Форма: каждый путь снимка либо в переходнике, либо объявлен с причиной.
+    try:
+        view = guard.load_view(root)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"форму переходника нечем снять: {exc}"
+    snap_paths = guard.paths(_json.loads(snapshot.read_text(encoding="utf-8")))
+    missing = sorted(snap_paths - guard.paths(view) - set(guard.NOT_IN_VIEW))
+    if missing:
+        return NOT_SATISFIED, (f"переходник не отдаёт {len(missing)} пут(ь/и) снимка и ни "
+                               f"один не объявлен: {missing[:4]} — страница напечатает "
+                               "«undefined» молча")
+    empty = sorted(k for k, why in guard.NOT_IN_VIEW.items() if not str(why).strip())
+    if empty:
+        return NOT_SATISFIED, f"исключение без причины: {empty}"
+
+    # (2) Дверь обязана РАЗЛИЧАТЬ мир: сцена, где поле читают, теряет его из «не читает».
+    scene_snapshot = {"real_track_days": 1, "track_period": {"twr_pct": 2.0}}
+    scene_view = ("import NUMBERS from '../data/site_numbers.json';\n"
+                  "import RAW from '../data/track_snapshot.json';\n"
+                  "export default { real_track_days: RAW.real_track_days };\n")
+
+    def _scene(tmp: "_pathlib.Path", page: str) -> "_pathlib.Path":
+        base = tmp / "tree" / "landing" / "src"
+        (base / "data").mkdir(parents=True)
+        (base / "lib").mkdir(parents=True)
+        (base / "pages").mkdir(parents=True)
+        (base / "data" / "track_snapshot.json").write_text(
+            _json.dumps(scene_snapshot), encoding="utf-8")
+        (base / "data" / "site_numbers.json").write_text("{}", encoding="utf-8")
+        (base / "lib" / "snapshot_view.js").write_text(scene_view, encoding="utf-8")
+        (base / "pages" / "one.astro").write_text(page, encoding="utf-8")
+        return tmp / "tree"
+
+    imp = "import snap from '../lib/snapshot_view.js';\n"
+    try:
+        with _tempfile.TemporaryDirectory() as tmp:
+            silent = demand.not_read_paths(
+                _scene(_pathlib.Path(tmp), imp + "const x = snap.real_track_days;\n"))
+        with _tempfile.TemporaryDirectory() as tmp:
+            reading = demand.not_read_paths(
+                _scene(_pathlib.Path(tmp), imp + "const x = snap.track_period.twr_pct;\n"))
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена-различитель не состоялась: {exc}"
+    if "/track_period/twr_pct" not in silent:
+        return NOT_SATISFIED, ("дверь не называет НЕЧИТАЕМОЕ поле нечитаемым — мерка "
+                               "отвечает «читают» всегда и причиной быть не может")
+    if "/track_period/twr_pct" in reading:
+        return NOT_SATISFIED, ("дверь держит путь в «не читает никто», когда его ЧИТАЮТ — "
+                               "причина исключения стала бы прикрытием дефекта")
+
+    # (3) Живое дерево: причины, ссылающиеся на замер, подтверждены замером.
+    try:
+        unread = demand.not_read_paths(root, want_view_shape=False)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"замер спроса в живом дереве не состоялся: {exc}"
+    claimed = sorted(p for p, why in guard.NOT_IN_VIEW.items()
+                     if "snapshot_view_field_demand" in str(why))
+    if not claimed:
+        return NOT_SATISFIED, ("ни одна причина исключения не ссылается на замер спроса — "
+                               "база снова держится на словах")
+    broken = sorted(p for p in claimed if p not in unread)
+    if broken:
+        return NOT_SATISFIED, (f"причина исключения БОЛЬШЕ НЕ ВЕРНА у {len(broken)} "
+                               f"пут(и/ей): {broken[:4]} — поле читают, а переходник его "
+                               "не несёт")
+    got = demand.measure(root, want_view_shape=False)
+    return SATISFIED, (f"форма накрыта: путей снимка {len(snap_paths)}, потерянных 0; "
+                       f"причин по замеру {len(claimed)}, все подтверждены; дверь "
+                       f"РАЗЛИЧАЕТ мир на двух сценах; живой замер — читают через "
+                       f"переходник {sum(1 for v in got['verdict'].values() if v == demand.READ_VIEW)}, "
+                       f"не читает никто {len(got['not_read'])}, дорог НЕ ИЗМЕРЕНО "
+                       f"{len(got['unmeasured'])}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "snapshot_view_exclusions_are_measured":
+        _probe_snapshot_view_exclusions_are_measured,
     "known_member_list_completeness_is_asked":
         _probe_known_member_list_completeness_is_asked,
     "named_data_dir_class_measurable":

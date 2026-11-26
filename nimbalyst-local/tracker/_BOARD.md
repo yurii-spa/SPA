@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T19:28:56Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T22:04:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (cf5d12299) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (9611f1697) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1703** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1704** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -47,7 +47,7 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-93227` · с 2026-11-24T16:47:55Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (399)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (400)
 
 ### · needs-owner
 - Включить агента-мост: починку доставили 30.10, а он до сих пор выключен — 27 суток без замеров  ·  `own-vklyuchit-agenta-mosta-on-pochinen-i-vyklyuchen.md` · 2026-11-25
@@ -298,6 +298,7 @@
 - Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет  ·  `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes.md` · 2026-10-01
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2.md` · 2026-10-22
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md` · 2026-10-29
+- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-5.md` · 2026-11-26
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra.md` · 2026-10-06
 - Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)  ·  `owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne.md` · 2026-10-01
 - Сайт: устаревшие и спорные утверждения — что менять  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md` · 2026-09-08
@@ -788,6 +789,7 @@
 - Оживить девять мёртвых фидов: адаптер есть, живое число не приходит, гейт верно отказывает статике (G1)  ·  `inbox-ozhivit-devyat-mertvyh-fidov-adapter-est.md` · 2026-09-08
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
+- Переходник снимка не отдаёт 61 путь — страница может напечатать «undefined» молча  ·  `inbox-perehodnik-snimka-ne-otdaet-61-put-stran.md` · 2026-11-26
 - Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец  ·  `inbox-perepis-chitatelei-zhurnala-slepa-k-20-h.md` · 2026-09-16
 - Перепись границ данных краснеет на чистом main: населения 39 против зафиксированных 35  ·  `inbox-perepis-granits-dannyh-krasneet-na-chist.md` · 2026-10-23
@@ -1244,7 +1246,6 @@
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Перечень видов ленты research_factory не имеет читателя и расходится с самой лентой в обе стороны  ·  `inbox-perechen-vidov-lenty-research-factory-ne.md` · 2026-10-24
 - Перечни, которые можно опустошить молча: область замера закрыта на один пакет из сорока одного  ·  `inbox-perechni-kotorye-mozhno-opustoshit-molch.md` · 2026-11-07
-- Переходник снимка не отдаёт 61 путь — страница может напечатать «undefined» молча  ·  `inbox-perehodnik-snimka-ne-otdaet-61-put-stran.md` · 2026-11-26
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
 - Перепись cd-перед-git КРАСНА на main: deploy_all.sh берёт каталог из окружения  ·  `inbox-perepis-cd-pered-git-krasna-na-main-depl.md` · 2026-10-07

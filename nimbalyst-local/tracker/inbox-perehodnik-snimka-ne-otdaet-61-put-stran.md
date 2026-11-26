@@ -2,10 +2,14 @@
 trackerStatus:
   type: inbox
 title: Переходник снимка не отдаёт 61 путь — страница может напечатать «undefined» молча
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-26
 twin_key: "sha256:160d75de650b16281f6f02c21404aaf2a0727dc954c8abec363435ad3ef0d376"
+acceptance_probe: snapshot_view_exclusions_are_measured
+status_trail:
+  - "2026-11-26T21:06:38.120351+00:00 new -> in-progress · queue.set_status · cycle-94089"
+  - "2026-11-26T21:06:43.321972+00:00 in-progress -> done · queue.set_status/closed_by:cycle-1263/evidence:проба snapshot_view_exclusions_are_measured = satisfied (368 путей снимка, потерянных 0; 61 причина по замеру, все подтверждены; дверь РАЗЛИЧАЕТ мир на двух сценах); 45 passed в spa_core/tests/test_sn · cycle-94089"
 ---
 
 ## Что измерено
