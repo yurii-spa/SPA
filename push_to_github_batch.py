@@ -237,6 +237,25 @@ DeliveredModuleIsNotInTheCensus = _root_push.DeliveredModuleIsNotInTheCensus
 UNCENSUSED_MODULE_EXIT = _root_push.UNCENSUSED_MODULE_EXIT
 CENSUS_REL = _root_push.CENSUS_REL
 
+# Тринадцатая дверь семейства (ADR-1112) — «РАСТИТ ли доставка долг чтений
+# `origin/<ветка>`, чья свежесть не доказана». Та же ОДНА реализация и по той же
+# причине, что у соседей: своя копия означала бы, что одна дверь отказывает, а
+# вторая молча везёт зов, который покраснит `test_python_git_ref_provenance` на
+# `main`. Замер 26.11: база заморожена 22.09, предмет на `origin/main` вырос с 50
+# личностей до 80 (неразобранных 6 → 18), сторож красен четырьмя именами с 17.11.
+# ⚠️ Имена ввозятся ВСЕ, какие упомянуты ниже в `except`: урок цикла #1217 —
+# `except <Имя>`, которого в модуле нет, превращает отказ в `NameError`, то есть
+# ровно в миг находки даёт код 1 вместо кода двери.
+enforce_delivery_ref_provenance = _root_push.enforce_delivery_ref_provenance
+delivery_ref_provenance_summary = _root_push.delivery_ref_provenance_summary
+provenance_baseline_after_delivery = _root_push.provenance_baseline_after_delivery
+origin_python_shadow = _root_push.origin_python_shadow
+origin_tip_sha = _root_push.origin_tip_sha
+DeliveryGrowsUngatedRefReads = _root_push.DeliveryGrowsUngatedRefReads
+UNGATED_REF_READ_EXIT = _root_push.UNGATED_REF_READ_EXIT
+PROVENANCE_BASELINE_REL = _root_push.PROVENANCE_BASELINE_REL
+PROVENANCE_PROBER_REL = _root_push.PROVENANCE_PROBER_REL
+
 # Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
 # реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
 # причине, что у пина: две копии означали бы, что одна дверь отказывает, а
@@ -301,6 +320,12 @@ def main():
                              "такой пуш отклоняется; починка — "
                              "`audit_untiered_analytics.py --emit-markup` + "
                              "перепись в наборе)")
+    parser.add_argument("--allow-ungated-ref-read", action="store_true",
+                        help="ОСОЗНАННО доставить `*.py`, добавляющий чтение "
+                             "`origin/<ветка>`, свежесть которой не доказана "
+                             "(по умолчанию такой пуш отклоняется: он растит "
+                             "предмет храповика ADR-362; давний долг отказа не "
+                             "вызывает)")
     parser.add_argument("--allow-prod-root-relative", action="store_true",
                         help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
                              "когда позвали из другого дерева; по умолчанию такой путь "
@@ -451,6 +476,25 @@ def main():
         print(f"\nОТКАЗ (перепись не называет уезжающий модуль): {e}",
               file=sys.stderr)
         sys.exit(UNCENSUSED_MODULE_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── РАСТИТ ЛИ ДОСТАВКА ДОЛГ НЕПРОВЕРЕННЫХ ЧТЕНИЙ ССЫЛКИ (ADR-1112) ──────────
+    # Тот же вызов и тот же порядок, что в push_to_github.py: реализация одна,
+    # дверей две. Спрашивается СВЕЖЕСТЬ ссылки, которую читает уезжающий код, а
+    # не индекс и не перепись — соседи о ней не знают ничего.
+    allow_ungated_ref_read = bool(
+        getattr(args, "allow_ungated_ref_read", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_UNGATED_REF_READ") == "1"
+    try:
+        enforce_delivery_ref_provenance(all_files,
+                                        allow=allow_ungated_ref_read,
+                                        runner_file=__file__)
+    except DeliveryGrowsUngatedRefReads as e:
+        print(f"\nОТКАЗ (доставка растит долг непроверенных чтений): {e}",
+              file=sys.stderr)
+        sys.exit(UNGATED_REF_READ_EXIT)
     except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)

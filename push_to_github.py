@@ -3335,6 +3335,450 @@ def delivery_census_name_summary() -> str:
             f"модул(ь/я/ей)")
 
 
+# ── ТРИНАДЦАТАЯ ДВЕРЬ СЕМЕЙСТВА (ADR-1112) ───────────────────────────────────
+# Вопрос: РАСТИТ ли эта доставка долг чтений `origin/<ветка>`, чья свежесть не
+# доказана (храповик ADR-362)? Соседи по семейству спрашивают про уезжающие
+# БАЙТЫ (пин, ADR-774), про их ДЕРЕВО (ADR-796), про РАЗБИРАЕМОСТЬ (ADR-886),
+# про производные индексы — реестр решений (ADR-889), доску очереди (ADR-1060),
+# перепись аналитики (ADR-1073). Ни один из них не знает, что уезжающий `*.py`
+# может ДОБАВИТЬ зов, читающий устаревший кэш ссылки вместо ответа сервера.
+#
+# ЗАМЕР, из-за которого дверь появилась (2026-11-26, цикл #1258): база храповика
+# `scripts/python_git_ref_provenance_baseline.json` не менялась с 2026-09-22
+# (вершина 54da6223e), а предмет на `origin/main` вырос с **50** личностей до
+# **80** (+30, ушло 0), неразобранные зовы — с 6 до 18 (+14, ушло 2). Сторож
+# ЕСТЬ и красит `main` четырьмя именами с 17.11, но он отвечает на вопрос «дерево
+# расходится с базой», а НЕ на вопрос «твоя доставка сделала его хуже»: на
+# непустом предмете вердикт БИНАРЕН, и новый зов неотличим от прежних тридцати.
+UNGATED_REF_READ_EXIT = 20
+
+#: Прибор и его база — ЕДИНСТВЕННЫЕ двери разбора. Свою здесь заводить нельзя:
+#: правило принятия базы у прибора непростое (схема, разделы С ПРИЧИНОЙ), и
+#: вторая копия означала бы, что гейт пускает через себя ровно то, из-за чего
+#: понадобился.
+PROVENANCE_PROBER_REL = "scripts/python_git_ref_provenance.py"
+PROVENANCE_BASELINE_REL = "scripts/python_git_ref_provenance_baseline.json"
+
+_REF_PROVENANCE_VERDICTS: list = []
+_REF_PROVENANCE_GATE: dict = {"called": False}
+
+
+class DeliveryGrowsUngatedRefReads(RuntimeError):
+    """Доставка добавляет чтение ссылки, свежесть которой не доказана."""
+
+
+def _provenance_prober(runner_file: Optional[str] = None):
+    """Ввозит ЕДИНСТВЕННЫЕ двери прибора ADR-362 → ``(модуль, причина)``.
+
+    Прибор берётся из дерева ЗАПУЩЕННОГО CLI (ADR-796), как у соседей: судья и
+    его инструмент приходят из одного дерева, иначе «что уедет» и «чем мерено»
+    разошлись бы молча.
+    """
+    import importlib.util as _ilu
+
+    base = Path(os.path.abspath(runner_file or __file__)).parent
+    path = base / PROVENANCE_PROBER_REL
+    try:
+        spec = _ilu.spec_from_file_location("_provenance_for_ref_gate", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — рост "
+                      f"долга непроверенных чтений НЕ ИЗМЕРЕН")
+    for door in ("main", "census", "subject_keys", "unresolved_keys",
+                 "BASELINE_SCHEMA"):
+        if not hasattr(mod, door):
+            return None, (f"{path} не несёт двери `{door}` — единственной двери "
+                          f"разбора нет, свою здесь заводить ЗАПРЕЩЕНО")
+    return mod, None
+
+
+def provenance_baseline_after_delivery(file_args: list, branch: str = "main",
+                                       dest: Optional[Path] = None,
+                                       sha: Optional[str] = None) -> tuple:
+    """База храповика, которую ЭТОТ пуш оставит на origin → ``(путь, откуда, причина)``.
+
+    Вопрос про ПОСЛЕ, а не про базу в дереве: база, перезамороженная в рабочей
+    копии и НЕ включённая в ``--files``, на origin не попадёт, и сторож там
+    по-прежнему будет судить по старой. Спроси дерево — и гейт зеленел бы ровно
+    в том случае, ради которого написан (тот же довод, что у ADR-1060/1073).
+
+    Источников два и они исчерпывающие: база УЕЗЖАЕТ в наборе ⇒ её байты
+    ЕДИНСТВЕННОЙ дверью :func:`read_delivery_bytes`; не уезжает ⇒ версия с
+    ``origin/<branch>``. ВЫБОР ПЕЧАТАЕТСЯ вызывающим (ADR-918: молча подставить
+    чужой граф хуже ошибки).
+    """
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        if key.replace(os.sep, "/").endswith(PROVENANCE_BASELINE_REL):
+            try:
+                raw = read_delivery_bytes(key)
+            except OSError as e:
+                return None, None, (f"байты уезжающей базы храповика не "
+                                    f"прочитаны ({type(e).__name__}: {e})")
+            if dest is None:
+                return None, None, "некуда положить уезжающую базу храповика"
+            dest.write_bytes(raw)
+            return dest, "уезжает этим пушем", None
+
+    root, why = _delivery_repo_root(file_args)
+    if root is None:
+        return None, None, why
+    if not sha:
+        return None, None, ("вершина origin не названа — базу храповика взять "
+                            "неоткуда; читать ссылку по ИМЕНИ здесь запрещено")
+    raw = _git_bytes(["cat-file", "blob", f"{sha}:{PROVENANCE_BASELINE_REL}"],
+                     root)
+    if raw is None:
+        return None, None, (f"базы `{PROVENANCE_BASELINE_REL}` нет в вершине "
+                            f"{sha[:9]} либо она не прочитана — НЕ ИЗМЕРЕНО")
+    if dest is None:
+        return None, None, "некуда положить базу храповика с origin"
+    dest.write_bytes(raw)
+    return dest, f"лежит в вершине {sha[:9]}, этим пушем не меняется", None
+
+
+def _delivery_repo_root(file_args: list) -> tuple:
+    """Корень рабочей копии, из которой уезжают байты → ``(Path|None, причина)``.
+
+    Спрашивается у git тем же путём, которым дверь ADR-796 уже назвала дерево
+    КАЖДОГО файла: корень нужен, чтобы спросить `origin/<ветка>` у ТОГО ЖЕ
+    графа, а не у случайного.
+    """
+    for fa in file_args:
+        parent = Path(_delivery_abs(fa)).parent
+        if not parent.exists():
+            continue
+        top = _git_out(["rev-parse", "--show-toplevel"], parent)
+        if top:
+            return Path(top), None
+    return None, ("ни у одного файла набора не определён корень рабочей копии "
+                  "git — сторона «до доставки» НЕ ИЗМЕРЕНА")
+
+
+def origin_tip_sha(root, branch: str = "main") -> tuple:
+    """Вершина `origin/<branch>` ПО ОТВЕТУ СЕРВЕРА → ``(sha|None, откуда, причина)``.
+
+    Эта дверь — ответ двери на СВОЙ ЖЕ предмет, и он найден не рассуждением:
+    первая редакция гейта спрашивала `origin/<branch>` ПО ИМЕНИ (`archive`,
+    `cat-file`, `rev-parse`), и сама же покраснела на себе — три новых зова,
+    читающих кэш, в двери, которая такие зовы и ловит. Положительный контроль на
+    живом приборе, а не в тесте.
+
+    Почему именно `ls-remote`, а не `fetch`:
+
+    * `fetch` СДВИНУЛ БЫ ссылку `refs/remotes/origin/<branch>`, на которую в том
+      же прогоне опираются соседние гейты (интерлок номеров ADR, строка доски,
+      страж перезаписи). Гейт, меняющий ответ соседям, хуже гейта, молчащего о
+      себе;
+    * `ls-remote` ничего не пишет и отвечает ИМЕННО сервер. Его код возврата
+      ГЕЙТИТ путь: сеть недоступна ⇒ третий исход с названной причиной, а не
+      молчаливый возврат к кэшу (инв. #17).
+
+    Полученный sha — НЕИЗМЕНЯЕМЫЙ объект, поэтому дальше ни одна ссылка по имени
+    не читается вовсе: вопрос о свежести у `archive <sha>` не возникает.
+    """
+    try:
+        r = subprocess.run(["git", "-C", str(root), "ls-remote", "origin",
+                            f"refs/heads/{branch}"],
+                           capture_output=True, text=True, timeout=60)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, None, (f"`git ls-remote` не запустился "
+                            f"({type(exc).__name__}: {exc}) — вершина origin "
+                            f"НЕ ИЗМЕРЕНА")
+    if r.returncode != 0:
+        tail = (r.stderr or "").strip().splitlines()
+        return None, None, (f"`git ls-remote origin` отказал (код "
+                            f"{r.returncode}: {tail[-1][:160] if tail else 'без текста'}) "
+                            f"— вершина origin НЕ ИЗМЕРЕНА; читать кэш вместо "
+                            f"ответа сервера здесь ЗАПРЕЩЕНО: это предмет этой "
+                            f"самой двери")
+    line = (r.stdout or "").strip().splitlines()
+    if not line:
+        return None, None, (f"сервер не назвал `refs/heads/{branch}` — вершина "
+                            f"origin НЕ ИЗМЕРЕНА")
+    sha = line[0].split()[0]
+    if len(sha) != 40 or not all(c in "0123456789abcdef" for c in sha):
+        return None, None, f"ответ сервера не похож на sha: {line[0][:80]!r}"
+    # Объект обязан БЫТЬ в клоне: архив набирается из него, а не из сети. Нет ⇒
+    # третий исход. `fetch` здесь не делается намеренно (см. докстринг).
+    # ВАЖНО: спрашивается КОД ВОЗВРАТА, а не вывод. `_git_out` отдаёт None и на
+    # успехе (`cat-file -e` ничего не печатает), поэтому «пусто» там означало бы
+    # «объекта нет» — ровно подмена «не измерено» вердиктом.
+    probe = subprocess.run(["git", "-C", str(root), "cat-file", "-e",
+                            f"{sha}^{{commit}}"], capture_output=True)
+    if probe.returncode != 0:
+        return None, None, (f"сервер назвал вершину {sha[:9]}, но этого "
+                            f"объекта в клоне НЕТ — тень origin НЕ ИЗМЕРЕНА "
+                            f"(`git fetch` здесь не делается: он сдвинул бы "
+                            f"ссылку, на которую в том же прогоне опираются "
+                            f"соседние гейты)")
+    return sha, f"спрошена у СЕРВЕРА (`ls-remote`): {sha[:9]}", None
+
+
+def _rel_within(root, abs_path) -> Optional[str]:
+    """Путь ОТНОСИТЕЛЬНО дерева доставки, либо ``None`` → ``"a/b.py"``.
+
+    Своя функция, а не :func:`repo_relative_path`: тот якорится на
+    ``PROJECT_ROOT``, то есть на ПРОД-дереве, и для файла из одноразового
+    дерева ответил бы про чужой корень — ровно класс ADR-796 на шаг ниже.
+    Разделитель всегда ``/``: в тень байты кладутся по тому же имени, под
+    которым их назвал `git archive`.
+    """
+    try:
+        rel = Path(abs_path).resolve().relative_to(Path(root).resolve())
+    except Exception:                                               # noqa: BLE001
+        return None
+    return str(rel).replace(os.sep, "/")
+
+
+def origin_python_shadow(root: Path, sha: str, dest: Path) -> tuple:
+    """Дерево ТОЛЬКО из `*.py` версии `origin/<branch>` → ``(Path|None, причина)``.
+
+    Почему тень набирается из git, а НЕ копированием рабочего дерева: обе
+    стороны сравнения обязаны стоять на одном основании, а рабочее дерево несёт
+    ещё и незакоммиченное и недоставляемое. Тогда «до» и «после» отличались бы
+    не только моей доставкой, и рост приписывался бы ей ошибочно — в любую из
+    двух сторон.
+
+    Берутся только `*.py`, потому что перепись прибора читает только их
+    (:func:`python_files`): тащить `data/` значило бы заплатить гигабайтами за
+    файлы, которых мера не касается.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    try:
+        arch = subprocess.run(["git", "-C", str(root), "archive", sha,
+                               "--", "*.py"],
+                              capture_output=True, timeout=180)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"`git archive {sha[:9]}` не запустился "
+                      f"({type(exc).__name__}: {exc})")
+    if arch.returncode != 0:
+        tail = (arch.stderr or b"").decode("utf-8", "replace").strip()[:200]
+        return None, (f"`git archive {sha[:9]}` отказал "
+                      f"(код {arch.returncode}: {tail or 'без текста'})")
+    try:
+        untar = subprocess.run(["tar", "-x", "-C", str(dest)],
+                               input=arch.stdout, capture_output=True,
+                               timeout=180)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, f"tar не запустился ({type(exc).__name__}: {exc})"
+    if untar.returncode != 0:
+        tail = (untar.stderr or b"").decode("utf-8", "replace").strip()[:200]
+        return None, f"tar отказал (код {untar.returncode}: {tail})"
+    if not any(dest.rglob("*.py")):
+        return None, (f"в тени вершины {sha[:9]} не оказалось ни одного `*.py` "
+                      f"— мерить нечего; это НЕ «чисто»")
+    return dest, None
+
+
+def _ratchet_verdict(mod, root: Path, baseline: Path) -> tuple:
+    """Вердикт храповика о дереве ``root`` → ``(новые_личности, причина)``.
+
+    Зовётся ЕДИНСТВЕННАЯ дверь прибора — его собственный ``main``. Это не
+    удобство: правило принятия базы (схема, разделы с НАЗВАННОЙ причиной) живёт
+    там, и своя копия тут означала бы второе правило рядом с первым.
+    """
+    import io as _io
+    import contextlib as _ctx
+
+    out, err = _io.StringIO(), _io.StringIO()
+    try:
+        with _ctx.redirect_stdout(out), _ctx.redirect_stderr(err):
+            rc = mod.main(["--root", str(root), "--json",
+                           "--baseline", str(baseline)])
+    except SystemExit as e:                                         # noqa: PERF203
+        return None, f"прибор вышел через SystemExit({e.code}) вместо вердикта"
+    except Exception as exc:                                        # noqa: BLE001
+        return None, f"прибор упал ({type(exc).__name__}: {exc})"
+    try:
+        doc = json.loads(out.getvalue())
+    except Exception as exc:                                        # noqa: BLE001
+        return None, f"вывод прибора не разобран как JSON ({exc})"
+    if doc.get("ratchet") is None:
+        why = doc.get("unmeasured") or (err.getvalue().strip().splitlines() or
+                                        ["причина не напечатана"])[-1]
+        return None, f"прибор вердикта храповика не вынес (код {rc}): {why[:220]}"
+    return set(doc["ratchet"]["new"]), None
+
+
+def enforce_delivery_ref_provenance(file_args: list, allow: bool = False,
+                                    runner_file: Optional[str] = None,
+                                    branch: str = "main") -> list:
+    """Доставка не вправе ДОБАВИТЬ зов, читающий ссылку недоказанной свежести.
+
+    Мерка дифференциальная, и это несущая половина: предмет на `origin/main`
+    НЕПУСТ (80 личностей замером 26.11), поэтому «дерево расходится с базой»
+    ответом о МОЕЙ доставке не является — им отвечает только разница между
+    тенью `origin/<branch>` ДО и той же тенью с уезжающими байтами.
+
+    Исходы различимы (инв. #17): НЕ РАСТИТ · РАСТИТ (отказ, с личностями зовов) ·
+    ДАВНИЙ ДОЛГ (предмет непуст и до доставки — называется, доставку НЕ держит,
+    иначе отказ запер бы чужую починку из-за чужого долга) · НЕ ИЗМЕРЕНО с
+    названной причиной. Последний доставку НЕ останавливает, и это НАЗВАННЫЙ
+    выбор, тот же, что у десятой и одиннадцатой двери: сбой git или нечитаемая
+    база остановили бы доставку КОДА, ничего не измерив, а класс при этом
+    по-прежнему краснит `main` живым сторожем. Молчанием это не является —
+    причина печатается строкой.
+    """
+    import shutil as _shutil
+    import tempfile as _tmp
+
+    _REF_PROVENANCE_VERDICTS.clear()
+    _REF_PROVENANCE_GATE["called"] = True
+
+    # Судятся только `*.py`: перепись прибора читает их и ничего больше, поэтому
+    # файл другого рода изменить вердикт НЕ МОЖЕТ. Это не экономия, а граница
+    # предмета — и она же короткое замыкание для набора без кода.
+    delivered_py = []
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        if key.replace(os.sep, "/").endswith(".py"):
+            delivered_py.append(key)
+    if not delivered_py:
+        print(f"  {delivery_ref_provenance_summary()}")
+        return list(_REF_PROVENANCE_VERDICTS)
+
+    def _unmeasured(reason):
+        _REF_PROVENANCE_VERDICTS.append({"state": "unmeasured",
+                                         "reason": reason})
+        print(f"  {delivery_ref_provenance_summary()}")
+        print(f"    НЕ ИЗМЕРЕНО   {reason}")
+        return list(_REF_PROVENANCE_VERDICTS)
+
+    mod, parser_why = _provenance_prober(runner_file)
+    if mod is None:
+        return _unmeasured(parser_why)
+
+    root, root_why = _delivery_repo_root(file_args)
+    if root is None:
+        return _unmeasured(root_why)
+
+    sha, sha_whence, sha_why = origin_tip_sha(root, branch)
+    if sha is None:
+        return _unmeasured(sha_why)
+
+    work = Path(_tmp.mkdtemp(prefix="refprov1112_"))
+    try:
+        base_path, whence, base_why = provenance_baseline_after_delivery(
+            file_args, branch=branch, dest=work / "baseline.json", sha=sha)
+        if base_path is None:
+            return _unmeasured(base_why)
+
+        before, why = origin_python_shadow(root, sha, work / "before")
+        if before is None:
+            return _unmeasured(why)
+        after, why = origin_python_shadow(root, sha, work / "after")
+        if after is None:
+            return _unmeasured(why)
+
+        # Уезжающие байты кладутся в тень ЕДИНСТВЕННОЙ дверью к ним: своё чтение
+        # с диска вернуло бы предмет ADR-774 на новом месте — гейт судил бы одни
+        # байты, а уехали бы другие.
+        placed = []
+        for key in delivered_py:
+            rel = _rel_within(root, key)
+            if rel is None:
+                return _unmeasured(
+                    f"путь {_display_path(key)} не лежит внутри дерева {root} — "
+                    f"куда его положить в тени origin, НЕ ИЗМЕРЕНО")
+            dst = after / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(read_delivery_bytes(key))
+            placed.append(rel)
+
+        new_before, why = _ratchet_verdict(mod, before, base_path)
+        if new_before is None:
+            return _unmeasured(f"сторона «до доставки»: {why}")
+        new_after, why = _ratchet_verdict(mod, after, base_path)
+        if new_after is None:
+            return _unmeasured(f"сторона «после доставки»: {why}")
+    finally:
+        _shutil.rmtree(work, ignore_errors=True)
+
+    grown = sorted(new_after - new_before)
+    debt = sorted(new_before)
+    for key in grown:
+        _REF_PROVENANCE_VERDICTS.append({"state": "grown", "identity": key,
+                                         "whence": whence})
+    if not grown:
+        _REF_PROVENANCE_VERDICTS.append({
+            "state": "debt" if debt else "clean", "debt": len(debt),
+            "whence": whence, "files": len(placed)})
+
+    print(f"  {delivery_ref_provenance_summary()}")
+    print(f"    вершина origin {sha_whence}; база храповика: {whence}; "
+          f"уезжающих `*.py` {len(placed)}")
+    for key in grown:
+        print(f"    РАСТИТ ДОЛГ   {key}")
+    if debt:
+        print(f"    ДАВНИЙ ДОЛГ   {len(debt)} личност(ь/и) читают ссылку "
+              f"недоказанной свежести и ДО этой доставки — долг не её, "
+              f"отказа по нему нет")
+
+    if grown and allow:
+        print("    ⚠️  --allow-ungated-ref-read: доставка растит долг "
+              "непроверенных чтений, это НАЗВАНО, но доставку не остановит")
+        return list(_REF_PROVENANCE_VERDICTS)
+    if grown:
+        raise DeliveryGrowsUngatedRefReads(
+            f"доставка ДОБАВЛЯЕТ {len(grown)} зов(ов), читающих "
+            f"`origin/{branch}` без доказанной свежести: " + "; ".join(grown)
+            + f".\nМерено дифференциально: тень вершины {sha[:9]} только из "
+              f"`*.py` против той же тени с уезжающими байтами; вершина "
+              f"{sha_whence}; база храповика — {whence}.\n"
+              f"Соседи молчат ВЕРНО: пин байтов отвечает «байты не "
+              f"подменились», гейт разбора — «файл компилируется», колонка "
+              f"реестра спрашивает `docs/decisions/INDEX.md`, строка доски — "
+              f"трекер, перепись — пакет аналитики. Ни один не знает о "
+              f"свежести ссылки.\n"
+              f"ЗАМЕР, из-за которого дверь появилась: база заморожена "
+              f"2026-09-22, а предмет на `origin/main` к 26.11 вырос с 50 "
+              f"личностей до 80 (неразобранных 6 → 18) — и сторож краснит "
+              f"`main` четырьмя именами с 17.11, потому что на непустом "
+              f"предмете его вердикт БИНАРЕН и нового зова от прежних тридцати "
+              f"не отличает.\n"
+              f"Что делать: либо доказать свежесть (освежить ссылку и ГЕЙТИТЬ "
+              f"код возврата обновителя на пути зова — отказ обязан путь "
+              f"ПРЕКРАЩАТЬ), либо спросить sha у того же ответа сервера, "
+              f"который доставка уже получила. Личность могла и ПЕРЕЕХАТЬ "
+              f"(переименование функции, выделение обёртки) — тогда это не "
+              f"рост, и то же число уйдёт из базы; проверить одним зовом: "
+              f"`python3 {PROVENANCE_PROBER_REL} --root <дерево> --baseline "
+              f"{PROVENANCE_BASELINE_REL}`.\n"
+              f"Осознанный обход — `--allow-ungated-ref-read` "
+              f"(`SPA_PUSH_ALLOW_UNGATED_REF_READ=1`).")
+    return list(_REF_PROVENANCE_VERDICTS)
+
+
+def delivery_ref_provenance_summary() -> str:
+    """Одна строка итога по тринадцатой оси. Своя строка, а не слагаемое чужой.
+
+    Пустой перечень НЕ ЕСТЬ один исход: он значит либо «гейта не звали»
+    (библиотечный вызов минуя CLI), либо «звали, и `*.py` в наборе не было».
+    Склеить их — тот же дефект, что склеить «не измерено» со «сверено».
+    """
+    if not _REF_PROVENANCE_VERDICTS:
+        if _REF_PROVENANCE_GATE["called"]:
+            return ("свежесть ссылки: `*.py` в наборе нет — судить нечего "
+                    "(перепись прибора читает только их)")
+        return "свежесть ссылки: гейт не зван НИ РАЗУ"
+    grown = [v for v in _REF_PROVENANCE_VERDICTS if v["state"] == "grown"]
+    if grown:
+        return (f"свежесть ссылки: доставка РАСТИТ долг на {len(grown)} "
+                f"зов(ов) — сторож покраснеет на `main`")
+    unmeasured = [v for v in _REF_PROVENANCE_VERDICTS
+                  if v["state"] == "unmeasured"]
+    if unmeasured:
+        return (f"свежесть ссылки: НЕ ИЗМЕРЕНО ({len(unmeasured)} причин(а)) — "
+                f"доставку не держит, но и «чисто» это не значит")
+    debt = [v for v in _REF_PROVENANCE_VERDICTS if v["state"] == "debt"]
+    if debt:
+        return (f"свежесть ссылки: долг НЕ ВЫРОС (давних зовов "
+                f"{debt[0]['debt']}, они не этой доставки)")
+    return "свежесть ссылки: долг не вырос, и давнего долга нет"
+
+
 def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
                             content_bytes: bytes, remote_sha: Optional[str],
                             allow_overwrite: bool = False) -> str:
@@ -5349,6 +5793,13 @@ def main():
                              "починка стои́т один вызов "
                              "`audit_untiered_analytics.py --emit-markup` + "
                              "перепись в наборе)")
+    parser.add_argument("--allow-ungated-ref-read", action="store_true",
+                        help="ОСОЗНАННО доставить `*.py`, добавляющий чтение "
+                             "`origin/<ветка>`, свежесть которой не доказана "
+                             "(по умолчанию такой пуш отклоняется: он растит "
+                             "предмет храповика ADR-362 и красит сторожа на "
+                             "`main`; долг, существовавший ДО доставки, отказа "
+                             "не вызывает)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -5375,6 +5826,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_STALE_BOARD_STATUS") == "1"
     allow_uncensused_module = bool(args.allow_uncensused_module) or \
         os.environ.get("SPA_PUSH_ALLOW_UNCENSUSED_MODULE") == "1"
+    allow_ungated_ref_read = bool(args.allow_ungated_ref_read) or \
+        os.environ.get("SPA_PUSH_ALLOW_UNGATED_REF_READ") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -5545,6 +5998,23 @@ def main():
         sys.exit(UNCENSUSED_MODULE_EXIT)
     except DeliveryBytesDrifted as e:
         # Дверь байтов отказала внутри одиннадцатой оси: это ЕЁ отказ и её код.
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── РАСТИТ ЛИ ДОСТАВКА ДОЛГ НЕПРОВЕРЕННЫХ ЧТЕНИЙ ССЫЛКИ (ADR-1112) ──────────
+    # Четвёртый сосед того же рода, и спрашивает он не индекс и не перепись, а
+    # СВЕЖЕСТЬ ссылки, которую уезжающий код читает. Мерка дифференциальная:
+    # предмет на `origin/main` непуст, поэтому «дерево расходится с базой» о ЭТОЙ
+    # доставке не говорит ничего. Гейт идёт и в `--dry-run`: превью обязано
+    # показывать тот же отказ. Реализация ОДНА, её же зовёт batch-CLI.
+    try:
+        enforce_delivery_ref_provenance(all_files, allow=allow_ungated_ref_read,
+                                        runner_file=__file__)
+    except DeliveryGrowsUngatedRefReads as e:
+        print(f"\nОТКАЗ (доставка растит долг непроверенных чтений): {e}",
+              file=sys.stderr)
+        sys.exit(UNGATED_REF_READ_EXIT)
+    except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)
 
