@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T01:06:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T02:55:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Сверено с `origin/main` (ea5199701) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1698** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1699** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -452,7 +452,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (991)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (992)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1163,6 +1163,7 @@
 - Каталог доставки берётся из окружения: 15 зовов git, включая checkout origin/main в прод-дерево  ·  `inbox-katalog-dostavki-beretsya-iz-okruzheniya.md` · 2026-09-12
 - Класс «литерал соседа в тесте живого замера» измерен — у объявления нет такта, и бомба проверена не у всех шагов  ·  `inbox-klass-literal-soseda-v-teste-zhivogo-zam.md` · 2026-11-04
 - Класс «названный каталог данных» измерен в ДВУХ каталогах и за ОДИН хоп: охват, один хоп и два неразрешимых корня — НЕ ИЗМЕРЕНО  ·  `inbox-klass-nazvannyi-katalog-dannyh-izmeren-v.md` · 2026-11-25
+- Класс «сторож закрепляет СЧЁТЧИК там, где предмет — СОСТАВ» ИЗМЕРЕН: предмет пуст при вилке 0 … 3  ·  `inbox-klass-storozh-zakreplyaet-schetchik-tam.md` · 2026-11-26
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29

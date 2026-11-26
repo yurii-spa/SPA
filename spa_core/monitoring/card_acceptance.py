@@ -22431,6 +22431,111 @@ def _probe_named_data_dir_class_measurable(
         f"что различает (член/запаска/ранний возврат — три разных вердикта)")
 
 
+def _probe_counter_pins_composition_not_only_count(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: класс «сторож закрепляет СЧЁТЧИК там, где предмет — СОСТАВ» ИЗМЕРЕН.
+
+    Предмет — долг, НАЗВАННЫЙ циклом #1254 вслух и оставленный неизмеренным:
+    «население класса за пределами этой ловушки НЕ ИЗМЕРЕНО: закрыта одна дверь».
+    Нулём это не считалось, и проба спрашивает не «написан ли прибор», а что он
+    ОТВЕЧАЕТ.
+
+    **Меряется ИСХОД значением, подстрокой проба не проходит** (ADR-333): она зовёт
+    настоящий прибор `scripts/counter_vs_composition_census.py` по настоящему дереву
+    и смотрит на ЧИСЛА. Выполнено, когда (а) двусторонний контроль известного члена
+    у прибора СОШЁЛСЯ и (б) предмет на живом корпусе ПУСТ. Предмет непуст ⇒
+    `not_satisfied` с именами — это находка, а не невыполненная проба.
+
+    **Положительный контроль — внутри самой проверки, и он воспроизводит настоящий
+    промах.** Прибору подаётся побайтовая копия ИЗВЕСТНОГО ЧЛЕНА (состояние
+    `test_edge_boundary_dataflow_census.py` на `2fb147b7a^`, то есть ДО починки
+    #1254, md5 `f3d992625329910d4a9208576d26cf50`). Форма обязана назвать её
+    членом: не назвала ⇒ `unmeasured`, потому что «предмет пуст» у формы, которая
+    известного члена теряет, есть ответ о поверхности, которой она не видит. Это
+    ровно урок #1218 — форма, потерявшая известного члена, класс не сужает, а
+    ПОДМЕНЯЕТ.
+
+    **Третий исход различим** (инв. #17): прибора нет в дереве · прибор не
+    импортируется · фикстуры известного члена нет · поверхность пуста — каждый свой
+    `unmeasured` с НАЗВАННОЙ причиной, и ни один не выдаётся за «чисто».
+
+    Чего проба НЕ меряет, и это сказано вслух: население класса за ВТОРЫМ хопом
+    (прибор видит один) и верность классификации у тех сцен, где состав закреплён —
+    вопрос «закреплён ли состав», а не «верен ли он». Вилка прибора (нижняя граница
+    и верхняя с неразрешёнными хопами) печатается в подробности целиком, чтобы
+    «предмет пуст» не читалось как «класса нет».
+
+    Дерево — ВХОД (`repo_root`). Проба только ЧИТАЕТ: живое `data/`, часы, pid,
+    git-окружение и сеть не спрашиваются, подпроцессов не поднимается.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "ОДИН класс, пофайловой формы у него нет")
+    import importlib.util as _ilu
+    import pathlib as _pathlib
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    prober = root / "scripts" / "counter_vs_composition_census.py"
+    if not prober.is_file():
+        return UNMEASURED, f"прибора нет в названном дереве: {prober} отсутствует"
+    fixture = (root / "spa_core" / "tests" / "fixtures" /
+               "counter_vs_composition_known_member_before.py.txt")
+    if not fixture.is_file():
+        return UNMEASURED, ("фикстуры известного члена нет — двусторонний контроль "
+                            f"провести нечем: {fixture} отсутствует")
+    try:
+        spec = _ilu.spec_from_file_location("_cvc_probe", prober)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"прибор не импортируется: {type(exc).__name__}: {exc}"
+    for door in ("self_check", "census", "classify_module"):
+        if not hasattr(mod, door):
+            return UNMEASURED, (f"у прибора нет двери `{door}` — спрашивать его "
+                                "нечем, и это не «чисто»")
+    try:
+        control = mod.self_check(root)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"контроль прибора не отработал: {type(exc).__name__}: {exc}"
+    if not control.get("ok"):
+        return UNMEASURED, ("двусторонний контроль известного члена НЕ СОШЁЛСЯ: "
+                            + "; ".join(control.get("problems", ["причина не названа"])))
+    try:
+        verdict = mod.classify_module(
+            fixture.read_text(encoding="utf-8"), "known-member", root, {})
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"известный член не разобран: {type(exc).__name__}: {exc}"
+    if verdict.get("state") != "parsed" or not verdict.get("members"):
+        return UNMEASURED, ("форма ПОТЕРЯЛА известного члена (побайтовая копия "
+                            "ловушки до починки #1254) — «предмет пуст» у такой "
+                            "формы есть ответ о поверхности, которой она не видит")
+    try:
+        result = mod.census(root)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись не отработала: {type(exc).__name__}: {exc}"
+    if result.get("state") != "measured":
+        return UNMEASURED, f"перепись НЕ ИЗМЕРЕНА: {result.get('reason', 'причина не названа')}"
+    fork = result.get("fork") or [None, None]
+    if result.get("unmeasured"):
+        return UNMEASURED, ("файлы поверхности НЕ РАЗОБРАНЫ (" +
+                            str(len(result["unmeasured"])) + "): " +
+                            "; ".join(f"{r['module']} — {r['reason']}"
+                                      for r in result["unmeasured"][:3]))
+    subject = result.get("subject") or []
+    if subject:
+        names = "; ".join(f"{s['module']}::{s['function']}:{s['counts'][0]['line']}"
+                          for s in subject[:5])
+        return NOT_SATISFIED, (f"предмет НЕПУСТ: {len(subject)} сцен(ы) закрепляют "
+                               f"счётчик корпуса без состава — {names}"
+                               + (" …" if len(subject) > 5 else ""))
+    return SATISFIED, (
+        f"класс ИЗМЕРЕН: предмет ПУСТ при вилке {fork[0]} … {fork[1]} "
+        f"(файлов поверхности {result['scanned']}, НЕ РАЗОБРАНО 0); двусторонний "
+        "контроль известного члена сошёлся, и побайтовая копия ловушки до починки "
+        "#1254 формой названа членом. Верхняя граница вилки — неразрешённые хопы, "
+        "нулём они не считаются")
+
+
 def _probe_edge_corpus_screen_pinned_by_name(
         arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
     """Критерий: ловушка населения кромки зелена ПЕРЕВЫВЕДЕНИЕМ и больше не подгоняема числом.
@@ -22811,6 +22916,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_orphan_sweep_names_an_unregistered_copy,
     "derived_artifact_class_population_named":
         _probe_derived_artifact_class_population_named,
+    "counter_pins_composition_not_only_count":
+        _probe_counter_pins_composition_not_only_count,
     "edge_corpus_screen_pinned_by_name":
         _probe_edge_corpus_screen_pinned_by_name,
     "delivery_tree_input_class_population_named":
