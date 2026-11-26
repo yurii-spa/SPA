@@ -2,19 +2,19 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T08:32:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T08:57:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (9b3b58f8c) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (40f26a712) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1700** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1701** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает** · _critical_  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md`
 - **Включить агента-мост: починку доставили 30.10, а он до сих пор выключен — 27 суток без замеров** · _critical_  ·  `own-vklyuchit-agenta-mosta-on-pochinen-i-vyklyuchen.md`
 - **Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх**  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md`
 - **Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет**  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md`
 - **Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)**  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md`
+- **Новому ключу GitHub не хватает одного разрешения — агент не может запускать проверку тестов**  ·  `owner-decision-novomu-klyuchu-github-ne-hvataet-odnogo.md`
 - **Новые деньги не отличаются от перекладки: пункт 20 задания CIO**  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md`
 - **Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто**  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md`
 - **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
@@ -47,14 +47,14 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-93227` · с 2026-11-24T16:47:55Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (398)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (399)
 
 ### · needs-owner
-- Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md` · 2026-11-24
 - Включить агента-мост: починку доставили 30.10, а он до сих пор выключен — 27 суток без замеров  ·  `own-vklyuchit-agenta-mosta-on-pochinen-i-vyklyuchen.md` · 2026-11-25
 - Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md` · 2026-11-19
 - Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
 - Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md` · 2026-11-09
+- Новому ключу GitHub не хватает одного разрешения — агент не может запускать проверку тестов  ·  `owner-decision-novomu-klyuchu-github-ne-hvataet-odnogo.md` · 2026-11-26
 - Новые деньги не отличаются от перекладки: пункт 20 задания CIO  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md` · 2026-11-09
 - Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md` · 2026-11-09
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
@@ -120,6 +120,7 @@
 - Пятая часть денег стояла без работы из-за старого потолка — починил; остался один вопрос по правилу  ·  `own-dengi-stoyat-iz-za-starogo-potolka.md` · 2026-08-31
 - Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет  ·  `own-dengi-uehali-v-samyi-nizkodohodnyi-protokol.md` · 2026-08-31
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
+- Ключ GitHub протух сегодня — выпустить новый, иначе работа никуда не уезжает  ·  `own-klyuch-github-protuh-dostavka-ostanovlena.md` · 2026-11-24
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
 - Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
