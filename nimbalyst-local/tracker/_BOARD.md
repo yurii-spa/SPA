@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T11:04:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-26T14:03:40Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fbb0fa45a) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (3c17d9acb) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1702** · ждёт владельца: **17** · занято сессиями: **14**.
 
@@ -479,6 +479,7 @@
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
+- Закрытый перечень известных членов класса не спрашивает, полон ли он: население класса за пределами одной переписи НЕ ИЗМЕРЕНО  ·  `inbox-zakrytyi-perechen-izvestnyh-chlenov-klas.md` · 2026-11-26
 ### · backlog
 - 23 работающих агента установщик не вернёт — флот не соберётся заново с одного хоста  ·  `agent-23-rabotayushih-agentov-ustanovshik-ne-vernet.md` · 2026-08-31
 - Контракт называет производителем агента, который не развёрнут — срок свежести невыполним по построению  ·  `agent-kontrakt-nazyvaet-proizvoditelem-nerazvernutogo-agenta.md` · 2026-08-31
@@ -1449,7 +1450,6 @@
 - Захват карточки живёт в ТРЁХ местах и даёт три разных ответа  ·  `inbox-zahvat-kartochki-zhivet-v-treh-mestah-i.md` · 2026-11-18
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Закрытость перечня исходов мутационного прибора не проверяется: единственный выживший дельты #870  ·  `inbox-zakrytost-perechnya-ishodov-mutatsionnog.md` · 2026-10-15
-- Закрытый перечень известных членов класса не спрашивает, полон ли он: население класса за пределами одной переписи НЕ ИЗМЕРЕНО  ·  `inbox-zakrytyi-perechen-izvestnyh-chlenov-klas.md` · 2026-11-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Зазор гейта оправдывает любую ошибку стоимости, когда гейт уже отказывает  ·  `inbox-zazor-geita-opravdyvaet-lyubuyu-oshibku.md` · 2026-10-28

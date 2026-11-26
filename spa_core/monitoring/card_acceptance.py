@@ -22721,7 +22721,206 @@ def _probe_edge_corpus_screen_pinned_by_name(
 
 
 
+def _probe_known_member_list_completeness_is_asked(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: у закрытого перечня известных членов СПРАШИВАЕТСЯ, полон ли он.
+
+    Предмет — карточка `inbox-zakrytyi-perechen-izvestnyh-chlenov-klas`, заказ
+    G1088 п. 2 приказа владельца «Portfolio CIO». Дефект, найденный ADR-1113:
+    перечень положительного контроля ЗАКРЫТ и сам не растёт, поэтому строка
+    «все 3 известных члена ВНУТРИ предмета» была правдой о СПИСКЕ, а не ответом
+    о КЛАССЕ — контроль, не знающий о члене, не может быть им опровергнут.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в приборе ни слова
+    «полнота», ни имени константы: она зовёт `scripts/known_member_list_census.py`
+    и спрашивает ВЕРДИКТ ЗНАЧЕНИЕМ на одноразовых сценах. Подстрокой она не
+    проходит (ADR-333).
+
+    Контроль в обе стороны, и ни одна сцена не выдумана — каждая воспроизводит
+    настоящую находку:
+
+    * **РОЛЬ решает НАПРАВЛЕНИЕ сверки, а не имя.** Сцена `NAME - computed`
+      обязана дать `positive_control`, обратная `computed - NAME` —
+      `allowlist`. Совпали ⇒ `not_satisfied`: мерка по имени отвечает на вопрос
+      «как называется константа» (урок ADR-1074 и ADR-1096);
+    * **объявление источника — свойство ПЕРЕЧНЯ, а не МОДУЛЯ.** Это дефект
+      первой редакции прибора: сосед по модулю (`SANDBOX_MARKERS`) зачитывался
+      как спрашивающий о своей полноте. Сцена с двумя перечнями и одним
+      объявлением обязана различить их;
+    * **ОТСТАВАНИЕ воспроизводится на НАСТОЯЩЕЙ истории.** На вершине
+      `fbb0fa45a` реестр УЖЕ нёс строку ADR-1112, а перечень нёс три члена;
+      вердикт обязан быть `ОТСТАЛ` с ИМЕНЕМ `ADR-1112`. Полное объявление того
+      же дерева обязано дать `ПОЛОН`;
+    * **третий исход — НЕ ИЗМЕРЕНО с причиной** (инв. #17): нечитаемый реестр и
+      генератор, не производящий ни одного кандидата, обязаны дать именно его, а
+      не «полон»;
+    * **живое дерево:** перечень известных членов переписи производных
+      артефактов обязан быть среди ОБЪЯВИВШИХ источник. Он в предмете ⇒
+      критерий НЕ ВЫПОЛНЕН.
+
+    Дерево — ВХОД (`repo_root`). Проба только ЧИТАЕТ: живого `data/`, часов,
+    pid, сети и подпроцессов она не спрашивает.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "механизм полноты перечня, пофайловой формы у него нет")
+
+    import ast as _ast
+    import importlib.util as _ilu
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    tool = root / "scripts" / "known_member_list_census.py"
+    if not tool.is_file():
+        return NOT_SATISFIED, (f"прибора полноты нет: {tool} отсутствует — вопрос "
+                               "«полон ли перечень» не задаёт никто")
+    try:
+        spec = _ilu.spec_from_file_location("spa_kmlc_probe", tool)
+        mod = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        _sys.modules["spa_kmlc_probe"] = mod
+        spec.loader.exec_module(mod)               # type: ignore[union-attr]
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"прибор не импортируется: {type(exc).__name__}: {exc}"
+
+    for door in ("measure_surface", "verdict_for_declaration", "read_registry",
+                 "generated_candidates", "COMPLETE", "LAGGING", "UNMEASURED",
+                 "POSITIVE_CONTROL", "ALLOWLIST", "UNRESOLVED_ROLE",
+                 "DECLARATION_NAME"):
+        if not hasattr(mod, door):
+            return UNMEASURED, (f"у прибора нет двери `{door}` — спрашивать вердикт "
+                                "значением нечем")
+
+    scene_positive = (
+        "KNOWN = {'a': 'ADR-001', 'b': 'ADR-002'}\n"
+        "def lost(found):\n"
+        "    return {k: v for k, v in KNOWN.items() if k not in found}\n"
+    )
+    scene_reversed = (
+        "KNOWN = {'a': 'ADR-001', 'b': 'ADR-002'}\n"
+        "def extra(found):\n"
+        "    return [x for x in found if x not in KNOWN]\n"
+    )
+    scene_two_lists = (
+        "KNOWN = {'a': 'ADR-001', 'b': 'ADR-002'}\n"
+        "OTHER = {'c': 'ADR-003', 'd': 'ADR-004'}\n"
+        + mod.DECLARATION_NAME + " = {'describes': 'KNOWN', "
+        "'generator': {'all': ('x',)}, 'members': {'ADR-001': 'why'}}\n"
+        "def lost(found):\n"
+        "    a = {k: v for k, v in KNOWN.items() if k not in found}\n"
+        "    b = {k: v for k, v in OTHER.items() if k not in found}\n"
+        "    return a, b\n"
+    )
+
+    with _tempfile.TemporaryDirectory(prefix="spa_kmlc_probe_") as tmp:
+        scene = _pathlib.Path(tmp)
+        (scene / "scripts").mkdir()
+        roles = {}
+        for label, body in (("positive", scene_positive), ("reversed", scene_reversed)):
+            (scene / "scripts" / "m.py").write_text(body, encoding="utf-8")
+            entries, unparsed = mod.measure_surface(scene, ("scripts",))
+            if unparsed:
+                return UNMEASURED, f"сцена {label} не разобрана: {unparsed[:1]}"
+            got = [e for e in entries if e.name == "KNOWN"]
+            if len(got) != 1:
+                return UNMEASURED, (f"сцена {label}: прибор нашёл {len(got)} перечней "
+                                    "вместо одного — поверхность мерит не то")
+            roles[label] = got[0].role
+        if roles["positive"] != mod.POSITIVE_CONTROL:
+            return NOT_SATISFIED, ("сцена «перечень обязан быть ВНУТРИ предмета» дала "
+                                   f"роль {roles['positive']!r}, а не положительный "
+                                   "контроль — класс не опознаётся")
+        if roles["reversed"] == roles["positive"]:
+            return NOT_SATISFIED, ("обратное направление сверки получило ТУ ЖЕ роль "
+                                   f"({roles['reversed']!r}) — мерка не различает "
+                                   "положительный контроль и белый список")
+
+        (scene / "scripts" / "m.py").write_text(scene_two_lists, encoding="utf-8")
+        entries, unparsed = mod.measure_surface(scene, ("scripts",))
+        if unparsed:
+            return UNMEASURED, ("сцена «объявление у перечня» не разобрана: "
+                                f"{unparsed[:1]}")
+        declaring = {e.name for e in entries if e.declares}
+        if declaring != {"KNOWN"}:
+            return NOT_SATISFIED, ("объявление источника зачтено перечням "
+                                   f"{sorted(declaring)} вместо ровно `KNOWN` — "
+                                   "признак читается у МОДУЛЯ, а не у перечня")
+
+    rows, unreadable = mod.read_registry(root)
+    if unreadable or not rows:
+        return UNMEASURED, ("реестр решений живого дерева не прочитан: "
+                            + ("; ".join(unreadable) or "0 строк в объявленной форме"))
+    census = root / "scripts" / "derived_artifact_census.py"
+    if not census.is_file():
+        return NOT_SATISFIED, f"переписи производных артефактов нет: {census}"
+    try:
+        tree = _ast.parse(census.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError, ValueError) as exc:
+        return UNMEASURED, f"перепись не разобрана: {type(exc).__name__}: {exc}"
+    decl = None
+    for stmt in tree.body:
+        if not isinstance(stmt, _ast.Assign) or stmt.value is None:
+            continue
+        if mod.DECLARATION_NAME not in {t.id for t in stmt.targets
+                                        if isinstance(t, _ast.Name)}:
+            continue
+        try:
+            decl = _ast.literal_eval(stmt.value)
+        except (ValueError, SyntaxError) as exc:
+            return UNMEASURED, f"объявление не является литералом: {exc}"
+    if not isinstance(decl, dict):
+        return NOT_SATISFIED, ("перепись производных артефактов не объявила источника "
+                               f"полноты (`{mod.DECLARATION_NAME}`) — полнота её "
+                               "перечня НЕ СПРАШИВАЕТСЯ никем")
+    members = dict(decl.get("members") or {})
+    full, detail_full = mod.verdict_for_declaration(decl, rows, set(members))
+    if full != mod.COMPLETE:
+        return NOT_SATISFIED, (f"полное объявление живого дерева дало {full!r} "
+                               f"вместо {mod.COMPLETE!r}: {detail_full}")
+    if "ADR-1112" not in members:
+        return NOT_SATISFIED, ("объявление не называет ADR-1112 — член, на котором "
+                               "класс и был найден (ADR-1113)")
+    lagging_decl = dict(decl)
+    lagging_decl["members"] = {k: v for k, v in members.items() if k != "ADR-1112"}
+    lag, detail_lag = mod.verdict_for_declaration(
+        lagging_decl, rows, set(lagging_decl["members"]))
+    if lag != mod.LAGGING or "ADR-1112" not in detail_lag:
+        return NOT_SATISFIED, (f"снятие известного члена дало {lag!r} ({detail_lag}) "
+                               f"вместо {mod.LAGGING!r} с именем ADR-1112 — "
+                               "отставание, которое БЫЛО на вершине `fbb0fa45a`, "
+                               "прибор не находит")
+
+    blind, _why_blind = mod.verdict_for_declaration(decl, {}, set(members))
+    if blind != mod.UNMEASURED:
+        return NOT_SATISFIED, (f"непрочитанный реестр дал {blind!r} вместо "
+                               f"{mod.UNMEASURED!r} — «не измерено» неотличимо от "
+                               "«полон»")
+    refuted = dict(decl)
+    refuted["generator"] = {"all": ("zavedomo-nesushchestvuyushchee-slovo",)}
+    bad, _why_bad = mod.verdict_for_declaration(refuted, rows, set(members))
+    if bad != mod.UNMEASURED:
+        return NOT_SATISFIED, ("генератор, не производящий ни одного кандидата, дал "
+                               f"{bad!r} вместо {mod.UNMEASURED!r}")
+
+    entries, unparsed = mod.measure_surface(root)
+    rel = census.relative_to(root).as_posix()
+    asking = {(e.path, e.name) for e in entries if e.declares}
+    if (rel, "KNOWN_MEMBERS") not in asking:
+        return NOT_SATISFIED, (f"{rel}::KNOWN_MEMBERS нет среди объявивших источник "
+                               "полноты в ЖИВОМ дереве")
+    subject = [f"{e.path}::{e.name}" for e in entries
+               if e.role == mod.POSITIVE_CONTROL and not e.declares and e.adr_backed]
+    fork = sum(1 for e in entries if e.role == mod.UNRESOLVED_ROLE)
+    return SATISFIED, (f"прибор {tool.name}: вердикт {full} ({detail_full}); снятие "
+                       f"известного члена ⇒ {mod.LAGGING} с ADR-1112; третий исход "
+                       f"различим; население предмета {len(subject)} … "
+                       f"{len(subject) + fork} (НЕ РАЗОБРАНО роли {fork}), "
+                       f"НЕ РАЗОБРАНО файлов {len(unparsed)}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "known_member_list_completeness_is_asked":
+        _probe_known_member_list_completeness_is_asked,
     "named_data_dir_class_measurable":
         _probe_named_data_dir_class_measurable,
     "pat_token_state_is_asked_of_github":

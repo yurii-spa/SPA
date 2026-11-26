@@ -2,10 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Закрытый перечень известных членов класса не спрашивает, полон ли он: население класса за пределами одной переписи НЕ ИЗМЕРЕНО"
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-11-26
 twin_key: "sha256:612a3052c126b26d852e278c7d70aba683cfcddedd466f105a46f166ec3c33ae"
+acceptance_probe: known_member_list_completeness_is_asked
+status_trail:
+  - "2026-11-26T12:30:42.295193+00:00 new -> in-progress · queue.set_status · cycle-12656"
 ---
 
 ## Что случилось и почему это важно
