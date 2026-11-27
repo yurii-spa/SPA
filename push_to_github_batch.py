@@ -256,6 +256,21 @@ UNGATED_REF_READ_EXIT = _root_push.UNGATED_REF_READ_EXIT
 PROVENANCE_BASELINE_REL = _root_push.PROVENANCE_BASELINE_REL
 PROVENANCE_PROBER_REL = _root_push.PROVENANCE_PROBER_REL
 
+# Четырнадцатая дверь семейства (ADR-1126) — «ДОБАВЛЯЕТ ли доставка претензию о
+# прогоне CI, не называющую свой прогон». Та же ОДНА реализация и по той же
+# причине, что у соседей: своя копия означала бы, что одна дверь отказывает, а
+# вторая молча везёт безличную претензию в `docs/journal` — то есть класс
+# ADR-1124/1125 возвращается через вторую дверь доставки целиком.
+# ⚠️ Имена ввозятся ВСЕ, какие упомянуты ниже в `except` и в вызове: урок цикла
+# #1217 — `except <Имя>`, которого в модуле нет, превращает отказ в `NameError`,
+# то есть ровно в миг находки даёт код 1 вместо кода двери.
+enforce_delivery_ci_claim_identity = _root_push.enforce_delivery_ci_claim_identity
+delivery_ci_claim_summary = _root_push.delivery_ci_claim_summary
+ci_claim_carrier_of = _root_push.ci_claim_carrier_of
+DeliveryGrowsUnfalsifiableCiClaims = _root_push.DeliveryGrowsUnfalsifiableCiClaims
+CI_CLAIM_IDENTITY_EXIT = _root_push.CI_CLAIM_IDENTITY_EXIT
+CI_CLAIM_PROBER_REL = _root_push.CI_CLAIM_PROBER_REL
+
 # Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
 # реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
 # причине, что у пина: две копии означали бы, что одна дверь отказывает, а
@@ -326,6 +341,12 @@ def main():
                              "(по умолчанию такой пуш отклоняется: он растит "
                              "предмет храповика ADR-362; давний долг отказа не "
                              "вызывает)")
+    parser.add_argument("--allow-unfalsifiable-ci-claim", action="store_true",
+                        help="ОСОЗНАННО доставить файл носителя (карточка "
+                             "трекера, `docs/journal/*.md`), добавляющий "
+                             "претензию о прогоне CI без номера прогона; по "
+                             "умолчанию такой пуш ОТКЛОНЯЕТСЯ (ADR-1124/1125), "
+                             "давний долг отказа не вызывает")
     parser.add_argument("--allow-prod-root-relative", action="store_true",
                         help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
                              "когда позвали из другого дерева; по умолчанию такой путь "
@@ -495,6 +516,25 @@ def main():
         print(f"\nОТКАЗ (доставка растит долг непроверенных чтений): {e}",
               file=sys.stderr)
         sys.exit(UNGATED_REF_READ_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── ДОБАВЛЯЕТ ЛИ ДОСТАВКА ПРЕТЕНЗИЮ О CI БЕЗ СВОЕГО ПРОГОНА (ADR-1126) ──────
+    # Тот же вызов и тот же порядок, что в push_to_github.py: реализация одна,
+    # дверей две. Спрашивается уезжающий ТЕКСТ носителя, а не байты кода —
+    # соседи о нём не знают ничего.
+    allow_unfalsifiable_ci_claim = bool(
+        getattr(args, "allow_unfalsifiable_ci_claim", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_UNFALSIFIABLE_CI_CLAIM") == "1"
+    try:
+        enforce_delivery_ci_claim_identity(
+            all_files, allow=allow_unfalsifiable_ci_claim,
+            runner_file=__file__)
+    except DeliveryGrowsUnfalsifiableCiClaims as e:
+        print(f"\nОТКАЗ (претензия о прогоне CI без своей личности): {e}",
+              file=sys.stderr)
+        sys.exit(CI_CLAIM_IDENTITY_EXIT)
     except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)

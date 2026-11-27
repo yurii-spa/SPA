@@ -3779,6 +3779,397 @@ def delivery_ref_provenance_summary() -> str:
     return "свежесть ссылки: долг не вырос, и давнего долга нет"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ЧЕТЫРНАДЦАТАЯ ДВЕРЬ СЕМЕЙСТВА (ADR-1126) — ПРЕТЕНЗИЯ О ПРОГОНЕ CI БЕЗ СВОЕЙ
+# ЛИЧНОСТИ. Тринадцать дверей выше спрашивают уезжающие БАЙТЫ: тот ли это код,
+# то ли дерево, компилируется ли он, называет ли его индекс. Четырнадцатая
+# спрашивает уезжающий ТЕКСТ: претензия «CI RED 140 имён» без номера прогона
+# перемерить НЕЧЕМ, и следующий цикл чинит то, чего нет.
+#
+# ЗАМЕР, из-за которого дверь появилась (ADR-1124/1125, циклы #1270/#1271):
+# аудит доложил владельцу «RED 140 имён, худший — f-string SyntaxError ×26»,
+# тогда как канонический читатель на том же дне даёт **84**, а причина худшего
+# файла — `Timeout from pytest-timeout` в `setUpModule`; класс f-string измерен
+# в НОЛЬ. Население класса у всех четырёх носителей: трекер 0 из 133 · журналы
+# **5 из 429** · announce 9 из 69 · утренняя сводка НЕ ИЗМЕРЕНА (своего текста
+# на диск не кладёт). Для аудита 90 % форма претензии переписана у ПРОИЗВОДИТЕЛЯ
+# (ADR-1124), а для ЖУРНАЛЬНОЙ записи цикла — нет: правило то же, и его не
+# исполнял никто. Прозой оно стояло три заказа подряд.
+#
+# ПОЧЕМУ СОСЕДИ МОЛЧАТ, И КАЖДЫЙ — ВЕРНО:
+#   · слепок байтов (ADR-774) «сверено» — он отвечает «байты не подменились», а
+#     не «претензия называет свой прогон»: сверил безличную претензию с нею же;
+#   · гейт разбора (ADR-886) молчит ВЕРНО — `*.md` не объявлял себя Python;
+#   · колонка реестра (ADR-889) спрашивает `docs/decisions/INDEX.md`;
+#   · строка доски (ADR-1060) спрашивает присутствие карточки в индексе, а не
+#     содержание её текста;
+#   · перепись (ADR-1073) спрашивает пакет аналитики;
+#   · свежесть ссылки (ADR-1112) судит только `*.py`.
+CI_CLAIM_IDENTITY_EXIT = 21
+
+#: Прибор ADR-1124/1125 — ЕДИНСТВЕННАЯ дверь разбора претензии. Своей копии
+#: здесь нет и быть не может: правило «что есть претензия» непростое (маркер,
+#: граница сегмента по `;`, ось цитаты markdown с вставкой кода, оградой и
+#: блок-цитатой, отличение ДЛИТЕЛЬНОСТИ красноты от СЧЁТА упавших), и вторая
+#: копия означала бы, что гейт пускает через себя ровно те претензии, из-за
+#: которых понадобился. Первая редакция ADR-1125 уже поймала этот класс на
+#: самой себе: свой обход у announce-лога дал ЛОЖНЫЙ ноль рядом с 61 и 22.
+CI_CLAIM_PROBER_REL = "spa_core/monitoring/ci_claim_provenance.py"
+
+_CI_CLAIM_VERDICTS: list = []
+_CI_CLAIM_GATE: dict = {"called": False}
+
+
+class DeliveryGrowsUnfalsifiableCiClaims(RuntimeError):
+    """Доставка добавляет претензию о прогоне CI, не называющую свой прогон."""
+
+
+def _ci_claim_prober(runner_file: Optional[str] = None):
+    """Ввозит ЕДИНСТВЕННЫЕ двери прибора ADR-1125 → ``(модуль, причина)``.
+
+    Прибор берётся из дерева ЗАПУЩЕННОГО CLI (ADR-796), как у соседей: судья и
+    его инструмент приходят из одного дерева, иначе «что уедет» и «чем мерено»
+    разошлись бы молча. Ввоз — по ПУТИ, а не `import spa_core…`: модуль
+    прод-дерева оказался бы в `sys.modules` раньше, и дверь судила бы чужими
+    байтами.
+    """
+    import importlib.util as _ilu
+
+    base = Path(os.path.abspath(runner_file or __file__)).parent
+    path = base / CI_CLAIM_PROBER_REL
+    try:
+        spec = _ilu.spec_from_file_location("_ci_claim_for_delivery_gate", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — "
+                      f"перемеряемость уезжающих претензий НЕ ИЗМЕРЕНА")
+    for door in ("markdown_records", "carrier_census", "CARRIER_PATHS",
+                 "FINDING_KINDS", "QUOTATION_UNDECIDED"):
+        if not hasattr(mod, door):
+            return None, (f"{path} не несёт двери `{door}` — единственной двери "
+                          f"разбора нет, свою здесь заводить ЗАПРЕЩЕНО")
+    return mod, None
+
+
+def ci_claim_carrier_of(mod, rel: str) -> Optional[str]:
+    """Носитель, которому принадлежит путь ``rel``, либо ``None``.
+
+    Перечень носителей берётся у ПРИБОРА (``CARRIER_PATHS``), а не литералом
+    здесь. Причина та же, что у разбора: добавь прибор пятый markdown-носитель —
+    и дверь обязана начать судить его САМА, без правки пушера. Свой литерал
+    означал бы, что гейт охраняет не то население, которое меряет сторож.
+    """
+    import fnmatch as _fn
+
+    norm = (rel or "").replace(os.sep, "/")
+    for carrier, spec in (mod.CARRIER_PATHS or {}).items():
+        try:
+            folder, mask = spec
+        except Exception:                                           # noqa: BLE001
+            continue
+        folder = folder.rstrip("/") + "/"
+        if not norm.startswith(folder):
+            continue
+        tail = norm[len(folder):]
+        # Подкаталог НЕ входит: прибор перечисляет носителя `base.glob(mask)`,
+        # то есть НЕ рекурсивно, и это ЗАМЕР его охвата, а не описка (та же
+        # граница, что `glob` против `rglob` у храповика ADR-897). Разойдись
+        # дверь с прибором — она судила бы файл, которого сторож не читает, и
+        # «что мерено» с «что охраняется» расползлись бы молча. `fnmatch` сам
+        # этого не различает: его `*` накрывает и `/`.
+        if "/" in tail:
+            continue
+        if _fn.fnmatch(tail, mask):
+            return carrier
+    return None
+
+
+def _ci_claims_of_text(mod, carrier: str, text: str) -> tuple:
+    """Претензии ОДНОГО текста → ``(предмет, не_разобрано, причина)``.
+
+    Оба списка — личности, а НЕ номера строк: номер съезжает от любой вставки
+    выше, и дверь, опознающая претензию по строке, объявила бы ростом сдвиг
+    чужого абзаца. Личность — сам сегмент претензии, схлопнутый по пробелам;
+    повторы считаются МНОЖЕСТВОМ С КРАТНОСТЬЮ, иначе вторая такая же претензия
+    уехала бы бесплатно.
+
+    ``предмет`` — находки прибора (его ``FINDING_KINDS``, не мой литерал).
+    ``не_разобрано`` — претензии, у которых ось цитаты НЕ ОТВЕТИЛА: это ВЕРХНИЙ
+    край вилки, и в отказ он не идёт (инв. #17), но и в ноль не схлопывается.
+    """
+    try:
+        records = mod.markdown_records(text)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, None, f"разбор текста упал ({type(exc).__name__}: {exc})"
+    try:
+        doc = mod.carrier_census(carrier, records=records, markup=True, files=1)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, None, f"перепись носителя упала ({type(exc).__name__}: {exc})"
+
+    def _identity(row):
+        return " ".join((row.get("segment") or "").split())
+
+    subject = [_identity(c) for c in (doc.get("findings") or [])]
+    undecided = [_identity(c) for c in (doc.get("claims") or [])
+                 if c.get("kind") == mod.QUOTATION_UNDECIDED]
+    return subject, undecided, ""
+
+
+def _tip_blob_text(root, sha: str, rel: str) -> tuple:
+    """Текст пути в вершине origin → ``(text|None, причина)``; отсутствие — ``("", "")``.
+
+    Сторона «до доставки» берётся ИЗ GIT, а не с диска: рабочее дерево несёт
+    ещё и незакоммиченное и недоставляемое, и тогда «до» с «после» отличались
+    бы не только моей доставкой (урок ADR-1112 п. 3).
+
+    «Файла в вершине НЕТ» и «git не ответил» — РАЗНЫЕ состояния, и различает их
+    КОД ВОЗВРАТА `ls-tree`, а не пустота вывода: `ls-tree` на отсутствующем
+    пути выходит НУЛЁМ и молчит, поэтому «пусто ⇒ файла нет» было бы верно, а
+    «пусто ⇒ git сломан» — подменой «не измерено» вердиктом. Поэтому вопроса
+    два, и они заданы раздельно.
+    """
+    try:
+        probe = subprocess.run(["git", "-C", str(root), "ls-tree", sha,
+                                "--", rel], capture_output=True, text=True,
+                               timeout=30)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"`git ls-tree` не запустился ({type(exc).__name__}: "
+                      f"{exc}) — сторона «до доставки» НЕ ИЗМЕРЕНА")
+    if probe.returncode != 0:
+        tail = (probe.stderr or "").strip().splitlines()
+        return None, (f"`git ls-tree {sha[:9]} -- {rel}` отказал (код "
+                      f"{probe.returncode}: {tail[-1][:160] if tail else 'без текста'})"
+                      f" — сторона «до доставки» НЕ ИЗМЕРЕНА")
+    if not (probe.stdout or "").strip():
+        # Пути в вершине НЕТ — файл НОВЫЙ. Претензий «до» ноль, и это ЗАМЕР,
+        # а не отсутствие замера: вопрос задан и ответ получен.
+        return "", ""
+    raw = _git_bytes(["cat-file", "blob", f"{sha}:{rel}"], root)
+    if raw is None:
+        return None, (f"`git cat-file blob {sha[:9]}:{rel}` не отдал байтов — "
+                      f"сторона «до доставки» НЕ ИЗМЕРЕНА")
+    try:
+        return raw.decode("utf-8"), ""
+    except UnicodeDecodeError as exc:
+        return None, (f"версия `{rel}` в вершине {sha[:9]} не декодируется "
+                      f"({exc}) — сторона «до доставки» НЕ ИЗМЕРЕНА")
+
+
+def enforce_delivery_ci_claim_identity(file_args: list, allow: bool = False,
+                                       runner_file: Optional[str] = None,
+                                       branch: str = "main") -> list:
+    """Доставка не вправе ДОБАВИТЬ претензию о CI, не называющую свой прогон.
+
+    Мерка ДИФФЕРЕНЦИАЛЬНАЯ, и это несущая половина. Предмет на `origin/main`
+    НЕПУСТ (журналы 5 из 429 замером 27.11), поэтому порог «претензий без
+    личности быть не должно» запер бы доставку чужого долга — краснота на
+    ВЕРНОМ состоянии, ровно урок ADR-1073. Судится разница: версия файла в
+    вершине `origin/<branch>` против уезжающих байтов того же пути.
+
+    Исходы различимы (инв. #17): НЕ РАСТИТ · РАСТИТ (отказ, с текстом
+    претензии) · ДАВНИЙ ДОЛГ (предмет непуст и до доставки — называется,
+    доставку НЕ держит) · НЕ ИЗМЕРЕНО с названной причиной. Последний доставку
+    НЕ останавливает, и это НАЗВАННЫЙ выбор, тот же, что у десятой,
+    одиннадцатой и тринадцатой двери: сбой git остановил бы доставку КОДА,
+    ничего не измерив, а причина при этом ПЕЧАТАЕТСЯ строкой.
+
+    Отдельным числом идёт РОСТ «оси цитаты НЕ ОТВЕТИЛА»: такая претензия в
+    отказ не идёт (о ней не известно, цитата она или нет), но и нулём не
+    считается — иначе разметка стала бы дорогой мимо двери.
+    """
+    from collections import Counter
+
+    _CI_CLAIM_VERDICTS.clear()
+    _CI_CLAIM_GATE["called"] = True
+
+    def _say():
+        print(f"  {delivery_ci_claim_summary()}")
+
+    def _unmeasured(reason):
+        _CI_CLAIM_VERDICTS.append({"state": "unmeasured", "reason": reason})
+        _say()
+        print(f"    НЕ ИЗМЕРЕНО   {reason}")
+        return list(_CI_CLAIM_VERDICTS)
+
+    mod, parser_why = _ci_claim_prober(runner_file)
+    if mod is None:
+        return _unmeasured(parser_why)
+
+    root, root_why = _delivery_repo_root(file_args)
+
+    # Поверхность: уезжающие файлы, принадлежащие markdown-носителям ПРИБОРА.
+    # Набор без них — короткое замыкание: файл другого рода изменить вердикт НЕ
+    # МОЖЕТ, и это граница предмета, а не экономия.
+    surface = []
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        rel = _rel_within(root, key) if root is not None else None
+        if rel is None:
+            rel = _display_path(key).replace(os.sep, "/")
+        carrier = ci_claim_carrier_of(mod, rel)
+        if carrier is not None:
+            surface.append((key, rel, carrier))
+    if not surface:
+        _say()
+        return list(_CI_CLAIM_VERDICTS)
+
+    if root is None:
+        return _unmeasured(root_why)
+
+    sha, sha_whence, sha_why = origin_tip_sha(root, branch)
+    if sha is None:
+        return _unmeasured(sha_why)
+
+    grown: list = []
+    grown_undecided: list = []
+    debt = 0
+    judged = 0
+    for key, rel, carrier in surface:
+        before_text, why = _tip_blob_text(root, sha, rel)
+        if before_text is None:
+            _CI_CLAIM_VERDICTS.append({"state": "unmeasured", "reason": why,
+                                       "path": rel})
+            continue
+        try:
+            after_text = read_delivery_bytes(key).decode("utf-8")
+        except UnicodeDecodeError as exc:
+            _CI_CLAIM_VERDICTS.append({
+                "state": "unmeasured", "path": rel,
+                "reason": (f"уезжающие байты `{rel}` не декодируются как "
+                           f"UTF-8 ({exc}) — претензии НЕ ИЗМЕРЕНЫ")})
+            continue
+        except OSError as exc:
+            _CI_CLAIM_VERDICTS.append({
+                "state": "unmeasured", "path": rel,
+                "reason": (f"байты `{rel}` не прочитаны "
+                           f"({type(exc).__name__}: {exc})")})
+            continue
+
+        before, before_undecided, why = _ci_claims_of_text(mod, carrier,
+                                                           before_text)
+        if before is None:
+            _CI_CLAIM_VERDICTS.append({
+                "state": "unmeasured", "path": rel,
+                "reason": f"сторона «до доставки» ({rel}): {why}"})
+            continue
+        after, after_undecided, why = _ci_claims_of_text(mod, carrier,
+                                                        after_text)
+        if after is None:
+            _CI_CLAIM_VERDICTS.append({
+                "state": "unmeasured", "path": rel,
+                "reason": f"сторона «после доставки» ({rel}): {why}"})
+            continue
+
+        judged += 1
+        debt += len(before)
+        # Множество с КРАТНОСТЬЮ: вторая копия той же претензии есть второй
+        # член класса, а не повтор уже известного.
+        for ident in sorted((Counter(after) - Counter(before)).elements()):
+            grown.append({"path": rel, "carrier": carrier, "claim": ident})
+        for ident in sorted((Counter(after_undecided)
+                             - Counter(before_undecided)).elements()):
+            grown_undecided.append({"path": rel, "carrier": carrier,
+                                    "claim": ident})
+
+    for row in grown:
+        _CI_CLAIM_VERDICTS.append({"state": "grown", **row})
+    for row in grown_undecided:
+        _CI_CLAIM_VERDICTS.append({"state": "grown_undecided", **row})
+    if not grown and judged:
+        _CI_CLAIM_VERDICTS.append({
+            "state": "debt" if debt else "clean", "debt": debt,
+            "files": judged, "whence": sha_whence})
+    # `judged == 0` ⇒ строки «чисто» НЕТ, и это дефект, найденный собственной
+    # сценой уже ПОСЛЕ первого мутационного прогона: при нечитаемых байтах
+    # вердикты выходили `['unmeasured', 'clean']`, то есть «сверено» стояло
+    # рядом с «не измерено» на одном и том же файле. «Чисто» означает
+    # «измерено и роста нет»; без единого суждённого файла его говорить нельзя
+    # (инв. #17). Ответом в этом случае служат сами строки `unmeasured`.
+
+    _say()
+    print(f"    вершина origin {sha_whence}; уезжающих файлов носителей "
+          f"{len(surface)}, из них СУЖДЕНО {judged}")
+    for row in grown:
+        print(f"    РАСТИТ   {row['path']}: {row['claim'][:150]}")
+    for row in grown_undecided:
+        print(f"    НЕ ИЗМЕРЕНО (ось цитаты не ответила)   {row['path']}: "
+              f"{row['claim'][:120]}")
+    if debt:
+        print(f"    ДАВНИЙ ДОЛГ   {debt} претензи(я/и) без своего прогона "
+              f"лежат в этих файлах и ДО доставки — долг не её, отказа по "
+              f"нему нет")
+
+    if grown and allow:
+        print("    ⚠️  --allow-unfalsifiable-ci-claim: доставка добавляет "
+              "претензию без своего прогона, это НАЗВАНО, но доставку не "
+              "остановит")
+        return list(_CI_CLAIM_VERDICTS)
+    if grown:
+        shown = "; ".join(f"{r['path']}: {r['claim'][:180]}" for r in grown[:4])
+        raise DeliveryGrowsUnfalsifiableCiClaims(
+            f"доставка ДОБАВЛЯЕТ {len(grown)} претензи(ю/и) о прогоне CI, не "
+            f"называющ(ую/их) свой прогон: {shown}"
+            + (f" … и ещё {len(grown) - 4}" if len(grown) > 4 else "")
+            + f".\nМерено дифференциально: версия пути в вершине {sha[:9]} "
+              f"против уезжающих байтов того же пути; вершина {sha_whence}. "
+              f"Личность — САМ сегмент претензии, а не номер строки: сдвиг "
+              f"чужого абзаца ростом не является.\n"
+              f"Соседи молчат ВЕРНО: пин байтов отвечает «байты не "
+              f"подменились» (он сверил безличную претензию с нею же), гейт "
+              f"разбора — `*.md` не объявлял себя Python, колонка реестра "
+              f"спрашивает `docs/decisions/INDEX.md`, строка доски — "
+              f"присутствие карточки в индексе, перепись — пакет аналитики, "
+              f"свежесть ссылки — только `*.py`.\n"
+              f"ЗАМЕР, из-за которого дверь появилась: аудит доложил владельцу "
+              f"«RED 140 имён, худший — f-string SyntaxError ×26», а "
+              f"канонический читатель на том же дне даёт 84, и причина худшего "
+              f"файла — таймаут в `setUpModule`; класс f-string измерен в НОЛЬ "
+              f"(ADR-1124). Население у носителей: журналы 5 из 429, трекер 0 "
+              f"из 133, announce 9 из 69 (ADR-1125).\n"
+              f"Что делать: назвать прогон В СВОЁМ сегменте претензии "
+              f"(10…12 знаков), а число и род взять у "
+              f"`scripts/ci_control_verdict.py`. Прогон не заказывался ⇒ так и "
+              f"написать («вердикт CI НЕ ИЗМЕРЕН»), без числа: число без "
+              f"прогона и есть предмет этой двери. Перемерить свой текст "
+              f"одним зовом: `python3 -m spa_core.monitoring.ci_claim_provenance "
+              f"--carrier-root <дерево>`.\n"
+              f"Осознанный обход — `--allow-unfalsifiable-ci-claim` "
+              f"(`SPA_PUSH_ALLOW_UNFALSIFIABLE_CI_CLAIM=1`).")
+    return list(_CI_CLAIM_VERDICTS)
+
+
+def delivery_ci_claim_summary() -> str:
+    """Одна строка итога по четырнадцатой оси. Своя строка, а не слагаемое чужой.
+
+    Пустой перечень НЕ ЕСТЬ один исход: он значит либо «гейта не звали»
+    (библиотечный вызов минуя CLI), либо «звали, и файлов носителей в наборе не
+    было». Склеить их — тот же дефект, что склеить «не измерено» со «сверено».
+    """
+    if not _CI_CLAIM_VERDICTS:
+        if _CI_CLAIM_GATE["called"]:
+            return ("личность претензии о CI: файлов носителей в наборе нет — "
+                    "судить нечего")
+        return "личность претензии о CI: гейт не зван НИ РАЗУ"
+    grown = [v for v in _CI_CLAIM_VERDICTS if v["state"] == "grown"]
+    if grown:
+        return (f"личность претензии о CI: доставка ДОБАВЛЯЕТ {len(grown)} "
+                f"претензи(ю/и) без своего прогона — перемерить их нечем")
+    unmeasured = [v for v in _CI_CLAIM_VERDICTS if v["state"] == "unmeasured"]
+    undecided = [v for v in _CI_CLAIM_VERDICTS
+                 if v["state"] == "grown_undecided"]
+    if unmeasured or undecided:
+        return (f"личность претензии о CI: НЕ ИЗМЕРЕНО "
+                f"({len(unmeasured)} причин(а), ось цитаты молчит у "
+                f"{len(undecided)}) — доставку не держит, но и «чисто» это не "
+                f"значит")
+    debt = [v for v in _CI_CLAIM_VERDICTS if v["state"] == "debt"]
+    if debt:
+        return (f"личность претензии о CI: НЕ РАСТИТ (давних претензий без "
+                f"прогона {debt[0]['debt']}, они не этой доставки)")
+    return "личность претензии о CI: не растит, и давнего долга нет"
+
+
 def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
                             content_bytes: bytes, remote_sha: Optional[str],
                             allow_overwrite: bool = False) -> str:
@@ -5800,6 +6191,14 @@ def main():
                              "предмет храповика ADR-362 и красит сторожа на "
                              "`main`; долг, существовавший ДО доставки, отказа "
                              "не вызывает)")
+    parser.add_argument("--allow-unfalsifiable-ci-claim", action="store_true",
+                        help="ОСОЗНАННО доставить файл носителя (карточка "
+                             "трекера, `docs/journal/*.md`), добавляющий "
+                             "претензию о прогоне CI, которая своего прогона "
+                             "НЕ называет (по умолчанию такой пуш отклоняется: "
+                             "перемерить такую претензию нечем, и следующий "
+                             "цикл чинит то, чего нет — ADR-1124/1125; долг, "
+                             "существовавший ДО доставки, отказа не вызывает)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -5828,6 +6227,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_UNCENSUSED_MODULE") == "1"
     allow_ungated_ref_read = bool(args.allow_ungated_ref_read) or \
         os.environ.get("SPA_PUSH_ALLOW_UNGATED_REF_READ") == "1"
+    allow_unfalsifiable_ci_claim = bool(args.allow_unfalsifiable_ci_claim) or \
+        os.environ.get("SPA_PUSH_ALLOW_UNFALSIFIABLE_CI_CLAIM") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -6014,6 +6415,24 @@ def main():
         print(f"\nОТКАЗ (доставка растит долг непроверенных чтений): {e}",
               file=sys.stderr)
         sys.exit(UNGATED_REF_READ_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── ДОБАВЛЯЕТ ЛИ ДОСТАВКА ПРЕТЕНЗИЮ О CI БЕЗ СВОЕГО ПРОГОНА (ADR-1126) ──────
+    # Пятый сосед того же рода, и спрашивает он уезжающий ТЕКСТ, а не байты кода:
+    # «CI RED 140 имён» без номера прогона перемерить нечем, и следующий цикл
+    # чинит то, чего нет. Мерка дифференциальная: предмет на `origin/main` непуст
+    # (журналы 5 из 429), поэтому порог «претензий без личности нет» запер бы
+    # чужой долг. Гейт идёт и в `--dry-run`: превью обязано показывать тот же
+    # отказ. Реализация ОДНА, её же зовёт batch-CLI.
+    try:
+        enforce_delivery_ci_claim_identity(
+            all_files, allow=allow_unfalsifiable_ci_claim, runner_file=__file__)
+    except DeliveryGrowsUnfalsifiableCiClaims as e:
+        print(f"\nОТКАЗ (претензия о прогоне CI без своей личности): {e}",
+              file=sys.stderr)
+        sys.exit(CI_CLAIM_IDENTITY_EXIT)
     except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)
