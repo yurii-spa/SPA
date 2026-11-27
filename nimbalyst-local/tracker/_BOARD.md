@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-27T14:02:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-27T15:45:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (01ec61bfd) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (15c057ece) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1707** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1708** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (998)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (999)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1290,6 +1290,7 @@
 - Предписанный прогон мёртвой сессии шёл 3ч47м и не дошёл до 6 процентов — цена прогона может зависеть от живости номера в окружении  ·  `inbox-predpisannyi-progon-mertvoi-sessii-shel.md` · 2026-10-22
 - Предписанный прогон не доживает до вердикта — CI умирает по таймауту внутри пробы стабильности  ·  `inbox-predpisannyi-progon-ne-dozhivaet-do-verdi.md` · 2026-09-19
 - Предписанный прогон тестов на хосте НЕ ЗАПУСКАЕТСЯ: гейт допуска отказывает по диску (16.2 ГБ < 20), и это неотличимо от быстрого успеха  ·  `inbox-predpisannyi-progon-testov-na-hoste-ne-z.md` · 2026-10-28
+- Претензия о прогоне CI без своей личности: население измерено только в announce-логе  ·  `inbox-pretenziya-o-progone-ci-bez-svoei-lichno.md` · 2026-11-27
 - Прибор ADR-362 считает одно чтение origin/main дважды: своя строка двери и зов снаружи  ·  `inbox-pribor-adr-362-schitaet-odno-chtenie-ori.md` · 2026-11-18
 - Прибор мутаций по дельте слеп к SUBFAILED и называет своё слепое пятно дырой покрытия  ·  `inbox-pribor-mutatsii-po-delte-slep-k-subfaile.md` · 2026-10-26
 - Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15

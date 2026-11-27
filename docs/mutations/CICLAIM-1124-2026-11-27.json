@@ -1,0 +1,161 @@
+{
+ "title": "ADR-1124 CICLAIM — СВОЙ набор мутаций цикла #1270 на байтах прибора провенанса CI-претензии (G1097 п. 5: три формы, которые чужой набор склонен пропускать, + форма «зелена ПРОВОДКА, а не ОСЬ»)",
+ "tests": [
+  "spa_core/tests/test_ci_claim_provenance.py"
+ ],
+ "mutations": [
+  {
+   "name": "дверь личности расширена: 9-значный идентификатор воркфлоу зачтён за прогон",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "RUN_ID_RE = re.compile(r\"\\b(\\d{10,12})\\b\")",
+   "new": "RUN_ID_RE = re.compile(r\"\\b(\\d{4,})\\b\")"
+  },
+  {
+   "name": "граница сегмента снята: претензии достаётся номер из соседней фразы",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "        cut = tail.find(\";\")",
+   "new": "        cut = -1"
+  },
+  {
+   "name": "срез сегмента начинается НЕ у маркера: претензии достаётся чужая фраза",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "        tail = summary[m.start():]",
+   "new": "        tail = summary"
+  },
+  {
+   "name": "ось «претензия вообще есть» всегда ДА: запись без числа читается находкой",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    claims_something = got[\"count\"] is not None or got[\"cause\"] is not None",
+   "new": "    claims_something = True"
+  },
+  {
+   "name": "ось «претензия вообще есть» всегда НЕТ: население схлопнуто в ноль",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if not claims_something:\n        row[\"kind\"] = NO_CLAIM",
+   "new": "    if True:\n        row[\"kind\"] = NO_CLAIM"
+  },
+  {
+   "name": "ось цитаты ПЕРЕВЁРНУТА",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    row[\"quoted\"] = any(a <= start <= b for a, b in spans) if start >= 0 else False",
+   "new": "    row[\"quoted\"] = not any(a <= start <= b for a, b in spans) if start >= 0 else False"
+  },
+  {
+   "name": "ось цитаты всегда ДА: находок не бывает никогда",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if row[\"quoted\"]:\n        row[\"kind\"] = QUOTED",
+   "new": "    if True:\n        row[\"kind\"] = QUOTED"
+  },
+  {
+   "name": "неопровержимость подменена: отсутствие номера читается как вердикт",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if not got[\"run_ids\"]:\n        row[\"kind\"] = UNFALSIFIABLE",
+   "new": "    if not got[\"run_ids\"]:\n        row[\"kind\"] = COUNT_AGREES"
+  },
+  {
+   "name": "числа не-той ширины больше не называются в причине",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "        if got[\"digits_not_run_id\"]:",
+   "new": "        if False:"
+  },
+  {
+   "name": "ось «номер мимо сегмента» бездействует",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    outside = [r for r in RUN_ID_RE.findall(line or \"\") if r not in got[\"run_ids\"]]",
+   "new": "    outside = []"
+  },
+  {
+   "name": "«вне окна читателя» выдано за согласие",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if cid != row[\"run_id\"]:\n        row[\"kind\"] = OUT_OF_WINDOW",
+   "new": "    if cid != row[\"run_id\"]:\n        row[\"kind\"] = COUNT_AGREES"
+  },
+  {
+   "name": "окно читателя не проверяется вовсе: претензия сверяется с ЧУЖИМ прогоном",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if cid != row[\"run_id\"]:",
+   "new": "    if False:"
+  },
+  {
+   "name": "«читателя не спрашивали» выдано за согласие",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "        row[\"kind\"] = NO_CANONICAL",
+   "new": "        row[\"kind\"] = COUNT_AGREES"
+  },
+  {
+   "name": "сверка числа ПЕРЕВЁРНУТА",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if got[\"count\"] is not None and canonical.get(\"failed\") != got[\"count\"]:",
+   "new": "    if got[\"count\"] is not None and canonical.get(\"failed\") == got[\"count\"]:"
+  },
+  {
+   "name": "ветвь рода снята: совпавшее число выдаётся за подтверждённую причину",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if got[\"cause\"] is not None:\n        worst =",
+   "new": "    if False:\n        worst ="
+  },
+  {
+   "name": "неопровержимость выведена из находок: отчёт зеленеет на том же логе",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "FINDING_KINDS: frozenset[str] = frozenset({UNFALSIFIABLE, COUNT_DIFFERS,",
+   "new": "FINDING_KINDS: frozenset[str] = frozenset({COUNT_DIFFERS,"
+  },
+  {
+   "name": "нечитаемый лог выдан за пустое население (fail-OPEN)",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "        doc[\"status\"] = \"UNMEASURED\"\n        doc[\"unmeasured\"].append",
+   "new": "        doc[\"status\"] = \"OK\"\n        doc[\"unmeasured\"].append"
+  },
+  {
+   "name": "неразобранные строки лога молча выброшены",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    doc[\"unparsed_records\"] = bad",
+   "new": "    doc[\"unparsed_records\"] = 0"
+  },
+  {
+   "name": "названный каталог, которого нет, молча заменяется своим",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if args.data_dir is not None and not Path(args.data_dir).is_dir():",
+   "new": "    if False:",
+   "equivalent": true,
+   "equivalent_evidence": "ЭКВИВАЛЕНТЕН, и это ИЗМЕРЕНО, а не объявлено: прогон эталона и мутанта с `--data-dir /tmp/нет-такого-каталога-1270` дал У ОБОИХ код 2 и причину, НАЗЫВАЮЩУЮ каталог (эталон — stderr «названный каталог не читается», мутант — stdout «[НЕ ИЗМЕРЕНО] announce-лог не прочитан (<путь>/session_changes.jsonl)»). Различие — КАНАЛ и слова, а не вердикт и не третий исход. Сцену на формулировку не завожу: она закрепила бы текст, а не поведение."
+  },
+  {
+   "name": "выбор каталога не печатается: НАЗВАН и УМОЛЧАНИЕ неразличимы",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    named = data_dir is not None",
+   "new": "    named = False"
+  },
+  {
+   "name": "пустой ответ канонического читателя выдан за документ",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    if not text.strip():",
+   "new": "    if False:"
+  },
+  {
+   "name": "неразобранный ответ читателя отдан БЕЗ причины",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "        return None, f\"документ канонического читателя не разобран: {exc}\"",
+   "new": "        return None, \"\""
+  },
+  {
+   "name": "подось рода всегда ноль: печатаемое число без предмета",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    doc[\"unfalsifiable_with_cause\"] = sum(\n        1 for c in doc[\"claims\"]\n        if c[\"kind\"] == UNFALSIFIABLE and c.get(\"cause\"))",
+   "new": "    doc[\"unfalsifiable_with_cause\"] = 0"
+  },
+  {
+   "name": "код возврата на находке подменён успехом",
+   "file": "spa_core/monitoring/ci_claim_provenance.py",
+   "old": "    return 1 if doc.get(\"findings\") else 0",
+   "new": "    return 0"
+  },
+  {
+   "name": "проводка снята: шаг 0-офис прибор не зовёт",
+   "file": "scripts/consume_office_reports.py",
+   "old": "            for _line in _cicp_report(_cicp_census(",
+   "new": "            for _line in [] or (lambda *_a, **_k: [])(_cicp_census_disabled("
+  }
+ ],
+ "second_run": "финальные байты, /private/tmp/spa_c1270mut2: применено 25 · убито 24 · выжило 1 (эквивалентный, см. выше) · НЕ ПРИМЕНЕНО 0"
+}
