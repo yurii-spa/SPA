@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-26T23:58:25Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-27T08:37:59Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (789a7895e) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (976ee5880) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1705** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1706** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (996)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (997)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1294,6 +1294,7 @@
 - Прибор мутаций по дельте слеп к SUBFAILED и называет своё слепое пятно дырой покрытия  ·  `inbox-pribor-mutatsii-po-delte-slep-k-subfaile.md` · 2026-10-26
 - Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15
 - Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `inbox-pribory-brosayut-odnorazovyi-stend-87-gb.md` · 2026-10-03
+- Причина единственной строки forbidden_import_baseline печатается, но никем не перемеряется  ·  `inbox-prichina-edinstvennoi-stroki-forbidden-i.md` · 2026-11-27
 - Причина, которая возникает только в облаке, не доходит до учёта повторов  ·  `inbox-prichina-kotoraya-voznikaet-tolko-v-obla.md` · 2026-10-23
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Причина внутри «НЕ ИЗМЕРЕНО» бывает назначена умолчанием — население класса не измерено (ADR-1058)  ·  `inbox-prichina-vnutri-ne-izmereno-byvaet-nazna.md` · 2026-11-18
