@@ -6825,9 +6825,17 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
             )
             print("— провенанс претензии о контрольном прогоне CI (ADR-1124) —")
             _cicp_ddir = data_dir or os.path.join(receipt_root, "data")
+            # Дерево КОНТЕНТА называется ЯВНО (ADR-1125): носители 2–4 —
+            # карточки трекера, `docs/journal/**` и производитель утренней
+            # сводки, — живут в дереве, а не в `data/`, и прод-дерево
+            # расходится с origin ПО ПОСТРОЕНИЮ. Умолчание дало бы тот же
+            # путь молча, и читатель не узнал бы, о чьём носителе ответ:
+            # население, снятое здесь, есть свойство ЭТОГО дерева, а не
+            # проекта (§ поправка #1031 `.claude/rules/deployment.md`).
+            # Цена оси ИЗМЕРЕНА: +2,6 с к такту (0,18 с против 2,75 с).
             for _line in _cicp_report(_cicp_census(
                     data_dir=_cicp_ddir, repo_root=args.root,
-                    ask_canonical=True)):
+                    carrier_root=args.root, ask_canonical=True)):
                 print(f"   {_line}")
         except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
             print("— провенанс претензии о контрольном прогоне CI (ADR-1124) —")

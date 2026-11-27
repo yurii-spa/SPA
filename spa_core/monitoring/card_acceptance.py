@@ -18508,6 +18508,252 @@ def _probe_column_door_class_is_measured(
         + " | ".join(seen))
 
 
+def _probe_ci_claim_carriers_population_named(
+        arg: str | None, *, repo_root: str | None = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий: население класса «претензия о CI без своей личности» измерено у ВСЕХ носителей.
+
+    Предмет — карточка `inbox-pretenziya-o-progone-ci-bez-svoei-lichno`
+    (заказ G1098 п. 5, ADR-1125). ADR-1124 измерил класс в ОДНОМ носителе —
+    announce-логе (`data/session_changes.jsonl`): из 21 своей претензии с
+    числом номер прогона НЕ несут 9, и одна называет РОД падения, которого на
+    том прогоне не было. **Население у остальных трёх носителей — карточки
+    трекера, `docs/journal/**` и утренняя сводка владельцу — НЕ ИЗМЕРЕНО, и
+    нулём это не считается** (инв. #17).
+
+    Критерий карточки дословно: «население названо числом с ВИЛКОЙ по каждому
+    из трёх оставшихся носителей, и „не разобрано“ названо отдельным числом, а
+    не включено в ноль».
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова
+    `tracker`, ни имени носителя: она кладёт ОДНОРАЗОВЫЕ деревья контента и
+    спрашивает ВЕРДИКТ значением. Подстрокой она не проходит (ADR-333) —
+    упоминание носителя в докстроке вилки не даёт.
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * целый контур (претензия без личности в журнале + пересказ в карточке +
+      нечитаемый файл + производитель сводки) обязан дать: ответ о КАЖДОМ
+      объявленном носителе · вилку · «не разобрано» ОТДЕЛЬНЫМ числом ·
+      `UNMEASURED` у наблюдённого населения сводки;
+    * снятие ЛЮБОГО звена порознь обязано СМЕНИТЬ вердикт: каталог носителя
+      убран ⇒ `UNMEASURED`, а не 0 · та же претензия в ограде ⇒ предмет 0
+      (пересказ) · незакрытый открыватель ⇒ края вилки РАСХОДЯТСЯ ·
+      длительность вместо счёта ⇒ претензии нет вовсе;
+    * **живое дерево обязано дать ОБА числа**: предмет назван И поверхность
+      НЕПУСТА. «Предмет ноль» на пустой поверхности было бы вакуумом — прибор,
+      переставший читать носитель, выглядел бы как чистое дерево.
+
+    Часов, pid и git-окружения хоста проба не спрашивает: носители кладёт сама.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — население класса по носителям, "
+                            "пофайловой формы у него нет")
+    import importlib.util as _ilu
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root) if repo_root else _pathlib.Path(REPO_ROOT)
+    tool = root / "spa_core" / "monitoring" / "ci_claim_provenance.py"
+    if not tool.exists():
+        return UNMEASURED, f"прибора провенанса нет по пути {tool}"
+    try:
+        spec = _ilu.spec_from_file_location("cicp_probe", tool)
+        mod = _ilu.module_from_spec(spec)
+        _sys.modules["cicp_probe"] = mod
+        spec.loader.exec_module(mod)
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"прибор не ввезён: {type(exc).__name__}: {exc}"
+    for name in ("run_census", "carrier_census", "format_carriers",
+                 "markdown_records", "CARRIERS", "CARRIER_PATHS",
+                 "CARRIER_DIGEST", "DIGEST_PRODUCER", "QUOTATION_UNDECIDED"):
+        if not hasattr(mod, name):
+            return UNMEASURED, f"у прибора нет двери `{name}`"
+    # Носитель, объявленный у прибора, но без адреса, сцена положить НЕ
+    # МОЖЕТ, и падение здесь было бы «проба упала» без имени звена.
+    for carrier in ("tracker", "journal"):
+        if carrier not in (getattr(mod, "CARRIER_PATHS", None) or {}):
+            return UNMEASURED, (f"у прибора нет адреса носителя "
+                                f"{carrier!r} в CARRIER_PATHS — положить его "
+                                f"сцена не может, и это НЕ ноль")
+
+    claim = ("контрольный прогон CI `main` **RED** (failed=67 из 137 166) — "
+             "состав не читался")
+
+    def _tree(label: str, *, journal=(), tracker=(), digest=None,
+              broken: bool = False) -> _pathlib.Path:
+        tmp = _pathlib.Path(_tempfile.mkdtemp(prefix=f"cicp_{label}_"))
+        for carrier, files in ((("tracker"), tracker), (("journal"), journal)):
+            rel = mod.CARRIER_PATHS[carrier][0]
+            base = tmp / rel
+            base.mkdir(parents=True, exist_ok=True)
+            for fname, text in files:
+                (base / fname).write_text(text, encoding="utf-8")
+            if broken and carrier == "journal":
+                (base / "битый.md").write_bytes(b"\xff\xfe\x00CI control RED 5")
+        if digest is not None:
+            prod = tmp / mod.DIGEST_PRODUCER
+            prod.parent.mkdir(parents=True, exist_ok=True)
+            prod.write_text(digest, encoding="utf-8")
+        data = tmp / "data"
+        data.mkdir(exist_ok=True)
+        (data / "session_changes.jsonl").write_text(
+            '{"ts": "t", "summary": "контрольный прогон 45967869368 заказан"}\n',
+            encoding="utf-8")
+        return tmp
+
+    def _census(tree: _pathlib.Path) -> dict:
+        return mod.run_census(data_dir=tree / "data", carrier_root=tree,
+                              canonical={"run": {"id": 45967869368},
+                                         "failed": 84,
+                                         "red_census": {"worst": []}})
+
+    seen: list[str] = []
+
+    # ── звено 1: целый контур ──────────────────────────────────────────────
+    whole = _tree(
+        "whole",
+        journal=[("W01.md", "шапка\n\n" + claim + "\n")],
+        tracker=[("card.md", "разбор: «" + claim + "» — перемерено\n")],
+        digest='def f(n):\n    return f"АВТОПРОВЕРКА КОДА: КРАСНАЯ, красных {n}"\n',
+        broken=True)
+    try:
+        doc = _census(whole)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"целый контур не измерился: {type(exc).__name__}: {exc}"
+    missing = [c for c in mod.CARRIERS if c not in (doc.get("carriers") or {})]
+    if missing:
+        return NOT_SATISFIED, ("объявленные носители без ответа: "
+                              + ", ".join(missing) + " — это НЕ ноль")
+    jrn = doc["carriers"]["journal"]
+    trk = doc["carriers"]["tracker"]
+    dig = doc["carriers"][mod.CARRIER_DIGEST]
+    if jrn.get("population_floor") != 1:
+        return NOT_SATISFIED, (f"журнал: предмет {jrn.get('population_floor')} "
+                               f"вместо 1 — претензия без личности не найдена")
+    if trk.get("population_floor") != 0:
+        return NOT_SATISFIED, (f"трекер: предмет {trk.get('population_floor')} "
+                               f"вместо 0 — пересказ чужой претензии зачтён "
+                               f"как своя, и население удвоено")
+    if len(jrn.get("unread_files") or []) != 1:
+        return NOT_SATISFIED, ("«не разобрано» не названо ОТДЕЛЬНЫМ числом: "
+                               f"нечитаемых файлов "
+                               f"{len(jrn.get('unread_files') or [])} вместо 1")
+    if dig.get("status") != UNMEASURED.upper():
+        return NOT_SATISFIED, (f"сводка владельцу: статус {dig.get('status')!r} "
+                               f"вместо UNMEASURED — у носителя, не хранящего "
+                               f"своего текста, наблюдённого населения нет")
+    if dig.get("templates_with_computed_number") != 1:
+        return NOT_SATISFIED, ("вычисляемое число производителя сводки не "
+                               "названо третьим исходом: "
+                               f"{dig.get('templates_with_computed_number')} "
+                               "вместо 1")
+    printed = "\n".join(mod.format_carriers(doc))
+    for want in ("НЕ МЕНЬШЕ", "НЕ РАЗОБРАНО", "НЕ ИЗМЕРЕНО"):
+        if want not in printed:
+            return NOT_SATISFIED, (f"в печати носителей нет «{want}» — вилка "
+                                   f"или третий исход до читателя не доезжают")
+    seen.append(f"целый контур → журнал 1 · трекер 0 · не разобрано 1 · "
+                f"сводка {dig.get('status')}")
+
+    # ── звено 2: каждое снятие ПОРОЗНЬ меняет вердикт ──────────────────────
+    gone = _tree("gone", tracker=[("card.md", "запись\n")])
+    import shutil as _shutil
+    _shutil.rmtree(gone / mod.CARRIER_PATHS["journal"][0])
+    try:
+        c = _census(gone)["carriers"]["journal"]
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена «каталога нет» не измерилась: {exc}"
+    if c.get("status") != "UNMEASURED" or not c.get("unmeasured"):
+        return NOT_SATISFIED, ("каталог носителя убран, а ответ не "
+                               f"«НЕ ИЗМЕРЕНО»: {c.get('status')!r} — "
+                               "отсутствие носителя выдано за пустое население")
+    seen.append("каталога нет → UNMEASURED с причиной")
+
+    fenced = _tree("fenced", journal=[("W02.md", "```\n" + claim + "\n```\n")])
+    try:
+        c = _census(fenced)["carriers"]["journal"]
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена ограды не измерилась: {exc}"
+    if c.get("population_floor") != 0:
+        return NOT_SATISFIED, ("та же претензия в ограде ``` даёт предмет "
+                               f"{c.get('population_floor')} вместо 0 — "
+                               "дословный пересказ зачтён как своя претензия")
+    seen.append("та же претензия в ограде → предмет 0")
+
+    undecided = _tree("undecided", journal=[
+        ("W03.md", "сводка «контрольный прогон CI RED 67 упавших\n")])
+    try:
+        c = _census(undecided)["carriers"]["journal"]
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена незакрытой кавычки не измерилась: {exc}"
+    if (c.get("population_floor"), c.get("population_ceiling")) != (0, 1):
+        return NOT_SATISFIED, (
+            f"незакрытый открыватель даёт вилку "
+            f"({c.get('population_floor')}, {c.get('population_ceiling')}) "
+            f"вместо (0, 1) — «ось не ответила» схлопнуто в ноль либо в находку")
+    seen.append("незакрытый открыватель → вилка 0…1, края РАСХОДЯТСЯ")
+
+    duration = _tree("duration", journal=[
+        ("W04.md", "автопроверка кода КРАСНАЯ, красное 4 суток\n")])
+    try:
+        c = _census(duration)["carriers"]["journal"]
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена длительности не измерилась: {exc}"
+    if c.get("population_floor") != 0:
+        return NOT_SATISFIED, ("длительность красноты зачтена как счёт "
+                               f"упавших: предмет {c.get('population_floor')} "
+                               f"вместо 0")
+    seen.append("длительность вместо счёта → претензии нет")
+
+    # ── звено 3: живое дерево обязано дать ОБА числа ───────────────────────
+    #
+    # Деревьев ДВА намеренно, и это не удобство. announce-лог — ДАННЫЕ, и из
+    # worktree живого лога нет по построению: канон `data/` в git ЗАМОРОЖЕН,
+    # поэтому без названного `data_dir` число announce было бы ответом о
+    # замороженной копии, а не о работе (урок ADR-1107/1108). markdown-носители
+    # — КОНТЕНТ, и они берутся из `repo_root`. Что именно дошло до пробы,
+    # ПЕЧАТАЕТСЯ: молчание здесь неотличимо от ответа.
+    ddir = _pathlib.Path(data_dir) if data_dir else root / "data"
+    try:
+        live = mod.run_census(data_dir=ddir, carrier_root=root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"живое дерево не измерилось: {type(exc).__name__}: {exc}"
+    live_carriers = live.get("carriers") or {}
+    gaps = [c for c in mod.CARRIERS if c not in live_carriers]
+    if gaps:
+        return UNMEASURED, ("в живом дереве нет ответа о носителях: "
+                            + ", ".join(gaps))
+    md = [live_carriers[c] for c in ("tracker", "journal")]
+    surface = sum(len(c.get("claims") or []) for c in md)
+    if surface == 0:
+        return UNMEASURED, ("поверхность markdown-носителей живого дерева "
+                            "ПУСТА — «предмет ноль» был бы вакуумом: прибор "
+                            "не прочитал ни одной претензии")
+    able = sum(c.get("records_with_unclosed_opener", 0) for c in md)
+    if able == 0:
+        return UNMEASURED, ("ось «цитата не ответила» в живом дереве не имеет "
+                            "ни одного кандидата — ноль описывал бы ось, а не "
+                            "носитель")
+    floor = live.get("population_floor_total", 0)
+    ceil = live.get("population_ceiling_total", 0)
+    return SATISFIED, (
+        f"население НАЗВАНО у всех {len(mod.CARRIERS)} носителей: предмет НЕ "
+        f"МЕНЬШЕ {floor} и НЕ БОЛЬШЕ {ceil} при поверхности "
+        f"{surface} претензи(й) markdown; деревья НАЗВАНЫ — контент {root}, "
+        f"данные {ddir} ({'НАЗВАН' if data_dir else 'УМОЛЧАНИЕ, то есть '
+                          'ЗАМОРОЖЕННЫЙ канон data/ своего дерева, а не '
+                          'живой лог'}); "
+        + " · ".join(f"{c}: предмет {live_carriers[c].get('population_floor')}"
+                     f"…{live_carriers[c].get('population_ceiling')}, "
+                     f"не разобрано "
+                     f"{len(live_carriers[c].get('unread_files') or [])}"
+                     for c in mod.CARRIERS)
+        + f"; кандидатов у оси цитаты {able}; четыре звена различают порознь: "
+        + " | ".join(seen))
+
+
 def _probe_delivery_tree_input_class_population_named(
         arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
     """Критерий: население класса «шаг не умеет назвать дерево прогона» ИЗМЕРЕНО и пусто.
@@ -23545,6 +23791,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "collection_read_is_bound_to_the_declaring_module":
         _probe_collection_read_is_bound_to_the_declaring_module,
     "column_door_class_is_measured": _probe_column_door_class_is_measured,
+    "ci_claim_carriers_population_named": _probe_ci_claim_carriers_population_named,
     "tb_sanitizer_sees_the_report_excinfo":
         _probe_tb_sanitizer_sees_the_report_excinfo,
     "catchup_cycle_fires_once_after_the_hour":

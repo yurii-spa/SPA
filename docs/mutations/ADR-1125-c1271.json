@@ -1,0 +1,201 @@
+{
+  "label": "ADR-1125 — носители претензии о прогоне CI (цикл #1271)",
+  "tests": [
+    "spa_core/tests/test_ci_claim_provenance.py",
+    "spa_core/tests/test_ci_claim_carriers_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01_duration_read_as_a_count_of_failures",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        if _DURATION_RE.match(segment, m.end()):",
+      "new": "        if False:"
+    },
+    {
+      "name": "M02_the_day_tail_drops_out_of_the_duration_list",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    r\"сут\\w*\", r\"дн\\w*\", r\"час\\w*\", r\"ч\\b\", r\"мин\\w*\", r\"нед\\w*\", r\"мес\\w*\",",
+      "new": "    r\"дн\\w*\", r\"час\\w*\", r\"ч\\b\", r\"мин\\w*\", r\"нед\\w*\", r\"мес\\w*\","
+    },
+    {
+      "name": "M03_code_spans_pair_any_next_backtick_run",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "            if runs[j][1] == width:",
+      "new": "            if True:"
+    },
+    {
+      "name": "M04_runs_inside_a_pair_form_their_own_span",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "                used.update(k for k in range(i, j + 1))",
+      "new": "                used.update({i, j})"
+    },
+    {
+      "name": "M05_quotation_asks_only_the_mark_not_both_ends",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        if a <= start and end <= b:",
+      "new": "        if a <= start <= b:"
+    },
+    {
+      "name": "M06_the_claim_end_is_never_computed",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    claim_end = start + max(ends) if (ends and start >= 0) else -1",
+      "new": "    claim_end = -1"
+    },
+    {
+      "name": "M07_markup_axis_asked_of_a_flat_carrier_too",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    if markup:\n        candidates += [(s, QUOTE_INLINE_CODE) for s in code_spans(text)]",
+      "new": "    if True:\n        candidates += [(s, QUOTE_INLINE_CODE) for s in code_spans(text)]"
+    },
+    {
+      "name": "M08_a_fenced_claim_is_not_a_quotation",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    if fenced:\n        return QUOTE_FENCE,",
+      "new": "    if False:\n        return QUOTE_FENCE,"
+    },
+    {
+      "name": "M09_a_blockquoted_claim_is_not_a_quotation",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    if blockquote:\n        return QUOTE_BLOCKQUOTE,",
+      "new": "    if False:\n        return QUOTE_BLOCKQUOTE,"
+    },
+    {
+      "name": "M10_the_undecided_axis_collapses_into_not_quoted",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        return QUOTE_UNDECIDED, (f\"у записи есть открыватель цитаты в позиции \"",
+      "new": "        return QUOTE_NONE, (f\"у записи есть открыватель цитаты в позиции \""
+    },
+    {
+      "name": "M11_an_opener_after_the_claim_makes_it_undecided",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    if 0 <= free <= start:",
+      "new": "    if free >= 0:"
+    },
+    {
+      "name": "M12_a_new_block_does_not_start_a_new_record",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        if _NEW_BLOCK_RE.match(line) or not buf:",
+      "new": "        if not buf:"
+    },
+    {
+      "name": "M13_the_fence_state_is_ignored",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        if fence is not None:",
+      "new": "        if False:"
+    },
+    {
+      "name": "M14_a_table_row_is_not_an_authored_unit",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    r\"^(?:\\s*(?:[-*+]\\s|\\d+[.)]\\s)|\\s{0,3}#{1,6}\\s|\\s*\\||\\s*>)\")",
+      "new": "    r\"^(?:\\s*(?:[-*+]\\s|\\d+[.)]\\s)|\\s{0,3}#{1,6}\\s|\\s*>)\")"
+    },
+    {
+      "name": "M15_an_unreadable_file_is_swallowed",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "            unread.append(f\"{path}: {type(exc).__name__}: {exc}\")",
+      "new": "            pass"
+    },
+    {
+      "name": "M16_a_missing_carrier_directory_becomes_an_empty_population",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        return [], [], f\"каталога носителя нет: {base}\"",
+      "new": "        return [], [], \"\""
+    },
+    {
+      "name": "M17_an_empty_carrier_directory_gives_no_reason",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        return [], [], (f\"в каталоге носителя нет ни одного файла по маске \"\n                        f\"{mask}: {base}\")",
+      "new": "        return records, unread, \"\""
+    },
+    {
+      "name": "M18_the_bracket_collapses_to_its_floor",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    doc[\"population_ceiling\"] = by[UNFALSIFIABLE] + by[QUOTATION_UNDECIDED]",
+      "new": "    doc[\"population_ceiling\"] = by[UNFALSIFIABLE]"
+    },
+    {
+      "name": "M19_the_axis_ability_counter_never_increments",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "            doc[\"records_with_unclosed_opener\"] += 1",
+      "new": "            pass"
+    },
+    {
+      "name": "M20_the_digest_claims_its_population_is_measured",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        \"carrier\": CARRIER_DIGEST,\n        \"producer\": DIGEST_PRODUCER,\n        \"status\": \"UNMEASURED\",",
+      "new": "        \"carrier\": CARRIER_DIGEST,\n        \"producer\": DIGEST_PRODUCER,\n        \"status\": \"OK\","
+    },
+    {
+      "name": "M21_a_computed_number_is_not_a_third_outcome",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "                doc[\"templates_with_computed_number\"] += 1\n",
+      "new": "                pass\n"
+    },
+    {
+      "name": "M22_the_placeholder_itself_is_a_number",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "COMPUTED_MARK = \"⟪вычисляется⟫\"",
+      "new": "COMPUTED_MARK = \"7\""
+    },
+    {
+      "name": "M23_the_carrier_findings_never_reach_the_total",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    doc[\"findings_total\"] = sum(len(c.get(\"findings\") or [])\n                                for c in doc[\"carriers\"].values())",
+      "new": "    doc[\"findings_total\"] = 0"
+    },
+    {
+      "name": "M24_a_carrier_finding_does_not_outrank_unmeasured",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    if doc.get(\"findings\") or doc.get(\"findings_total\"):\n        return 1",
+      "new": "    if doc.get(\"findings\"):\n        return 1"
+    },
+    {
+      "name": "M25_the_named_carrier_root_is_silently_replaced_by_the_prober_tree",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "    croot = Path(carrier_root) if carrier_root is not None else root",
+      "new": "    croot = _ROOT"
+    },
+    {
+      "name": "M26_the_carrier_root_choice_is_always_printed_as_named",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        \"carrier_root_named\": carrier_root is not None,",
+      "new": "        \"carrier_root_named\": True,"
+    },
+    {
+      "name": "M27_the_printed_bracket_always_shows_one_number",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        bracket = (f\"{floor}\" if floor == ceil\n                   else f\"НЕ МЕНЬШЕ {floor} и НЕ БОЛЬШЕ {ceil}\")",
+      "new": "        bracket = f\"{floor}\""
+    },
+    {
+      "name": "M28_a_declared_carrier_without_an_answer_is_not_named",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        c = carriers.get(name)\n        if c is None:",
+      "new": "        c = carriers.get(name)\n        if False:"
+    },
+    {
+      "name": "M29_the_record_identity_is_not_carried_through",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "            for key in (\"file\", \"line\", \"ts\", \"session\"):\n                if key in rec:\n                    row[key] = rec[key]",
+      "new": "            for key in (\"ts\", \"session\"):\n                if key in rec:\n                    row[key] = rec[key]"
+    },
+    {
+      "name": "M30_an_unread_announce_log_locks_the_other_carriers",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "        rows = []\n        doc[\"status\"] = \"UNMEASURED\"\n        doc[\"unmeasured\"].append(f\"announce-лог не прочитан ({path}): {why}\")",
+      "new": "        doc[\"status\"] = \"UNMEASURED\"\n        doc[\"unmeasured\"].append(f\"announce-лог не прочитан ({path}): {why}\")\n        return doc"
+    },
+    {
+      "name": "M31_a_literal_count_inside_an_fstring_is_called_computed",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "                if COMPUTED_MARK not in seg[\"segment\"]:",
+      "new": "                if False:"
+    },
+    {
+      "name": "M32_a_placeholder_read_as_a_number_is_silent",
+      "file": "spa_core/monitoring/ci_claim_provenance.py",
+      "old": "                    doc[\"unmeasured\"].append(\n                        f\"знак подстановки {COMPUTED_MARK!r} сам читается как \"",
+      "new": "                    doc[\"findings\"] = doc.get(\"findings\") or []\n                    _ = (\n                        f\"знак подстановки {COMPUTED_MARK!r} сам читается как \""
+    }
+  ]
+}

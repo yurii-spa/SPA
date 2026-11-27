@@ -2,9 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Претензия о прогоне CI без своей личности: население измерено только в announce-логе"
-status: new
+status: in-progress
 created: 2026-11-27
 twin_key: "sha256:0a5b257e410dca6c9c2366e8fc72d6a842f41e74afcc0391c5535adfe168893c"
+acceptance_probe: ci_claim_carriers_population_named
+status_trail:
+  - "2026-11-27T17:27:15.010177+00:00 new -> in-progress · queue.set_status · cycle-94543"
 ---
 
 ## Что случилось и почему это важно
