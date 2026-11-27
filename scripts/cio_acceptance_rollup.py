@@ -85,6 +85,7 @@ from spa_core.monitoring.card_acceptance import (  # noqa: E402
 from spa_core.monitoring import card_acceptance as _card_acceptance  # noqa: E402
 from spa_core.monitoring import probe_verdict_authorship as authorship  # noqa: E402
 from spa_core.monitoring import s49_criterion_price as price_meter  # noqa: E402
+from spa_core.monitoring import s49_surface_freshness as fleet_meter  # noqa: E402
 from spa_core.monitoring import s49_verdict_addressee as addressee_meter  # noqa: E402
 
 #: Карточка стоячего приказа владельца — носитель §49.
@@ -356,9 +357,145 @@ def unmeasured_class(row: dict) -> str | None:
     return UNMEASURED_IN_SUBJECT_TREE
 
 
+#: Исход оси ПРОИЗВОДИТЕЛЯ, которого у двери (`s49_surface_freshness`) нет и быть
+#: не может: там у входа ровно один артефакт, здесь у критерия их может быть
+#: несколько, и объявленные производители могут РАЗОЙТИСЬ. Это не «производителя
+#: нет» (`producer_unknown`) и не «флот не спрошен» (`fleet_unmeasured`) — это
+#: столкновение объявлений, и выбрать из них молча значило бы его спрятать.
+PRODUCERS_COLLIDE = "producers_collide"
+
+#: Человекочитаемый ярлык исхода — ОДНОЙ строкой, для печати рядом со строкой.
+PRODUCER_STATE_RU = {
+    fleet_meter.LOADED: "ВО ФЛОТЕ",
+    fleet_meter.NOT_LOADED: "НЕТ ВО ФЛОТЕ",
+    fleet_meter.FLEET_UNMEASURED: "НЕ ИЗМЕРЕНО",
+    fleet_meter.PRODUCER_UNKNOWN: "ПРОИЗВОДИТЕЛЬ НЕ ОБЪЯВЛЕН",
+    PRODUCERS_COLLIDE: "ОБЪЯВЛЕНИЯ РАСХОДЯТСЯ",
+}
+
+
+def producer_axis(names, *, repo_root: str, loaded=None, fleet_asked: bool = False,
+                  now=None) -> dict:
+    """Есть ли в ЖИВОМ флоте производитель, объявленный мерой каждого критерия §49.
+
+    **Зачем ось.** Сводка печатала у неизмеренного критерия «артефакт протух:
+    581 ч при пределе 9,28 ч», а у цены — `PRODUCER`: «вернуть производителя в
+    такт». Обе строки верны и обе читаются как ДОЛГ АГЕНТА. Замер 2026-11-27
+    (цикл #1266, прод-дерево, дверь `launchctl list` — 658 ярлыков, из них 90
+    `com.spa.*`): у **всех 13 из 13** критериев §49 (привязок 15 — у `Auditability`
+    и `Costs` по две) производитель ОДИН — `com.spa.decision_loop`, и во флоте его
+    НЕТ с 29.10. Включение службы флота
+    есть действие ВЛАДЕЛЬЦА (`.claude/rules/deployment.md` п. 6), поэтому цена
+    «вернуть производителя в такт» агентом НЕ ПЛАТИТСЯ ВОВСЕ — и 530 циклов
+    голодающего приказа читали её как свою работу.
+
+    **Перемер цикла #1268 (10:03Z, тот же прод-замер, ADR-1122):** центральное
+    утверждение подтверждено — те же 13 из 13 и тот же выключенный агент (ярлыков
+    660); СВОДНОЕ число за четыре часа устарело — `ВЫПОЛНЕНО 1 · НЕ ВЫПОЛНЕНО 8 ·
+    НЕ ИЗМЕРЕНО 4` против `0 · 8 · 5` выше, и рычаг владельца поэтому 12 из 12
+    не-выполненных. Оба числа здесь ДАТИРОВАНЫ нарочно: это замеры, а не константы.
+
+    Это ровно класс ADR-995 («молчит 11 ч» о службе, выключенной 14 дней), но у
+    ЧИТАТЕЛЯ приёмки: «производитель опоздал» и «производителя нет во флоте» —
+    два состояния, которые чинят РАЗНЫЕ люди, а печатались одним словом
+    (инв. #17).
+
+    **Ни одной копии правила.** Привязка «критерий → артефакт» берётся у
+    `s49_criterion_price.parse_bindings`, производитель — у
+    `s49_surface_freshness.producer_of`, живость — у `fleet_loaded`, а сама
+    классификация исхода — у `producer_rows` того же соседа. Своих четырёх
+    ветвей здесь нет намеренно (ADR-220): разойдись они с соседом, читатель
+    получил бы два ответа о живости одной службы.
+
+    **Флот — ВХОД, а не окружение** (`.claude/rules/deployment.md`, § про часы и
+    pid): `loaded` — множество ярлыков, `fleet_asked=True` при `loaded=None`
+    означает «спросили, ответа нет» ⇒ `fleet_unmeasured`. Подставить пустое
+    множество значило бы объявить выключенными ВСЕХ производителей разом.
+
+    **Чего ось НЕ докладывает.** Она отвечает «есть ли во флоте тот, кто объявлен
+    производителем меры», и НЕ отвечает «потому ли критерий не измерен»: свежесть
+    входов — вопрос соседа (`s49_surface_freshness`), а верность самой привязки —
+    вопрос контроля пробы. Служба может быть во флоте и молчать; может быть вне
+    флота, а вердикт критерия при этом снят живым прибором (так сегодня у восьми
+    `НЕ ВЫПОЛНЕНО`). Ось называет АДРЕСАТА починки, а не причину отказа.
+    """
+    now = now or _now_utc()
+    rows: dict[str, dict] = {}
+    manifest = price_meter.read_manifest(repo_root)   # Unmeasured — наружу
+    parsed = price_meter.parse_bindings(manifest)
+    if loaded is None and not fleet_asked:
+        loaded = fleet_meter.fleet_loaded()
+
+    # Классификация исхода делегируется двери: ей отдаются входы в её форме, а
+    # `state=None` — честный сигнал «свежесть здесь НЕ СПРАШИВАЕТСЯ» (подставить
+    # `fresh` значило бы соврать о том, чего ось не мерила; `unbound` дверь
+    # отбросила бы, и производитель остался бы неклассифицированным).
+    probe_inputs = []
+    bound: dict[str, list[str]] = {}
+    for name in names:
+        paths = sorted({e["path"] for e in (parsed["bindings"].get(name) or [])})
+        bound[name] = paths
+        for path in paths:
+            probe_inputs.append({"artifact": path, "criterion": name,
+                                 "state": None, "generated_at": None})
+    classified = {r["producer"]: r for r in fleet_meter.producer_rows(
+        probe_inputs, manifest=manifest, loaded=loaded, now=now)}
+
+    for name in names:
+        paths = bound[name]
+        producers = sorted({fleet_meter.producer_of(manifest, p) for p in paths},
+                           key=lambda v: (v is None, str(v)))
+        if len(producers) > 1:
+            rows[name] = {
+                "criterion": name, "artifacts": paths, "producer": None,
+                "state": PRODUCERS_COLLIDE,
+                "why": (f"привязанные артефакты ({', '.join(paths)}) объявляют "
+                        f"{len(producers)} РАЗНЫХ производителей "
+                        f"({', '.join(str(p) for p in producers)}) — выбрать из "
+                        f"них молча значило бы спрятать столкновение объявлений")}
+            continue
+        producer = producers[0] if producers else None
+        if not paths:
+            # «Привязки нет» и «привязка есть, производителя в ней нет» чинятся
+            # разным: первое — решение, какой артефакт есть мера (цена
+            # `DECISION`), второе — поле в конституции.
+            rows[name] = {"criterion": name, "artifacts": [], "producer": None,
+                          "state": fleet_meter.PRODUCER_UNKNOWN,
+                          "why": ("конституция не называет мерой этого критерия "
+                                  "НИ ОДНОГО артефакта — спросить флот не о ком")}
+            continue
+        seen = classified.get(producer)
+        if seen is None:
+            # Дверь не вернула строку о производителе, которого сама же назвала —
+            # это НЕ «во флоте нет», а «ось не измерена», и причина печатается.
+            rows[name] = {"criterion": name, "artifacts": paths,
+                          "producer": producer,
+                          "state": fleet_meter.FLEET_UNMEASURED,
+                          "why": (f"дверь живости не вернула строку о "
+                                  f"{producer!r} — живость НЕ ИЗМЕРЕНА")}
+            continue
+        rows[name] = {"criterion": name, "artifacts": paths,
+                      "producer": producer, "state": seen["state"],
+                      "why": seen["why"]}
+
+    counts: dict[str, int] = {}
+    for row in rows.values():
+        counts[row["state"]] = counts.get(row["state"], 0) + 1
+    return {"rows": rows, "counts": counts,
+            "fleet_measured": loaded is not None,
+            "fleet_labels": (len(loaded) if loaded is not None else None)}
+
+
+def _now_utc():
+    """Стенные часы ОДНОЙ дверью — чтобы `now` остался ВХОДОМ везде выше."""
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc)
+
+
 def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             measure_tree: str | None = None, data_dir: str | None = None,
-            probe_runner=None, now=None) -> dict:
+            probe_runner=None, now=None, loaded=None,
+            fleet_asked: bool = False) -> dict:
     """Свести §49: у каждого критерия — вердикт либо названная причина его отсутствия.
 
     `measure_tree` — дерево, О КОТОРОМ выносится вердикт (умолчание — дерево
@@ -533,6 +670,33 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
                        and (r.get("addressee") or {}).get("kind")
                        != addressee_meter.OWNER_OPEN]
 
+    # Ось ПРОИЗВОДИТЕЛЯ меры: кто объявлен производить артефакт критерия и есть
+    # ли он в живом флоте. Непрочитанная конституция гасит ОСЬ, а не сводку — тот
+    # же порядок, что у цены и адресата выше: вердикты уже сняты и остаются верны,
+    # но «производителя нет во флоте» обязано быть отличимо от «ось не мерили».
+    producer_problem = None
+    producer = None
+    try:
+        producer = producer_axis(names, repo_root=price_tree, loaded=loaded,
+                                 fleet_asked=fleet_asked, now=now)
+    except price_meter.Unmeasured as exc:
+        producer_problem = str(exc)
+    else:
+        for row in rows:
+            row["producer"] = producer["rows"].get(row["criterion"])
+
+    # ОТВЕТ на дефект, ради которого ось и написана: у строки, чей вердикт НЕ
+    # `satisfied`, производитель может отсутствовать во флоте — тогда цена
+    # «вернуть производителя в такт» агентом НЕ ПЛАТИТСЯ, и читать её как долг
+    # агента неверно. `None` здесь значит «ось не мерили вовсе», пустой список —
+    # «мерили, таких нет» (инв. #17).
+    owner_lever = None
+    if producer is not None:
+        owner_lever = [r["criterion"] for r in rows
+                       if r["verdict"] != SATISFIED
+                       and (r.get("producer") or {}).get("state")
+                       == fleet_meter.NOT_LOADED]
+
     split = bool(measure_tree and data_dir
                  and os.path.abspath(data_dir) != os.path.abspath(
                      os.path.join(measure_tree, "data")))
@@ -552,6 +716,11 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             "addressee_problems": (addressee or {}).get("problems"),
             "addressee_problem": addressee_problem,
             "unaddressed_not_satisfied": unaddressed,
+            "producer_counts": (producer or {}).get("counts"),
+            "producer_fleet_measured": (producer or {}).get("fleet_measured"),
+            "producer_fleet_labels": (producer or {}).get("fleet_labels"),
+            "producer_problem": producer_problem,
+            "owner_lever_not_satisfied": owner_lever,
             "price_counts": (price_report or {}).get("counts"),
             "price_tree": price_tree, "price_data_dir": price_data,
             "price_problem": price_problem,
@@ -667,6 +836,20 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"      ЦЕНА · {cost['price']}: "
                       f"{price_meter.PRICE_RU.get(cost['price'], '?')} — "
                       f"{cost['detail']}")
+            made_by = row.get("producer")
+            if made_by:
+                label = made_by["producer"] or "—"
+                print(f"      ПРОИЗВОДИТЕЛЬ · {label}: "
+                      f"{PRODUCER_STATE_RU.get(made_by['state'], made_by['state'])}"
+                      f" — {made_by['why']}")
+                if made_by["state"] == fleet_meter.NOT_LOADED:
+                    print("      ⚠️  объявленный артефакт этого критерия сегодня "
+                          "НЕ ПРОИЗВОДИТСЯ НИКЕМ, и включить службу флота вправе "
+                          "только ВЛАДЕЛЕЦ (`.claude/rules/deployment.md` п. 6): "
+                          "цена `PRODUCER` «вернуть производителя в такт» работой "
+                          "агента над кодом НЕ ПЛАТИТСЯ. Это адресат ПРОИЗВОДСТВА "
+                          "меры, а НЕ причина самого вердикта — вердикт мог быть "
+                          "снят живым прибором мимо артефакта")
             who = row.get("addressee")
             if who:
                 cards = ", ".join(f"{c['card']} [{c['status']}]"
@@ -727,6 +910,27 @@ def main(argv: list[str] | None = None) -> int:
                   f"{name!r}, которого в §49 нет")
         for problem in report["addressee_problems"] or []:
             print(f"  ⚠️  очередь: {problem}")
+        if report["producer_problem"]:
+            print(f"  ⚠️  ПРОИЗВОДИТЕЛЬ НЕ НАЗВАН НИ У ОДНОГО критерия: "
+                  f"{report['producer_problem']}")
+        elif report["producer_counts"] is not None:
+            fleet = ("флот спрошен, ярлыков "
+                     f"{report['producer_fleet_labels']}"
+                     if report["producer_fleet_measured"] else
+                     "флот НЕ СПРОШЕН — живость производителей НЕ ИЗМЕРЕНА")
+            print(f"  производитель меры ({fleet}): "
+                  + " · ".join(f"{PRODUCER_STATE_RU.get(k, k)} {v}"
+                               for k, v in sorted(report["producer_counts"].items())))
+            lever = report["owner_lever_not_satisfied"]
+            if lever:
+                print(f"  ❗РЫЧАГ У ВЛАДЕЛЬЦА: из "
+                      f"{report['population'] - report['counts'][SATISFIED]} "
+                      f"не-выполненных критериев у {len(lever)} объявленный "
+                      f"артефакт меры сегодня НЕ ПРОИЗВОДИТСЯ НИКЕМ (служба вне "
+                      f"флота), и включить её вправе только владелец. Перемерить "
+                      f"такой критерий ПО ЕГО ОБЪЯВЛЕННОЙ МЕРЕ нечем — это "
+                      f"утверждение о ПРОИЗВОДСТВЕ, а не о верности сегодняшних "
+                      f"вердиктов: " + ", ".join(lever))
         if report["price_problem"]:
             print(f"  ⚠️  ЦЕНА НЕ НАЗВАНА НИ У ОДНОГО критерия: "
                   f"{report['price_problem']}")
