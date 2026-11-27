@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-27T20:24:30Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-27T22:10:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (cf9391491) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (ff7b675a8) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1708** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1709** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (999)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (1000)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1199,6 +1199,7 @@
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: com.spa.decision_loop: объявлено PRODUCES (data/adapter_feed_divergenc  ·  `inbox-nahodka-petli-com-spa-decision-loop-obya.md` · 2026-10-29
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
+- Население мер без вопроса при доставке — 264 при вилке 264…370, а дверей девять  ·  `inbox-naselenie-mer-bez-voprosa-pri-dostavke-2.md` · 2026-11-27
 - Настоящий lsof на машине CI не отвечает — три проверки красны по построению  ·  `inbox-nastoyaschii-lsof-na-mashine-ci-ne-otvec.md` · 2026-11-01
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
