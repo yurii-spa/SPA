@@ -89,6 +89,9 @@ from datetime import datetime, timezone
 # Исходы. Имена — часть вердикта: «nothing» это ИЗМЕРЕННЫЙ ноль, а «unmeasured» — его
 # отсутствие, и подставлять одно вместо другого запрещено (инв. #17).
 BUNDLED, NOTHING, UNMEASURED = "bundled", "nothing", "unmeasured"
+# Исход прибора незакоммиченного. Своё имя, а не `NOTHING` связки: это ответы на
+# РАЗНЫЕ вопросы, и общее имя однажды склеило бы их молча.
+EMPTY_CONTENT = "empty"
 # Состояние ЗАМЕРА (не исход прогона): есть ли вообще что сохранять.
 HAVE_WORK = "have_work"
 VERIFIED, UNVERIFIED = "verified", "unverified"
@@ -305,9 +308,79 @@ def prune(dest: pathlib.Path, keep: int) -> list[str]:
     return dropped
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ЧТО СВЯЗКА СОХРАНИТЬ НЕ МОЖЕТ — и обязана это НАЗВАТЬ (ADR-1123, заказ G1087 п. 4)
+#
+# Связка пакует `refs/heads/*`, то есть КОММИТЫ. Байты, не вошедшие ни в один
+# коммит, в неё не попадают ПО ПОСТРОЕНИЮ — и до ADR-1123 связка об этом МОЛЧАЛА:
+# её вердикт «резерв записан и проверен» верен про коммиты и ничего не утверждает
+# про диск. Цена молчания измерена: цикл #1242 умер между правкой и коммитом, 1640
+# строк ADR-1097 остались в индексе одноразовых деревьев `/private/tmp/spa_c1242*`,
+# и связка в тот момент вышла бы кодом 0 без них.
+#
+# Замер 2026-11-27 (цикл #1269, 120 деревьев): работы без второй копии — 769 файлов,
+# из них у 439 потеря ПОЛНАЯ (файла нет ни в одном коммите). Сутками раньше #1256
+# намерил 712 / 415 при 179 деревьях: предмет РАСТЁТ, а деревья ИСЧЕЗАЮТ, и обе оси
+# движутся в опасную сторону. Число здесь — ЗАМЕР С ДАТОЙ, а не константа.
+#
+# ВЕРДИКТ СВЯЗКИ ЭТИМ НЕ МЕНЯЕТСЯ, и это НАЗВАННЫЙ выбор: отказать в резерве
+# КОММИТОВ из-за незакоммиченного значило бы запереть сохранение одной находки
+# ради другой. Связка НАЗЫВАЕТ; сохранение незакоммиченного вовне есть предмет №3
+# границы ADR-285 (публикация), то есть решение владельца.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Бюджет вопроса о незакоммиченном. Исчерпан ⇒ НЕ ИЗМЕРЕНО с названной причиной.
+UNCOVERED_BUDGET_S = 300.0
+
+
+def stranded_content_door(runner_file: str | None = None):
+    """``(модуль, причина)`` — ЕДИНСТВЕННАЯ дверь к мере незакоммиченного.
+
+    Своей копии разбора здесь НЕТ намеренно: разойдись она с прибором — связка
+    называла бы безопасным ровно то, из-за чего вопрос и задан. Дверь берётся из
+    дерева ЗАПУЩЕННОГО скрипта, а не из прод-дерева по константе
+    (`.claude/rules/deployment.md` § ДЕРЕВО, ИЗ КОТОРОГО ЧИТАЮТСЯ БАЙТЫ).
+    """
+    import importlib.util as _ilu
+
+    base = pathlib.Path(os.path.abspath(runner_file or __file__)).parent.parent
+    path = base / "spa_core" / "monitoring" / "stranded_content.py"
+    try:
+        spec = _ilu.spec_from_file_location("_stranded_for_reserve", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — "
+                      f"работа без второй копии НЕ ИЗМЕРЕНА")
+    if not hasattr(mod, "measure"):
+        return None, f"{path} ввезён, но двери `measure` в нём нет — НЕ ИЗМЕРЕНО"
+    return mod, None
+
+
+def uncovered_by_the_bundle(root, runner_file: str | None = None,
+                            budget_s: float = UNCOVERED_BUDGET_S) -> dict:
+    """Что лежит в деревьях и в связку не попадёт. Три исхода (инв. #17)."""
+    mod, why = stranded_content_door(runner_file)
+    if mod is None:
+        return {"state": UNMEASURED, "why": why}
+    try:
+        doc = mod.measure(root, budget_s=budget_s)
+    except Exception as exc:                                        # noqa: BLE001
+        return {"state": UNMEASURED,
+                "why": f"мера упала ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"}
+    return {"state": doc["verdict"], "work": len(doc["names"]),
+            "by_loss": doc.get("by_loss", {}), "by_kind": doc.get("by_kind", {}),
+            "trees_read": doc.get("trees_read"),
+            "trees_declared": doc.get("trees_declared"),
+            "unmeasured": len(doc.get("unmeasured", [])),
+            "why": None,
+            "reasons": [r for _, r in doc.get("unmeasured", [])][:3]}
+
+
 def run(root: pathlib.Path, dest: pathlib.Path, control: pathlib.Path,
         keep: int = DEFAULT_KEEP, now: datetime | None = None,
-        do_build: bool = True) -> dict:
+        do_build: bool = True, ask_uncovered: bool = True,
+        runner_file: str | None = None) -> dict:
     meas = stranded(root)
     doc = {
         "schema": "spa-stack-bundle/1",
@@ -321,6 +394,12 @@ def run(root: pathlib.Path, dest: pathlib.Path, control: pathlib.Path,
         "bytes": None,
         "verify": None,
         "pruned": [],
+        # Что связка сохранить НЕ МОЖЕТ. `None` здесь означало бы «не спрашивали», и
+        # это ОТДЕЛЬНОЕ состояние от «спросили, и пусто» (инв. #17).
+        "uncovered": (uncovered_by_the_bundle(root, runner_file)
+                      if ask_uncovered
+                      else {"state": UNMEASURED,
+                            "why": "вопрос НЕ ЗАДАН (--skip-uncovered)"}),
     }
     if meas["state"] == NOTHING:
         # ИЗМЕРЕННЫЙ ноль: каждый локальный реф достижим от origin.
@@ -346,11 +425,37 @@ def run(root: pathlib.Path, dest: pathlib.Path, control: pathlib.Path,
     return doc
 
 
+def _uncovered_lines(doc: dict) -> list[str]:
+    """Строки про то, что связка сохранить НЕ МОЖЕТ. Печатаются ВСЕГДА — в том числе
+    когда коммитов сохранять нечего: «резерв не нужен» и «резерв неполон» это разные
+    утверждения, и склеивать их значило бы вернуть молчание ADR-1104."""
+    u = doc.get("uncovered") or {"state": UNMEASURED, "why": "блока нет в отчёте"}
+    if u["state"] == UNMEASURED:
+        return [f"⚠️ незакоммиченная работа: НЕ ИЗМЕРЕНО — {u.get('why') or '; '.join(u.get('reasons') or []) or 'причина не названа'}"]
+    if u["state"] == EMPTY_CONTENT:
+        return [f"✅ незакоммиченной работы без второй копии НЕ НАБЛЮДАЛОСЬ "
+                f"(деревьев прочитано {u.get('trees_read')} из "
+                f"{u.get('trees_declared')}) — ИЗМЕРЕННЫЙ ноль"]
+    loss = u.get("by_loss") or {}
+    lines = [f"⚠️ СВЯЗКА ЭТОГО НЕ СОХРАНИТ: {u.get('work')} файл(ов) работы без второй "
+             f"копии (потеря ПОЛНАЯ {loss.get('whole', 0)} · под риском только правка "
+             f"{loss.get('delta', 0)}); деревьев прочитано {u.get('trees_read')} из "
+             f"{u.get('trees_declared')}",
+             "   вердикт связки этим НЕ меняется (ADR-1123): она НАЗЫВАЕТ разрыв, а не "
+             "отказывает сохранить коммиты из-за него",
+             "   имена — `python3 -m spa_core.monitoring.stranded_content --names`"]
+    if u.get("unmeasured"):
+        lines.append(f"   ⚠️ и ещё {u['unmeasured']} запис(ей) НЕ ПРОЧИТАНО — "
+                     f"это НЕ ноль: {'; '.join(u.get('reasons') or [])}")
+    return lines
+
+
 def report(doc: dict) -> list[str]:
     out: list[str] = []
     if doc["state"] == NOTHING:
         out.append(f"✅ сохранять нечего: все {doc['heads_total']} локальных ветв(ей) "
                    f"достижимы от {doc['origin_refs']} origin-рефов — ИЗМЕРЕННЫЙ ноль")
+        out.extend(_uncovered_lines(doc))
         return out
     out.append(f"работа, которой нет ни на одном origin-рефе: {doc['commits']} коммит(ов) "
                f"(локальных ветвей {doc['heads_total']}, origin-рефов {doc['origin_refs']})")
@@ -371,6 +476,7 @@ def report(doc: dict) -> list[str]:
         out.append(f"⛔ НЕ ИЗМЕРЕНО: {doc.get('why')}")
     if doc.get("pruned"):
         out.append(f"убрано старых: {len(doc['pruned'])}")
+    out.extend(_uncovered_lines(doc))
     return out
 
 
@@ -388,6 +494,9 @@ def main(argv: list[str] | None = None) -> int:
                          f"(умолчание {DEFAULT_CONTROL})")
     ap.add_argument("--keep", type=int, default=DEFAULT_KEEP,
                     help=f"сколько свежих bundle оставлять (умолчание {DEFAULT_KEEP})")
+    ap.add_argument("--skip-uncovered", action="store_true",
+                    help="НЕ спрашивать про незакоммиченную работу. Вопрос тогда "
+                         "печатается как НЕ ЗАДАННЫЙ — молчания не возникает")
     ap.add_argument("--measure-only", action="store_true",
                     help="только замер, без записи (исход 2: резерва не возникло)")
     ap.add_argument("--json", action="store_true")
@@ -402,7 +511,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         doc = run(root, pathlib.Path(args.dest).expanduser(),
                   pathlib.Path(args.control_repo).expanduser(),
-                  keep=args.keep, do_build=not args.measure_only)
+                  keep=args.keep, do_build=not args.measure_only,
+                  ask_uncovered=not args.skip_uncovered)
     except NotMeasured as exc:
         print(f"⛔ НЕ ИЗМЕРЕНО: {exc}", file=sys.stderr)
         if args.json:

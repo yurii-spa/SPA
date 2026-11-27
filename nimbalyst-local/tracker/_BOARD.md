@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-27T11:36:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-27T13:54:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (92b13a691) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (cf583d604) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1706** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1707** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (997)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (998)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1330,6 +1330,7 @@
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
 - resource_health.json объявлен consumer_required, а шаг 0-офис не упоминает его ни разу (ADR-858)  ·  `inbox-resource-health-json-obyavlen-consumer-r.md` · 2026-10-29
+- Резерв молчал о том, что сохранить не может: незакоммиченная работа в связку не попадает по построению  ·  `inbox-rezerv-molchal-o-tom-chto-sohranit-ne-mo.md` · 2026-11-26
 - Резерв неотправленной работы зовётся рукой цикла — ступени у него нет  ·  `inbox-rezerv-neotpravlennoi-raboty-zovetsya-ru.md` · 2026-11-25
 - Род «больше» несёт два смысла: шум отчёта и прорыв защитной отсечки — население подрода не измерено  ·  `inbox-rod-bolshe-neset-dva-smysla-shum-otcheta.md` · 2026-11-07
 - «Род записи НЕ ОБЪЯВЛЕН у 4» — утверждение о дрейфе прод-копии очереди, а не о сессиях: 668 карточек из 1569 в проде нет вовсе  ·  `inbox-rod-zapisi-obyavlyaetsya-polem-kind-a-ch.md` · 2026-11-03

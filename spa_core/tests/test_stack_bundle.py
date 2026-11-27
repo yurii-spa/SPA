@@ -415,3 +415,151 @@ class StackBundleTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ADR-1123 (заказ G1087 п. 4): связка обязана НАЗЫВАТЬ то, что сохранить не может
+#
+# До ADR-1123 связка МОЛЧАЛА о незакоммиченном: её вердикт «резерв записан и
+# проверен» верен про коммиты и ничего не утверждает про диск. Цена молчания
+# наблюдена — цикл #1242 умер между правкой и коммитом, 1640 строк остались в
+# индексе одноразовых деревьев `/private/tmp`, который macOS чистит сам.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_FAKE_DOOR = '''
+EMPTY, FOUND, UNMEASURED = "empty", "found", "unmeasured"
+
+
+def measure(root, budget_s=None, **kw):
+    return {"verdict": "found", "names": [{"path": "МЕТКА-ЧУЖОГО-ДЕРЕВА"}],
+            "by_loss": {"whole": 7, "delta": 0}, "by_kind": {"work": 7},
+            "trees_read": 1, "trees_declared": 1, "unmeasured": []}
+'''
+
+
+class UncoveredByTheBundle(unittest.TestCase):
+    """Положительные контроли проводки — в ОБЕ стороны."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(__import__("shutil").rmtree, self.tmpdir, True)
+        self.tmp = pathlib.Path(self.tmpdir)
+
+    def _tree_with_door(self, body: str) -> pathlib.Path:
+        """Одноразовое дерево со СВОЕЙ копией двери и файлом-бегуном в `scripts/`."""
+        root = self.tmp / "чужое_дерево"
+        (root / "spa_core" / "monitoring").mkdir(parents=True)
+        (root / "scripts").mkdir(parents=True)
+        (root / "spa_core" / "monitoring" / "stranded_content.py").write_text(
+            body, encoding="utf-8")
+        runner = root / "scripts" / "stack_bundle.py"
+        runner.write_text("# бегун сцены\n", encoding="utf-8")
+        return runner
+
+    def test_the_door_is_taken_from_the_running_tree_not_a_constant(self):
+        """Дверь берётся из дерева ЗАПУЩЕННОГО скрипта. Положительный контроль —
+        ЧУЖОЕ дерево со своей копией двери: ответ обязан прийти ИЗ НЕГО."""
+        runner = self._tree_with_door(_FAKE_DOOR)
+        got = sb.uncovered_by_the_bundle(self.tmp, runner_file=str(runner))
+        self.assertEqual(got["state"], "found", got)
+        self.assertEqual(got["work"], 1, got)
+        self.assertEqual(got["by_loss"], {"whole": 7, "delta": 0}, got)
+
+    def test_a_missing_door_is_unmeasured_with_a_named_reason(self):
+        """Двери нет ⇒ НЕ ИЗМЕРЕНО с названной причиной, а НЕ ноль и не молчание."""
+        bare = self.tmp / "пустое" / "scripts" / "stack_bundle.py"
+        bare.parent.mkdir(parents=True)
+        bare.write_text("# бегун\n", encoding="utf-8")
+        got = sb.uncovered_by_the_bundle(self.tmp, runner_file=str(bare))
+        self.assertEqual(got["state"], sb.UNMEASURED, got)
+        self.assertIn("НЕ ИЗМЕРЕНА", got["why"])
+        self.assertNotIn("work", got, "НЕ ИЗМЕРЕНО не вправе называть число")
+
+    def test_a_door_without_measure_is_unmeasured(self):
+        """Файл есть, двери `measure` в нём нет — это тоже НЕ ИЗМЕРЕНО, а не ноль."""
+        runner = self._tree_with_door("СОДЕРЖИМОЕ = 1\n")
+        got = sb.uncovered_by_the_bundle(self.tmp, runner_file=str(runner))
+        self.assertEqual(got["state"], sb.UNMEASURED, got)
+        # ПРИЧИНА судится точно, а не подстрокой «measure»: МУТАЦИЯ M20 (снятие
+        # проверки двери) давала тот же исход `unmeasured`, но причиной уже «мера
+        # упала (AttributeError … measure)» — а это ДРУГОЙ отказ, и чинится он другим.
+        self.assertIn("двери `measure` в нём нет", got["why"])
+        self.assertNotIn("упала", got["why"],
+                         "дверь обязана быть названа ДО зова, а не после падения")
+
+    def test_a_door_that_raises_is_unmeasured_not_a_crash(self):
+        runner = self._tree_with_door(
+            "def measure(root, budget_s=None, **kw):\n    raise RuntimeError('дверь')\n")
+        got = sb.uncovered_by_the_bundle(self.tmp, runner_file=str(runner))
+        self.assertEqual(got["state"], sb.UNMEASURED, got)
+        self.assertIn("RuntimeError", got["why"])
+
+    def test_the_report_names_the_gap(self):
+        doc = {"state": sb.BUNDLED, "heads_total": 1, "origin_refs": 1, "commits": 1,
+               "by_head": {}, "bundle": "/x", "bytes": 1,
+               "verify": {"state": sb.VERIFIED, "control": "/c", "heads": [],
+                          "prereqs": []},
+               "pruned": [],
+               "uncovered": {"state": "found", "work": 714,
+                             "by_loss": {"whole": 416, "delta": 298},
+                             "trees_read": 179, "trees_declared": 179,
+                             "unmeasured": 0, "reasons": []}}
+        text = "\n".join(sb.report(doc))
+        self.assertIn("СВЯЗКА ЭТОГО НЕ СОХРАНИТ", text)
+        self.assertIn("714", text)
+        self.assertIn("416", text)
+        self.assertIn("НЕ меняется", text)
+
+    def test_the_gap_is_named_even_when_there_is_nothing_to_bundle(self):
+        """Склейка, из-за которой проводка и нужна: «резерв не нужен» и «резерв
+        неполон» — РАЗНЫЕ утверждения. Печатать первое вместо второго значило бы
+        вернуть молчание ADR-1104."""
+        doc = {"state": sb.NOTHING, "heads_total": 3, "origin_refs": 2,
+               "uncovered": {"state": "found", "work": 5,
+                             "by_loss": {"whole": 5, "delta": 0},
+                             "trees_read": 2, "trees_declared": 2,
+                             "unmeasured": 0, "reasons": []}}
+        text = "\n".join(sb.report(doc))
+        self.assertIn("ИЗМЕРЕННЫЙ ноль", text, "про коммиты ответ прежний")
+        self.assertIn("СВЯЗКА ЭТОГО НЕ СОХРАНИТ", text, "и про диск он ДРУГОЙ")
+
+    def test_a_measured_zero_differs_from_unmeasured_in_the_report(self):
+        base = {"state": sb.NOTHING, "heads_total": 1, "origin_refs": 1}
+        zero = "\n".join(sb.report({**base, "uncovered": {
+            "state": sb.EMPTY_CONTENT, "trees_read": 9, "trees_declared": 9}}))
+        unm = "\n".join(sb.report({**base, "uncovered": {
+            "state": sb.UNMEASURED, "why": "дверь не ввезена"}}))
+        self.assertIn("НЕ НАБЛЮДАЛОСЬ", zero)
+        self.assertIn("ИЗМЕРЕННЫЙ ноль", zero)
+        self.assertIn("НЕ ИЗМЕРЕНО", unm)
+        self.assertNotIn("НЕ НАБЛЮДАЛОСЬ", unm)
+
+    def test_the_block_missing_from_the_doc_is_unmeasured_not_silence(self):
+        """Блока в отчёте нет вовсе ⇒ НЕ ИЗМЕРЕНО. Отсутствие ключа не вправе
+        читаться как «вопрос задан, и чисто»."""
+        text = "\n".join(sb.report({"state": sb.NOTHING, "heads_total": 1,
+                                    "origin_refs": 1}))
+        self.assertIn("НЕ ИЗМЕРЕНО", text)
+
+    def test_skipping_the_question_is_printed_as_not_asked(self):
+        """`--skip-uncovered` обязан оставлять СЛЕД: «не спрашивали» это третий
+        исход, а не тишина."""
+        with tempfile.TemporaryDirectory() as tmp:
+            scene = Scene(pathlib.Path(tmp))
+            scene.commit("a.txt", "a")
+            scene.deliver()
+            doc = sb.run(scene.src, scene.dest, scene.control, do_build=False,
+                         ask_uncovered=False)
+        self.assertEqual(doc["uncovered"]["state"], sb.UNMEASURED, doc["uncovered"])
+        self.assertIn("НЕ ЗАДАН", doc["uncovered"]["why"])
+        self.assertIn("НЕ ЗАДАН", "\n".join(sb.report(doc)))
+
+    def test_asking_is_the_default(self):
+        """Умолчание — СПРАШИВАТЬ. Иначе проводка существовала бы и молчала."""
+        with tempfile.TemporaryDirectory() as tmp:
+            scene = Scene(pathlib.Path(tmp))
+            scene.commit("a.txt", "a")
+            scene.deliver()
+            doc = sb.run(scene.src, scene.dest, scene.control, do_build=False)
+        self.assertNotEqual(doc["uncovered"].get("why"),
+                            "вопрос НЕ ЗАДАН (--skip-uncovered)", doc["uncovered"])

@@ -1,0 +1,214 @@
+{
+ "title": "ADR-1123 RESERVE — СВОЙ набор мутаций цикла #1269 поверх принятой работы мёртвого #1256 (G1096 п. 4: чужой счёт 30/30 на слово не принимается; спецификации того набора на диске НЕТ ВОВСЕ)",
+ "tests": [
+  "spa_core/tests/test_stranded_content.py",
+  "spa_core/tests/test_stack_bundle.py",
+  "spa_core/tests/test_reserve_names_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "ось подменена: предмет никогда не наполняется (всё «имеет вторую копию»)",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "            if sha in reach:\n                continue",
+   "new": "            if sha:\n                continue"
+  },
+  {
+   "name": "ось ПЕРЕВЁРНУТА: членом назван достижимый объект",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "            if sha in reach:",
+   "new": "            if sha not in reach:"
+  },
+  {
+   "name": "второй склад снят: origin-рефы не спрашиваются, предмет раздувается",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    names = refs(root, HEADS_PREFIX, git=git) + refs(root, ORIGIN_PREFIX, git=git)",
+   "new": "    names = refs(root, HEADS_PREFIX, git=git)"
+  },
+  {
+   "name": "рефов нет ⇒ fail-OPEN: пустое множество выдаётся за ответ обо ВСЁМ дереве",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    if not names:\n        raise NotMeasured(",
+   "new": "    if False:\n        raise NotMeasured("
+  },
+  {
+   "name": "пустой rev-list больше не отказывает (защитная ветвь fail-CLOSED снята)",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    if not got:\n        raise NotMeasured(",
+   "new": "    if False:\n        raise NotMeasured("
+  },
+  {
+   "name": "разбор строки rev-list снят: ни один sha не совпадёт, членом станет КАЖДЫЙ файл",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "        got.add(ln[:sp] if sp > 0 else ln)",
+   "new": "        got.add(ln)"
+  },
+  {
+   "name": "код состояния индекса снят: `git add`-нутый НОВЫЙ файл назван «только правкой»",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "_WHOLE_INDEX_CODES = (\"A\",)",
+   "new": "_WHOLE_INDEX_CODES = ()"
+  },
+  {
+   "name": "ось потери сложена в один счётчик: всё объявлено ПОЛНОЙ потерей",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "                loss = (WHOLE if (xy == \"??\" or any(c in xy\n                                                    for c in _WHOLE_INDEX_CODES))\n                        else DELTA)",
+   "new": "                loss = WHOLE"
+  },
+  {
+   "name": "корневой файл без объявленного рода ВЫЧИТАЕТСЯ как производное (ошибка в сторону «чисто»)",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    # Корневой файл без объявленного рода. Работой он называется НАМЕРЕННО: ошибаться\n    # эта мера обязана в сторону находки, а не в сторону «чисто».\n    return WORK",
+   "new": "    return DERIVED"
+  },
+  {
+   "name": "порядок родов сломан: работа спрашивается ПЕРЕД состоянием",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    if rel_path.startswith(STATE_PREFIXES) or rel_path.endswith(STATE_SUFFIXES):\n        return STATE\n    if rel_path in produced:\n        return DERIVED\n    if rel_path.startswith(WORK_PREFIXES):\n        return WORK",
+   "new": "    if rel_path.startswith(WORK_PREFIXES):\n        return WORK\n    if rel_path.startswith(STATE_PREFIXES) or rel_path.endswith(STATE_SUFFIXES):\n        return STATE\n    if rel_path in produced:\n        return DERIVED"
+  },
+  {
+   "name": "боковые файлы sqlite назначены РАБОТОЙ",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "STATE_SUFFIXES = (\".db\", \".db-shm\", \".db-wal\", \".db-journal\")",
+   "new": "STATE_SUFFIXES = ()"
+  },
+  {
+   "name": "удаления (обратимы) зачтены в предмет",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "            if \"D\" in xy:",
+   "new": "            if False:"
+  },
+  {
+   "name": "не обычный файл пропускается МОЛЧА — «не прочитано» становится «чисто»",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "                doc[\"unmeasured\"].append([full, \"не обычный файл\"])\n                continue",
+   "new": "                continue"
+  },
+  {
+   "name": "прибор ПИШЕТ в склад объектов (`hash-object -w`) — ADVISORY становится ложью",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    out = git(tree, \"hash-object\", \"--\", abs_path, timeout=60)",
+   "new": "    out = git(tree, \"hash-object\", \"-w\", \"--\", abs_path, timeout=60)"
+  },
+  {
+   "name": "quotepath снят: путь с кириллицей уезжает в «НЕ ПРОЧИТАНО»",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    out = git(tree, \"-c\", \"core.quotepath=false\", \"status\", \"--porcelain=v1\", \"-uall\")",
+   "new": "    out = git(tree, \"status\", \"--porcelain=v1\", \"-uall\")"
+  },
+  {
+   "name": "переименование судит СТАРОЕ имя вместо нового",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "            path = path.split(\" -> \")[-1]",
+   "new": "            path = path.split(\" -> \")[0]"
+  },
+  {
+   "name": "бюджет проверяется ТОЛЬКО между деревьями: одно большое дерево даёт частичный ответ под видом полного",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "            if clock() - started > budget_s:\n                doc[\"by_kind\"] = by_kind\n                return _out_of_budget(doc, f\"{tree}::{rel}\", budget_s,\n                                      clock() - started)",
+   "new": "            if False:\n                doc[\"by_kind\"] = by_kind\n                return _out_of_budget(doc, f\"{tree}::{rel}\", budget_s,\n                                      clock() - started)"
+  },
+  {
+   "name": "частичный список выдан за НАСЕЛЕНИЕ (`names` не опустошается)",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    doc[\"names_partial\"] = doc[\"names\"]\n    doc[\"names\"] = []",
+   "new": "    doc[\"names_partial\"] = doc[\"names\"]"
+  },
+  {
+   "name": "исчерпанный бюджет не ставит вердикт НЕ ИЗМЕРЕНО",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    doc[\"verdict\"] = UNMEASURED\n    doc[\"elapsed_s\"] = round(elapsed, 1)",
+   "new": "    doc[\"elapsed_s\"] = round(elapsed, 1)"
+  },
+  {
+   "name": "неназванный ВХОД (`budget_s=None`) ронял меру в TypeError",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    budget_s = DEFAULT_BUDGET_S if budget_s is None else float(budget_s)",
+   "new": "    budget_s = float(budget_s)"
+  },
+  {
+   "name": "дерево, которого нет на диске, назначено ПРОЧИТАННЫМ",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "        (alive if os.path.isdir(p) else gone).append(p)",
+   "new": "        alive.append(p)"
+  },
+  {
+   "name": "`git worktree list` без деревьев = чистый ноль (fail-OPEN)",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    if not paths:\n        raise NotMeasured(",
+   "new": "    if False:\n        raise NotMeasured("
+  },
+  {
+   "name": "объявлений не прочитано, а причина НЕ НАЗВАНА — вычитание молчит",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "        return set(), f\"ни одного объявления не прочитано по {pattern}\"",
+   "new": "        return set(), None"
+  },
+  {
+   "name": "резерв рода «состояние» объявлен НАЙДЕННЫМ при отсутствующем каталоге",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "        return {\"verdict\": UNMEASURED, \"reason\": f\"каталога {backups} нет\",\n                \"newest\": None, \"age_hours\": None}",
+   "new": "        return {\"verdict\": FOUND, \"reason\": None,\n                \"newest\": None, \"age_hours\": None}"
+  },
+  {
+   "name": "вердикт всегда НАЙДЕНО: измеренный ноль неотличим от находки",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    doc[\"verdict\"] = FOUND if doc[\"names\"] else EMPTY",
+   "new": "    doc[\"verdict\"] = FOUND"
+  },
+  {
+   "name": "ФОРМА «НАЛИЧИЕ вместо РАЗЛИЧИМОСТИ»: «вычитание ОБОСНОВАНО замером» печатается независимо от вердикта резерва",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "    if res.get(\"verdict\") == FOUND:",
+   "new": "    if True:"
+  },
+  {
+   "name": "ФОРМА «ПЕЧАТАЕМОЕ ЧИСЛО БЕЗ СЦЕНЫ»: число достижимых объектов подменено нулём",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "               f\"достижимых объектов {doc.get('reachable_objects', '?')}\")",
+   "new": "               f\"достижимых объектов 0\")"
+  },
+  {
+   "name": "ФОРМА «ПЕЧАТАЕМОЕ ЧИСЛО БЕЗ СЦЕНЫ»: число объявленных производимых путей подменено нулём",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "        out.append(f\"   объявленных производимых путей в конституции: \"\n                   f\"{doc['produced_declared']}\")",
+   "new": "        out.append(f\"   объявленных производимых путей в конституции: 0\")"
+  },
+  {
+   "name": "ФОРМА «ПЕЧАТАЕМОЕ ЧИСЛО БЕЗ СЦЕНЫ»: «и ещё N дерев(о/а)» подменено нулём",
+   "file": "spa_core/monitoring/stranded_content.py",
+   "old": "            out.append(f\"   … и ещё {len(per_tree) - 10} дерев(о/а)\")",
+   "new": "            out.append(f\"   … и ещё 0 дерев(о/а)\")"
+  },
+  {
+   "name": "связка МОЛЧИТ о разрыве, когда коммитов сохранять нечего («не нужен» склеен с «неполон»)",
+   "file": "scripts/stack_bundle.py",
+   "old": "                   f\"достижимы от {doc['origin_refs']} origin-рефов — ИЗМЕРЕННЫЙ ноль\")\n        out.extend(_uncovered_lines(doc))",
+   "new": "                   f\"достижимы от {doc['origin_refs']} origin-рефов — ИЗМЕРЕННЫЙ ноль\")"
+  },
+  {
+   "name": "дверь к мере берётся по КОНСТАНТЕ прод-дерева, а не из дерева запущенного скрипта",
+   "file": "scripts/stack_bundle.py",
+   "old": "    base = pathlib.Path(os.path.abspath(runner_file or __file__)).parent.parent",
+   "new": "    base = pathlib.Path.home() / 'Documents' / 'SPA_Claude'"
+  },
+  {
+   "name": "проверка двери `measure` снята: причина подменяется падением",
+   "file": "scripts/stack_bundle.py",
+   "old": "    if not hasattr(mod, \"measure\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "`--skip-uncovered` молчит: «вопрос не задан» выдан за ИЗМЕРЕННЫЙ ноль",
+   "file": "scripts/stack_bundle.py",
+   "old": "                      else {\"state\": UNMEASURED,\n                            \"why\": \"вопрос НЕ ЗАДАН (--skip-uncovered)\"}),",
+   "new": "                      else {\"state\": EMPTY_CONTENT, \"why\": None}),"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕНО и ИЗМЕРЕННЫЙ ноль склеены в строках связки",
+   "file": "scripts/stack_bundle.py",
+   "old": "    if u[\"state\"] == UNMEASURED:\n        return [f\"⚠️ незакоммиченная работа: НЕ ИЗМЕРЕНО",
+   "new": "    if False:\n        return [f\"⚠️ незакоммиченная работа: НЕ ИЗМЕРЕНО"
+  }
+ ]
+}

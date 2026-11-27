@@ -22536,6 +22536,226 @@ def _probe_counter_pins_composition_not_only_count(
         "нулём они не считаются")
 
 
+
+
+def _probe_reserve_names_what_it_cannot_save(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: резерв НАЗЫВАЕТ работу, которую сохранить не может (ADR-1123).
+
+    Предмет — долг, названный заказом G1087 п. 4 вслух и оставленный неизмеренным:
+    «население „что ещё живёт в одном складе“ за пределами git-коммитов НЕ ИЗМЕРЕНО
+    и нулём не считается». Связка `scripts/stack_bundle.py` (ADR-1104) пакует
+    `refs/heads/*`, то есть КОММИТЫ; байты, не вошедшие ни в один коммит, в неё не
+    попадают ПО ПОСТРОЕНИЮ, а её вердикт «резерв записан и ПРОВЕРЕН» об этом
+    МОЛЧАЛ. Цена молчания наблюдена: цикл #1242 умер между правкой и коммитом, и
+    1640 строк ADR-1097 остались в индексе одноразовых деревьев `/private/tmp`.
+
+    **Меряется ИСХОД значением, подстрокой проба не проходит** (ADR-333): она зовёт
+    настоящую меру и настоящую проводку связки на ОДНОРАЗОВОМ репозитории и смотрит
+    на ЧИСЛА и ВЕРДИКТЫ, а не на текст отчёта.
+
+    **Двусторонний контроль — форма настоящей аварии.** В одноразовом репозитории
+    файл кладётся и `git add`-ится БЕЗ коммита (ровно состояние #1242): мера обязана
+    назвать его членом. Тот же файл в коммите — назвать членом НЕ обязана. Не
+    сошлось хоть одно направление ⇒ `unmeasured`, потому что «предмет пуст» у формы,
+    теряющей известного члена, есть ответ о поверхности, которой она не видит
+    (урок #1218).
+
+    **Ось выбрана верно, и это тоже проверяется.** У `git add`-нутого файла объект
+    в складе СУЩЕСТВУЕТ, и мера на `git cat-file -e` объявила бы работу сохранённой.
+    Проба требует, чтобы sha был НЕ достижим ни от одного рефа — то есть чтобы ось
+    была достижимостью, а не существованием.
+
+    **Третий исход различим** (инв. #17): меры нет в дереве · не импортируется ·
+    у связки нет двери · git в одноразовом репозитории не ответил — каждый свой
+    `unmeasured` с НАЗВАННОЙ причиной, и ни один не выдаётся за «чисто».
+
+    Чего проба НЕ меряет, и это сказано вслух: НОЛЬ населения она не требует — своей
+    работы цикл закоммитит, а чужую незакоммиченную работу закоммитить не вправе.
+    Критерий есть «вопрос задан и ОТВЕЧЕН», а не «разрыв закрыт»: закрытие разрыва
+    (вынос второй копии вовне) есть предмет №3 границы ADR-285, то есть решение
+    владельца. Население за пределами деревьев, которые перечисляет `git worktree
+    list`, прибором не судится и нулём не считается.
+
+    Дерево — ВХОД (`repo_root`). Живое `data/` не читается и не пишется; работа идёт
+    в одноразовом каталоге, который снимается за собой.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "ОДИН разрыв резерва, пофайловой формы у него нет")
+    import importlib.util as _ilu
+    import pathlib as _pathlib
+    import shutil as _shutil
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    measure_path = root / "spa_core" / "monitoring" / "stranded_content.py"
+    reserve_path = root / "scripts" / "stack_bundle.py"
+    if not measure_path.is_file():
+        return UNMEASURED, f"меры нет в названном дереве: {measure_path} отсутствует"
+    if not reserve_path.is_file():
+        return UNMEASURED, f"связки нет в названном дереве: {reserve_path} отсутствует"
+
+    def _load(path, name):
+        spec = _ilu.spec_from_file_location(name, path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    try:
+        sc = _load(measure_path, "_stranded_probe")
+        sb = _load(reserve_path, "_reserve_probe")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"не импортируется: {type(exc).__name__}: {exc}"
+    for door, mod, where in (("measure", sc, "мере"),
+                             ("reachable_objects", sc, "мере"),
+                             # Имя второго склада — тоже дверь: сцена берёт префикс у
+                             # меры, и его отсутствие обязано быть НАЗВАНО ДО зова, а
+                             # не прилететь падением сцены (урок мутации M20: исход
+                             # остался бы тем же `unmeasured`, а ПРИЧИНА подменилась
+                             # бы на «сцена не собралась: AttributeError»).
+                             ("ORIGIN_PREFIX", sc, "мере"),
+                             ("stranded_content_door", sb, "связке"),
+                             ("uncovered_by_the_bundle", sb, "связке"),
+                             ("report", sb, "связке")):
+        if not hasattr(mod, door):
+            return UNMEASURED, (f"у {where} нет двери `{door}` — спрашивать её нечем, "
+                                "и это не «чисто»")
+
+    tmp = _tf.mkdtemp(prefix="reserve_probe_")
+    try:
+        scene = os.path.join(tmp, "scene")
+        os.makedirs(os.path.join(scene, "spa_core"))
+
+        def g(*args):
+            r = _sp.run(["git", *args], cwd=scene, capture_output=True, text=True,
+                        timeout=120)
+            if r.returncode != 0:
+                raise RuntimeError(f"git {' '.join(args)} rc={r.returncode}: "
+                                   f"{r.stderr.strip()[:160]}")
+            return r.stdout
+
+        try:
+            # Имя ветви — ВХОД сцены: `init.defaultBranch` есть свойство ХОСТА
+            # (`.claude/rules/deployment.md` § GIT-ОКРУЖЕНИЕ).
+            g("init", "-b", "probe-main", "-q")
+            g("config", "user.email", "probe@example.invalid")
+            g("config", "user.name", "probe")
+            with open(os.path.join(scene, "spa_core", "base.py"), "w",
+                      encoding="utf-8") as fh:
+                fh.write("БАЗА\n")
+            g("add", "-A")
+            g("commit", "-q", "-m", "база")
+            # Складов ДВА, и сцена обязана иметь оба: без второго склада связка
+            # честно отказывает (базы исключения нет), и тогда проба мерила бы свой
+            # собственный недособранный мир, а не проводку.
+            #
+            # Префикс берётся У МЕРЫ, а не литералом: дверь к имени склада ОДНА
+            # (`sc.ORIGIN_PREFIX`). Своя копия литерала означала бы, что смена
+            # префикса в мере МОЛЧА оставит сцену без второго склада — проба
+            # продолжила бы зеленеть, перестав проверять то, ради чего написана.
+            # Побочно это снимает ЛОЖНОГО члена храповика ADR-362: литерал
+            # `refs/remotes/origin/…` в `update-ref` есть ЗАПИСЬ в одноразовую
+            # сцену, а не чтение ссылки недоказанной свежести, и отличить это
+            # подстрокой храповик не может по построению.
+            g("update-ref", sc.ORIGIN_PREFIX + "probe-main", "HEAD")
+            with open(os.path.join(scene, "spa_core", "work.py"), "w",
+                      encoding="utf-8") as fh:
+                fh.write("работа мёртвой сессии\n")
+            g("add", "spa_core/work.py")
+            staged_sha = g("rev-parse", ":spa_core/work.py").strip()
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, (f"одноразовая сцена не собралась: "
+                                f"{type(exc).__name__}: {exc}")
+
+        # ОСЬ: объект существует, но от рефа НЕ достижим. Мера на существовании
+        # объявила бы работу сохранённой — именно это различие и несущее.
+        try:
+            exists = _sp.run(["git", "cat-file", "-e", staged_sha], cwd=scene,
+                             capture_output=True, timeout=60).returncode == 0
+            reach = sc.reachable_objects(scene)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"ось не измерена: {type(exc).__name__}: {exc}"
+        if not exists:
+            return UNMEASURED, ("объекта `git add`-нутого файла в складе НЕТ — сцена "
+                                "не воспроизвела форму аварии #1242")
+        if staged_sha in reach:
+            return NOT_SATISFIED, ("ось ВЫБРАНА НЕВЕРНО: sha проиндексированного "
+                                   "файла объявлен достижимым от рефа, то есть мера "
+                                   "спрашивает существование объекта, а не "
+                                   "достижимость")
+
+        # Направление 1: незакоммиченная работа обязана быть НАЗВАНА.
+        try:
+            found = sc.measure(scene)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"мера упала на сцене: {type(exc).__name__}: {exc}"
+        named = {n["path"] for n in found.get("names", [])}
+        if found.get("verdict") != "found" or "spa_core/work.py" not in named:
+            return UNMEASURED, ("ИЗВЕСТНЫЙ ЧЛЕН ПОТЕРЯН: форма аварии #1242 "
+                                "(`git add` без коммита) членом не названа — "
+                                f"вердикт {found.get('verdict')!r}, названо {named}")
+        if found.get("by_loss", {}).get("whole") != 1:
+            return UNMEASURED, ("ось потери не различает: файла нет ни в одном "
+                                "коммите, а `whole` не равен 1 — "
+                                f"{found.get('by_loss')}")
+
+        # Направление 2 (обратное): та же работа в коммите членом быть НЕ должна.
+        try:
+            g("commit", "-q", "-m", "работа")
+            clean = sc.measure(scene)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"обратное направление не снято: {type(exc).__name__}: {exc}"
+        if clean.get("verdict") != "empty" or clean.get("names"):
+            return NOT_SATISFIED, ("обратное направление НЕ СОШЛОСЬ: закоммиченная "
+                                   "работа всё равно названа членом — мера объявила "
+                                   f"бы предметом что угодно ({clean.get('verdict')!r})")
+
+        # Проводка СВЯЗКИ: она обязана НАЗЫВАТЬ разрыв значением, а не молчать.
+        with open(os.path.join(scene, "spa_core", "second.py"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("вторая незакоммиченная работа\n")
+        try:
+            wired = sb.uncovered_by_the_bundle(scene, runner_file=str(reserve_path))
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"проводка связки упала: {type(exc).__name__}: {exc}"
+        if wired.get("state") != "found" or wired.get("work") != 1:
+            return NOT_SATISFIED, ("связка разрыв НЕ НАЗЫВАЕТ: ожидался один файл "
+                                   f"работы без второй копии, получено {wired}")
+        try:
+            skipped = sb.run(scene, _pathlib.Path(tmp) / "bundles",
+                             _pathlib.Path(tmp) / "control", do_build=False,
+                             ask_uncovered=False)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, (f"третий исход проводки не снят: "
+                                f"{type(exc).__name__}: {exc}")
+        if skipped.get("uncovered", {}).get("state") != "unmeasured":
+            return NOT_SATISFIED, ("«вопрос не задан» не оставляет следа — третий "
+                                   "исход у проводки отсутствует")
+
+        # И наконец вопрос о ЖИВОМ дереве: он обязан быть ЗАДАН и ОТВЕЧЕН.
+        try:
+            live = sb.uncovered_by_the_bundle(root, runner_file=str(reserve_path))
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"живое дерево не спрошено: {type(exc).__name__}: {exc}"
+        if live.get("state") == "unmeasured":
+            return UNMEASURED, ("на живом дереве ответа НЕТ: "
+                                + (live.get("why") or "причина не названа"))
+        loss = live.get("by_loss") or {}
+        return SATISFIED, (
+            f"резерв НАЗЫВАЕТ разрыв: работы без второй копии {live.get('work')} "
+            f"(потеря ПОЛНАЯ {loss.get('whole', 0)} · под риском только правка "
+            f"{loss.get('delta', 0)}), деревьев прочитано {live.get('trees_read')} "
+            f"из {live.get('trees_declared')}; двусторонний контроль формы аварии "
+            "#1242 сошёлся в ОБА направления, и ось измерена достижимостью, а не "
+            "существованием объекта. НОЛЬ населения критерием НЕ является: чужую "
+            "незакоммиченную работу цикл коммитить не вправе")
+    finally:
+        _shutil.rmtree(tmp, ignore_errors=True)
+
+
+
 def _probe_edge_corpus_screen_pinned_by_name(
         arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
     """Критерий: ловушка населения кромки зелена ПЕРЕВЫВЕДЕНИЕМ и больше не подгоняема числом.
@@ -23256,6 +23476,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_derived_artifact_class_population_named,
     "counter_pins_composition_not_only_count":
         _probe_counter_pins_composition_not_only_count,
+    "reserve_names_what_it_cannot_save":
+        _probe_reserve_names_what_it_cannot_save,
     "edge_corpus_screen_pinned_by_name":
         _probe_edge_corpus_screen_pinned_by_name,
     "delivery_tree_input_class_population_named":
