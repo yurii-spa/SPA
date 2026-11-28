@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-28T16:52:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-28T17:27:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (15c8a2dfb) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (478eb701d).
 >
-> Всего карточек: **1712** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1714** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (1003)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (1005)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1072,6 +1072,7 @@
 - Блок CI в шаге 0-офис печатает ВОЗРАСТ одного наблюдения рядом с ПРОГОНОМ другого  ·  `inbox-blok-ci-v-shage-0-ofis-pechataet-vozrast.md` · 2026-11-15
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
 - Бриф владельцу называет ПРОГОНЫ сутками: один день, переигранный трижды, печатается как «3-й день подряд»  ·  `inbox-brif-vladeltsu-nazyvaet-progony-sutkami.md` · 2026-09-15
+- card_acceptance.py не разбирается на Python 3.11 — CI красен на 402 из-за одной f-строки (ADR-1125)  ·  `inbox-card-acceptance-py-ne-razbiraetsya-na-py.md` · 2026-11-28
 - Четыре прибора написаны и не позваны: step_time_drift, worker_axis_census и две R&D-идеи без строки Скрипт в реестре  ·  `inbox-chetyre-pribora-napisany-i-ne-pozvany-st.md` · 2026-10-27
 - Четыре сторожа красны на чистом origin/main (замер #1218), пятый закрыт тем же циклом  ·  `inbox-chetyre-storozha-krasny-na-chistom-origi.md` · 2026-11-23
 - Четыре строки отчёта объявлены читателем шага 0-офис, а печатает их только лог моста  ·  `inbox-chetyre-stroki-otcheta-obyavleny-chitate.md` · 2026-10-26
@@ -1119,6 +1120,7 @@
 - Флот теряет 29 агентов при переустановке — plist есть, в установщике нет  ·  `inbox-flot-teryaet-29-agentov-pri-pereustanovk.md` · 2026-08-26
 - Форма пробы требует СВОЕГО живого зова от каждого теста — и этим сама производит род обморока  ·  `inbox-forma-proby-trebuet-svoego-zhivogo-zova.md` · 2026-11-18
 - Форвардные марки лаборатории невозможны по построению: не сохранённый якорь гасит марку И депег-гейт  ·  `inbox-forvardnye-marki-laboratorii-nevozmozhny.md` · 2026-11-06
+- Гейт доставки спрашивает МОЙ python, а не объявленный CI  ·  `inbox-geit-dostavki-sprashivaet-moi-python-a-n.md` · 2026-11-28
 - Гейт финансирования судит НЕ ТОТ пул, а снимок штампует на нём tvl_source=live (compound_v3 без pool_id, morpho_blue_base с другим)  ·  `inbox-geit-finansirovaniya-sudit-ne-tot-pul-a.md` · 2026-11-08
 - Гейт go-live BTC-движка не спрашивает про лицензию на данные — решение владельца 09.09 описано прозой  ·  `inbox-geit-go-live-btc-dvizhka-ne-sprashivaet.md` · 2026-10-07
 - Гейт кнопок судит по ПОДСТРОКЕ, если умения в маячке окажутся строкой  ·  `inbox-geit-knopok-sudit-po-podstroke-esli-umen.md` · 2026-10-08

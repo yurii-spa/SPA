@@ -18947,13 +18947,19 @@ def _probe_ci_claim_carriers_population_named(
                             "носитель")
     floor = live.get("population_floor_total", 0)
     ceil = live.get("population_ceiling_total", 0)
+    # Происхождение каталога данных считается ДО f-строки, а не внутри её `{...}`:
+    # перенос строкового литерала внутри фигурных скобок законен только с Python 3.12
+    # (PEP 701), а CI объявляет 3.11 — на нём такой файл не РАЗБИРАЕТСЯ вовсе, то есть
+    # вместе с модулем умирает весь реестр проб приёмки (замер 28.11: прогон
+    # 46123517055, 402 падения при `collect_errors=143`; ADR-1134).
+    ddir_origin = ("НАЗВАН" if data_dir else
+                   "УМОЛЧАНИЕ, то есть ЗАМОРОЖЕННЫЙ канон data/ своего дерева, "
+                   "а не живой лог")
     return SATISFIED, (
         f"население НАЗВАНО у всех {len(mod.CARRIERS)} носителей: предмет НЕ "
         f"МЕНЬШЕ {floor} и НЕ БОЛЬШЕ {ceil} при поверхности "
         f"{surface} претензи(й) markdown; деревья НАЗВАНЫ — контент {root}, "
-        f"данные {ddir} ({'НАЗВАН' if data_dir else 'УМОЛЧАНИЕ, то есть '
-                          'ЗАМОРОЖЕННЫЙ канон data/ своего дерева, а не '
-                          'живой лог'}); "
+        f"данные {ddir} ({ddir_origin}); "
         + " · ".join(f"{c}: предмет {live_carriers[c].get('population_floor')}"
                      f"…{live_carriers[c].get('population_ceiling')}, "
                      f"не разобрано "
