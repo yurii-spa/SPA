@@ -359,6 +359,282 @@ def probe_token_liveness(service: str = KEYCHAIN_SERVICE, secret_reader=None,
     return result
 
 
+# ── СПОСОБНОСТЬ ключа: третий вопрос о том же ключе (ADR-1128, 2026-11-28) ────
+#
+# Два вопроса выше про КАЛЕНДАРЬ («прошло ли 90 дней от НАШЕЙ записи») и про
+# СОСТОЯНИЕ («принимает ли GitHub ключ прямо сейчас»). Третий вопрос —
+# СПОСОБНОСТЬ: «а умеет ли ПРИНЯТЫЙ ключ то, ради чего он у нас есть».
+#
+# Замер 2026-11-28 на ЖИВОМ ключе, выпущенном владельцем 26.11, то есть при ОБОИХ
+# прежних сторожах зелёных (`/user` → 200):
+#
+#   POST /repos/yurii-spa/SPA/actions/workflows/387027328/dispatches
+#     → 403 "Resource not accessible by personal access token"
+#
+# Заказать контрольный прогон CI нельзя, и у каждого цикла «вердикт CI о моём
+# коммите» выходит НЕ ИЗМЕРЕН — на том же ключе, про который оба сторожа говорят
+# «жив». Причина названа и она НАША: карточка ротации
+# (`own-klyuch-github-protuh-dostavka-ostanovlena`) и `docs/GITHUB_CREDENTIALS.md`
+# просили у владельца `Contents RW` + `Workflows RW`, а `workflow_dispatch`
+# гейтит РАЗРЕШЕНИЕ `Actions` — его не просил никто ни в одной строке.
+#
+# ⚠️ ПРОБА ПРАВА НА ЗАПИСЬ НЕ ИМЕЕТ ПРАВА ПИСАТЬ. Дверь здесь — запрос ТОЙ ЖЕ
+# ФОРМЫ по ЗАВЕДОМО ОТСУТСТВУЮЩЕЙ цели: разрешение GitHub проверяет ДО
+# существования цели, поэтому `403` ⇒ права НЕТ, а `422`/`404` «цели не
+# существует» ⇒ право ЕСТЬ, и побочного действия нет ни в одном исходе. Ось
+# ДОКАЗАНА на живом ключе двумя ПРОТИВОПОЛОЖНЫМИ ответами на запросы одной формы:
+# `dispatches` → 403, `PATCH git/refs/heads/<отсутствующая>` → 422; ветка-зонд
+# после обеих проб по-прежнему 404.
+#
+# ⚠️ И ВТОРОЕ, без чего замер был бы ложным: репозиторий ПУБЛИЧНЫЙ, поэтому
+# ЧИТАЮЩИЕ двери отвечают `200` БЕЗ ВСЯКОГО ключа (замер того же дня: `GET
+# /repos/.../contents/README.md` и `GET /repos/.../actions/runs` без заголовка
+# авторизации → 200; с заведомо негодным ключом → 401). Значит `200` на читающей
+# двери есть свойство ВИДИМОСТИ репозитория, а не грант нашего ключа, и выдавать
+# его за «право на чтение есть» значило бы ровно то же, что «ключ ЕСТЬ» за «ключ
+# ЖИВ» (ADR-1094). Такие двери НАЗВАНЫ и из знаменателя исключены.
+
+CAPABILITY_REPO = "yurii-spa/SPA"
+
+#: Тот же файл воркфлоу, которым заказывает прогон `scripts/ci_control_verdict.py`
+#: (`WORKFLOW_FILE`). Спрашивать о праве надо у ТОЙ двери, которой пользуется
+#: система, а не у любой: право может быть выдано на один воркфлоу и не на другой.
+CAPABILITY_CI_WORKFLOW = "ci-control.yml"
+
+#: Ветка, КОТОРОЙ НЕТ, — и в этом вся безвредность пробы о праве на запись.
+#: Появись она когда-нибудь, запрос пошёл бы по НАСТОЯЩЕЙ цели; поэтому её
+#: отсутствие СПРАШИВАЕТСЯ перед каждым замером, а не предполагается.
+CAPABILITY_ABSENT_REF = "__spa_capability_probe_absent__"
+CAPABILITY_ZERO_SHA = "0" * 40
+
+#: Исходы о ОДНОЙ двери. Значения — часть контракта с читателями
+#: (`system_health_monitor._check_pat_token_capable`), а не ярлыки.
+CAP_CAN = "can"
+CAP_CANNOT = "cannot"
+CAP_UNMEASURED = "unmeasured"
+#: Четвёртый и пятый исходы — НЕ разновидности «не измерено», а ОБЪЯВЛЕННЫЕ границы
+#: самой меры: у двери нет пробы без побочного действия · на дверь отвечает
+#: видимость репозитория, а не грант. Сложи их с «не измерено» — и вечное
+#: предупреждение научит читателя не смотреть; выдай за «можно» — и мера врёт.
+CAP_NO_SAFE_PROBE = "no_safe_probe"
+CAP_ANSWERED_BY_VISIBILITY = "answered_by_repo_visibility"
+
+#: ЗАМКНУТЫЙ перечень дверей, которыми система пользуется ключом доставки. Снят с
+#: кода (`push_to_github.py`, `push_to_github_batch.py`, `scripts/safe_site_push.py`,
+#: `scripts/ci_control_verdict.py`), а не из головы. Удаление строки отсюда краснит
+#: сторожа: перечень, который можно укоротить молча, перестаёт быть знаменателем.
+CAPABILITY_DOORS = (
+    {
+        "key": "contents_write",
+        "need": "доставить коммит на origin (канонический пушер: git/blobs · "
+                "git/trees · git/commits · PATCH git/refs)",
+        "permission": "Contents: Read and write",
+        "method": "PATCH",
+        "path": "/repos/{repo}/git/refs/heads/" + CAPABILITY_ABSENT_REF,
+        "body": {"sha": CAPABILITY_ZERO_SHA},
+        "can_codes": (404, 422),
+        "cannot_codes": (403,),
+    },
+    {
+        "key": "actions_write",
+        "need": "заказать контрольный прогон CI о своём коммите "
+                "(scripts/ci_control_verdict.py → workflow_dispatch)",
+        "permission": "Actions: Read and write",
+        "method": "POST",
+        "path": "/repos/{repo}/actions/workflows/" + CAPABILITY_CI_WORKFLOW + "/dispatches",
+        "body": {"ref": "refs/heads/" + CAPABILITY_ABSENT_REF},
+        "can_codes": (404, 422),
+        "cannot_codes": (403,),
+    },
+    {
+        "key": "workflows_write",
+        "need": "доставить сам файл воркфлоу (.github/workflows/**)",
+        "permission": "Workflows: Read and write",
+        "state": CAP_NO_SAFE_PROBE,
+        "reason": "право проверяется на СОДЕРЖИМОМ коммита, значит замер требовал бы "
+                  "записать файл воркфлоу — пробы без побочного действия у этой "
+                  "двери мы не знаем",
+    },
+    {
+        "key": "contents_read",
+        "need": "прочитать файл с origin (safe_site_push, сверка витрины)",
+        "permission": "Contents: Read",
+        "state": CAP_ANSWERED_BY_VISIBILITY,
+        "reason": "репозиторий ПУБЛИЧНЫЙ: тот же GET отвечает 200 вовсе без ключа "
+                  "(замер 2026-11-28), поэтому код ответа про грант не говорит ничего",
+    },
+    {
+        "key": "actions_read",
+        "need": "прочитать вердикт прогона CI и его артефакты",
+        "permission": "Actions: Read",
+        "state": CAP_ANSWERED_BY_VISIBILITY,
+        "reason": "репозиторий ПУБЛИЧНЫЙ: GET /actions/runs отвечает 200 вовсе без "
+                  "ключа (замер 2026-11-28) — это видимость, а не грант",
+    },
+)
+
+
+def _github_door_probe(token: str, method: str, url: str, body=None,
+                       timeout: float = TOKEN_PROBE_TIMEOUT_S):
+    """ЕДИНСТВЕННАЯ дверь к GitHub для вопроса о СПОСОБНОСТИ. ``(status|None, reason|None)``.
+
+    Только stdlib (инвариант #4). Как и у пробы состояния, отказ сервиса кодом
+    ответа ЯВЛЯЕТСЯ: `HTTPError` — вердикт, а не сбой. Сбой сети/DNS/таймаут — один
+    вид исхода: кода нет, значит способность НЕ ИЗМЕРЕНА.
+    """
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    data = None if body is None else _json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "User-Agent": "spa-pat-capability-guard",
+        },
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return int(resp.status), None
+    except urllib.error.HTTPError as exc:
+        return int(exc.code), None
+    except Exception as exc:  # noqa: BLE001 — вид один: наблюдения нет
+        return None, (f"{method} {url} не состоялся ({exc.__class__.__name__}) — "
+                      f"способность НЕ ИЗМЕРЕНА")
+
+
+def probe_token_capabilities(service: str = KEYCHAIN_SERVICE, secret_reader=None,
+                             door_probe=None, doors=None, repo: str = None,
+                             timeout: float = TOKEN_PROBE_TIMEOUT_S) -> dict:
+    """Умеет ли ПРИНЯТЫЙ ключ то, ради чего он у нас есть. Исходы — по двери.
+
+    Обе двери наружу — ВХОДЫ (`secret_reader=`, `door_probe=`), как часы в
+    `_compute_status` и как сеть в `probe_token_liveness`: сцене, которой нужен
+    ответ «403», незачем иметь на руках живой ключ без права.
+
+    Ключи результата: ``repo`` · ``doors`` (по строке на дверь: ``key``, ``state``,
+    ``reason``, ``http_status``, ``permission``, ``need``) · счётчики ``can`` /
+    ``cannot`` / ``unmeasured`` / ``no_safe_probe`` / ``answered_by_visibility`` ·
+    ``measured_doors`` (знаменатель — только двери с безвредной пробой) ·
+    ``verdict``.
+
+    Вердикт: хоть одна дверь ``cannot`` ⇒ ``cannot`` (находка НАЗВАНА, и
+    неизмеренное рядом печатается как СКАЗАННАЯ нижняя граница) · иначе хоть одна
+    ``unmeasured`` ⇒ ``unmeasured`` · иначе ``can``. «Не измерено» никогда не
+    выдаётся за «умеет».
+    """
+    spec = tuple(doors if doors is not None else CAPABILITY_DOORS)
+    slug = repo or CAPABILITY_REPO
+    reader = secret_reader or _read_keychain_secret
+    probe = door_probe or _github_door_probe
+
+    result = {
+        "service": service,
+        "repo": slug,
+        "probe_ref": CAPABILITY_ABSENT_REF,
+        "doors": [],
+    }
+
+    def _row(door, state, reason=None, http_status=None):
+        return {
+            "key": door.get("key"),
+            "need": door.get("need"),
+            "permission": door.get("permission"),
+            "state": state,
+            "reason": reason,
+            "http_status": http_status,
+        }
+
+    secret, secret_reason = reader(service)
+    probing = [d for d in spec if d.get("state") is None]
+    declared = [d for d in spec if d.get("state") is not None]
+
+    if not probing:
+        # Знаменатель пуст — спрашивать не о чем, и ветку-зонд трогать незачем:
+        # лишний запрос к сервису ничего бы не измерил.
+        pass
+    elif secret is None:
+        for door in probing:
+            result["doors"].append(_row(
+                door, CAP_UNMEASURED,
+                f"способность НЕ ИЗМЕРЕНА — {secret_reason}"))
+    else:
+        # Безвредность пробы — НАБЛЮДЕНИЕ, а не допущение: обе пробы ниже бьют по
+        # ветке-зонду, и если она существует, запрос пошёл бы по НАСТОЯЩЕЙ цели.
+        # Поэтому спрашиваем ОДИН раз и, не получив 404, отказываемся мерить вовсе.
+        ref_url = (f"https://api.github.com/repos/{slug}/git/ref/heads/"
+                   f"{CAPABILITY_ABSENT_REF}")
+        ref_status, ref_failure = probe(secret, "GET", ref_url, None, timeout)
+        if ref_status != 404:
+            why = ref_failure or (
+                f"ветка-зонд {CAPABILITY_ABSENT_REF} ответила {ref_status}, а не 404: "
+                f"проба перестала быть безвредной и НЕ ЗАПУСКАЛАСЬ")
+            for door in probing:
+                result["doors"].append(_row(door, CAP_UNMEASURED, why, ref_status))
+        else:
+            for door in probing:
+                url = "https://api.github.com" + door["path"].format(repo=slug)
+                status, failure = probe(secret, door["method"], url,
+                                        door.get("body"), timeout)
+                if failure is not None or status is None:
+                    result["doors"].append(_row(
+                        door, CAP_UNMEASURED,
+                        failure or f"{door['method']} {url} не вернул кода ответа — "
+                                   f"способность НЕ ИЗМЕРЕНА",
+                        status))
+                elif status in tuple(door["cannot_codes"]):
+                    result["doors"].append(_row(
+                        door, CAP_CANNOT,
+                        f"GitHub ответил {status} на {door['method']} по ЗАВЕДОМО "
+                        f"отсутствующей цели: права «{door['permission']}» у ключа "
+                        f"`{service}` НЕТ, и значит не работает: {door['need']}",
+                        status))
+                elif status in tuple(door["can_codes"]):
+                    result["doors"].append(_row(
+                        door, CAP_CAN,
+                        None, status))
+                else:
+                    # Ни «403», ни «цели не существует»: 401 у мёртвого ключа, 5xx у
+                    # сервиса, 429 у лимита. Назвать это запретом значило бы поднять
+                    # тревогу на исправном праве, назвать правом — проспать запрет.
+                    result["doors"].append(_row(
+                        door, CAP_UNMEASURED,
+                        f"GitHub ответил {status} — это ни «права нет», ни «цели не "
+                        f"существует»; способность НЕ ИЗМЕРЕНА",
+                        status))
+        del secret  # дальше токен не нужен ни одной строке (инвариант #7)
+
+    for door in declared:
+        result["doors"].append(_row(door, door["state"], door.get("reason")))
+
+    counts = {CAP_CAN: 0, CAP_CANNOT: 0, CAP_UNMEASURED: 0,
+              CAP_NO_SAFE_PROBE: 0, CAP_ANSWERED_BY_VISIBILITY: 0}
+    for row in result["doors"]:
+        counts[row["state"]] = counts.get(row["state"], 0) + 1
+    result["can"] = counts[CAP_CAN]
+    result["cannot"] = counts[CAP_CANNOT]
+    result["unmeasured"] = counts[CAP_UNMEASURED]
+    result["no_safe_probe"] = counts[CAP_NO_SAFE_PROBE]
+    result["answered_by_visibility"] = counts[CAP_ANSWERED_BY_VISIBILITY]
+    result["measured_doors"] = len(probing)
+    result["declared_doors"] = len(spec)
+
+    if result["cannot"]:
+        result["verdict"] = CAP_CANNOT
+    elif result["unmeasured"]:
+        result["verdict"] = CAP_UNMEASURED
+    elif result["can"]:
+        result["verdict"] = CAP_CAN
+    else:
+        # Ни одной двери с безвредной пробой не осталось — это НЕ «всё умеет».
+        result["verdict"] = CAP_UNMEASURED
+    return result
+
 def _load_state(state_file: Path = None):
     """Читает state-файл. НИЧЕГО не пишет. Нет файла / нечитаем ⇒ ``None``.
 
@@ -617,6 +893,55 @@ def cmd_probe_token(result: dict) -> int:
     return 2
 
 
+def cmd_probe_capabilities(result: dict) -> int:
+    """--probe-capabilities: СПОСОБНОСТЬ ключа по дверям. 0=умеет · 1=не умеет · 2=НЕ ИЗМЕРЕНО.
+
+    Печатается ВЫБОР знаменателя, а не только итог: двери, на которые отвечает
+    видимость публичного репозитория, и двери без безвредной пробы названы отдельно
+    — иначе «2 из 2 умеет» читалось бы как «ключ умеет всё», а это другое
+    утверждение.
+    """
+    service = result.get("service", KEYCHAIN_SERVICE)
+    print(f"Способность ключа `{service}` по дверям репозитория {result.get('repo')} "
+          f"(ветка-зонд {result.get('probe_ref')}, побочного действия нет):")
+    for row in result.get("doors", []):
+        mark = {CAP_CAN: "✅ УМЕЕТ        ",
+                CAP_CANNOT: "⛔️ НЕ УМЕЕТ     ",
+                CAP_UNMEASURED: "❓ НЕ ИЗМЕРЕНО  ",
+                CAP_NO_SAFE_PROBE: "⬜ НЕТ БЕЗВРЕДНОЙ ПРОБЫ",
+                CAP_ANSWERED_BY_VISIBILITY: "⬜ ОТВЕЧАЕТ ВИДИМОСТЬ РЕПО",
+                }.get(row.get("state"), row.get("state"))
+        http = row.get("http_status")
+        http_s = f" (HTTP {http})" if http is not None else ""
+        print(f"  {mark} {row.get('key')}{http_s} — {row.get('permission')}")
+        print(f"      нужно для: {row.get('need')}")
+        if row.get("reason"):
+            print(f"      {row['reason']}")
+    print(f"  знаменатель: дверей объявлено {result.get('declared_doors')}, "
+          f"с безвредной пробой {result.get('measured_doors')}; "
+          f"умеет {result.get('can')} · НЕ умеет {result.get('cannot')} · "
+          f"НЕ ИЗМЕРЕНО {result.get('unmeasured')} · без пробы "
+          f"{result.get('no_safe_probe')} · отвечает видимость "
+          f"{result.get('answered_by_visibility')}")
+
+    verdict = result.get("verdict")
+    if verdict == CAP_CANNOT:
+        print()
+        print("⛔️  У КЛЮЧА НЕТ ПРАВА, которым система пользуется — и ключ при этом ЖИВ")
+        print("    Это действие ВЛАДЕЛЬЦА: права выдаются у токена, а не в коде.")
+        print("    https://github.com/settings/personal-access-tokens → ключ "
+              f"`{service}` → Repository permissions → добавить право, названное выше.")
+        if result.get("unmeasured"):
+            print(f"    И рядом НЕ ИЗМЕРЕНО {result['unmeasured']} двер(ь/и): число "
+                  f"запретов выше — СКАЗАННАЯ нижняя граница, а не итог.")
+        return 1
+    if verdict == CAP_CAN:
+        return 0
+    print()
+    print("❓  СПОСОБНОСТЬ НЕ ИЗМЕРЕНА — это отказ, а не «ключ умеет всё»")
+    return 2
+
+
 def cmd_mark_rotated(now: date = None, state_file: Path = None,
                      secret_reader=None, allow_unverified: bool = False) -> int:
     """--mark-rotated: ЕДИНСТВЕННЫЙ путь, которым дата ротации попадает в состояние.
@@ -742,6 +1067,14 @@ Examples:
               "2=НЕ ИЗМЕРЕНО (это другой вопрос, чем календарь ротации)"),
     )
     group.add_argument(
+        "--probe-capabilities",
+        action="store_true",
+        dest="probe_capabilities",
+        help=("Спросить у GitHub СПОСОБНОСТЬ ключа по дверям, которыми система им "
+              "пользуется: 0=умеет, 1=права НЕТ, 2=НЕ ИЗМЕРЕНО (третий вопрос — "
+              "не календарь и не состояние)"),
+    )
+    group.add_argument(
         "--mark-rotated",
         action="store_true",
         dest="mark_rotated",
@@ -761,6 +1094,9 @@ Examples:
 
     state = _load_state()
     status = _compute_status(state)
+
+    if args.probe_capabilities:
+        return cmd_probe_capabilities(probe_token_capabilities())
 
     if args.probe_token:
         # Записанный срок передаётся ТОЛЬКО как второй операнд сравнения: вердикт о

@@ -991,6 +991,14 @@ class SystemHealthMonitor:
         # ли GitHub наш ключ прямо сейчас»). Зелёный ответ на первый вопрос не говорит
         # о втором ничего: 24.11 записанная дата совпала со смертью ключа случайно.
         out.append(self._check_pat_token_alive(D))
+        # Третий вопрос о ТОМ ЖЕ ключе, и соседство опять намеренное: выше —
+        # «принимает ли GitHub ключ», здесь — «а УМЕЕТ ли принятый ключ то, ради
+        # чего он у нас есть». Замер 2026-11-28 (ADR-1128): оба сторожа выше зелены
+        # на ключе, которым НЕЛЬЗЯ заказать контрольный прогон CI (`dispatches` →
+        # 403), то есть «вердикт CI о моём коммите» выходит НЕ ИЗМЕРЕН у каждого
+        # цикла. «Ключ ЖИВ» не говорит о способности ровно так же, как «ключ ЕСТЬ»
+        # не говорил о живости (ADR-1094).
+        out.append(self._check_pat_token_capable(D))
         return out
 
     def _check_pat_rotation(self, D: str) -> CheckResult:
@@ -1121,6 +1129,94 @@ class SystemHealthMonitor:
                            "Whether GitHub accepts the delivery key is UNMEASURED",
                            value=liveness, expected="alive",
                            evidence=evidence, error=result.get("reason"))
+
+    def _check_pat_token_capable(self, D: str) -> CheckResult:
+        """Does the LIVE key still CARRY the rights we use it with? (2026-11-28, ADR-1128)
+
+        The third question about one key, and the third is not implied by the first
+        two. On 2026-11-28 both siblings above were green on the key the owner had
+        just issued — and ``POST /actions/workflows/ci-control.yml/dispatches``
+        answered **403 "Resource not accessible by personal access token"**: no
+        control CI run can be ordered, so every cycle's "CI verdict about my commit"
+        comes out UNMEASURED. The cause was ours: the rotation card and
+        ``docs/GITHUB_CREDENTIALS.md`` asked the owner for Contents RW + Workflows
+        RW, and ``workflow_dispatch`` is gated by the **Actions** permission, which
+        no line ever asked for.
+
+        The write-permission probe does not write: it sends a request of the SAME
+        SHAPE at a deliberately ABSENT target, because GitHub checks the grant before
+        the target exists (403 ⇒ no right · 404/422 "no such target" ⇒ right present).
+
+        Three outcomes, never collapsed (invariant #17): a named missing right is
+        CRITICAL — delivery of a measurement is stopped, and only the owner can grant
+        it; unmeasured is WARNING with the reason; all probed doors green is OK, and
+        the OK line states its own denominator, because doors answered by the public
+        repo's visibility prove nothing about the grant.
+        """
+        name = "d5.security.pat_token_capable"
+        prh, err = self._load_pat_guard()
+        if prh is None:
+            return CheckResult(name, D, WARNING,
+                               "PAT guard unavailable in this checkout — whether the "
+                               "delivery key CARRIES the rights we use is UNMEASURED",
+                               error=err)
+        if not hasattr(prh, "probe_token_capabilities"):
+            return CheckResult(name, D, WARNING,
+                               "PAT guard in this checkout cannot ask GitHub what the "
+                               "key is ALLOWED to do (pre-ADR-1128) — capability is "
+                               "UNMEASURED",
+                               error="scripts/pat_rotation_helper.probe_token_capabilities "
+                                     "отсутствует")
+        try:
+            result = prh.probe_token_capabilities()
+        except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
+            return CheckResult(name, D, WARNING,
+                               "PAT capability probe raised — capability is UNMEASURED",
+                               error="{}: {}".format(type(exc).__name__, exc))
+
+        verdict = result.get("verdict")
+        denominator = ("doors declared {declared_doors}, with a harmless probe "
+                       "{measured_doors} (visibility answers {answered_by_visibility}, "
+                       "no harmless probe {no_safe_probe})").format(**{
+                           k: result.get(k) for k in
+                           ("declared_doors", "measured_doors",
+                            "answered_by_visibility", "no_safe_probe")})
+        evidence = {k: v for k, v in result.items() if k != "doors"}
+        evidence["doors"] = [
+            {"key": r.get("key"), "state": r.get("state"),
+             "permission": r.get("permission"), "http_status": r.get("http_status")}
+            for r in result.get("doors", [])
+        ]
+
+        if verdict == getattr(prh, "CAP_CANNOT", "cannot"):
+            missing = [r for r in result.get("doors", [])
+                       if r.get("state") == getattr(prh, "CAP_CANNOT", "cannot")]
+            named = ", ".join("{} ({})".format(r.get("key"), r.get("permission"))
+                              for r in missing)
+            lower_bound = ""
+            if result.get("unmeasured"):
+                lower_bound = (" — and {} door(s) UNMEASURED beside it, so this count "
+                               "is a stated lower bound").format(result["unmeasured"])
+            return CheckResult(name, D, CRITICAL,
+                               "The LIVE delivery key LACKS a right we use it with: "
+                               + named + lower_bound
+                               + " — only the owner can grant it",
+                               value=verdict, expected="can",
+                               evidence=evidence,
+                               error="; ".join(str(r.get("reason")) for r in missing))
+        if verdict == getattr(prh, "CAP_CAN", "can"):
+            return CheckResult(name, D, OK,
+                               "The delivery key carries every right we could probe "
+                               "without writing — " + denominator,
+                               value=verdict, evidence=evidence)
+        unmeasured = [r for r in result.get("doors", [])
+                      if r.get("state") == getattr(prh, "CAP_UNMEASURED", "unmeasured")]
+        return CheckResult(name, D, WARNING,
+                           "Whether the delivery key carries the rights we use is "
+                           "UNMEASURED — " + denominator,
+                           value=verdict, expected="can", evidence=evidence,
+                           error="; ".join(str(r.get("reason")) for r in unmeasured)
+                                 or result.get("verdict"))
 
     def _load_pat_guard(self):
         """Ввозит `scripts/pat_rotation_helper.py` ИЗ ТОГО ЖЕ дерева. ``(mod|None, err)``.
