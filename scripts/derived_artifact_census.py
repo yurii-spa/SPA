@@ -173,6 +173,13 @@ STATE_DIR = "state_dir"
 SANDBOX = "sandbox"
 UNRESOLVED = "unresolved"
 
+# ─── ОТКУДА у файла взялся каталог: наблюдение или догадка поверхности ──────
+# Поверхность намеренно ошибается в сторону БОЛЬШЕЙ (докстринг модуля), и для
+# ПОВЕРХНОСТИ это верно. Для ВЕРДИКТА дифференциала разница несущая: в
+# догаданный каталог зонд ложится мимо сторожа.
+ORIGIN_OBSERVED = "observed"   # прямой зов либо помощник с РАЗОБРАННЫМ каталогом
+ORIGIN_GUESS = "guess"         # каталог ИМЕНУЕТ тест, перечисляет помощник по аргументу
+
 # ─── ярлыки дифференциала ───────────────────────────────────────────────────
 SUBJECT = "subject"            # зелёный стал НЕ зелёным от подложенного файла
 SET_DEPENDENT_GREEN = "set_dependent_green"   # состав вердикта вырос, но он зелен
@@ -335,6 +342,31 @@ class FileEntry:
             if c.kind == SOURCE_DIR and c.rel_dir and c.rel_dir not in out:
                 out.append(c.rel_dir)
         return out
+
+    def dir_origin(self, rel_dir: str) -> str:
+        """ОТКУДА у файла взялся этот каталог: ДОГАДКА или НАБЛЮДЕНИЕ.
+
+        Половина хопа `_helper_calls` ставит каталог, который ИМЕНУЕТ тест, на
+        зов помощника, перечисляющего каталог ИЗ АРГУМЕНТА, — и сама же говорит
+        вслух: «названный каталог может и не дойти до помощника, и тогда член
+        предмета окажется лишним кандидатом». Это ВЕРНО для поверхности (ошибка
+        в сторону большей) и НЕВЕРНО для вердикта дифференциала: зонд ложится в
+        каталог, которого сторож может не судить вовсе, и «вердикт тот же»
+        становится ответом о КАТАЛОГЕ, а не о стороже.
+
+        Замер #1612 на ИЗВЕСТНОМ ЧЛЕНЕ: `test_adr_index_titles` (ADR-889,
+        колонка реестра решений) несёт РОВНО ОДИН разобранный каталог —
+        `docs/journal`, — а членство его класса стои́т на `docs/decisions`.
+        Дифференциал подложил файл в `docs/journal`, вердикт не сдвинулся, и
+        прибор объявил известного члена «не предметом». Форма, потерявшая
+        известного члена, ОПРОВЕРГНУТА, а не подкручена.
+        """
+        origins = {ORIGIN_GUESS if "по аргументу" in (c.reason or "") else ORIGIN_OBSERVED
+                   for c in self.calls
+                   if c.kind == SOURCE_DIR and c.rel_dir == rel_dir}
+        # Наблюдение ПЕРЕБИВАЕТ догадку: если тот же каталог у файла есть и
+        # прямым зовом, зонд ляжет туда, куда сторож действительно смотрит.
+        return ORIGIN_OBSERVED if ORIGIN_OBSERVED in origins else ORIGIN_GUESS
 
 
 def _is_pytest_fixture(node: ast.AST) -> bool:
@@ -1217,6 +1249,82 @@ PLANTED_INERT = ("зонд растит ЧИСЛО файлов и СОДЕРЖ�
                  "чей вердикт решает содержимое набора, им НЕ разрешается; "
                  "замер #1259 на ADR-1112: инертный зонд 80→80, содержательный 80→81")
 
+# ════════════════════════════════════════════════════════════════════════════
+#  ВТОРОЙ ЗОНД — КОПИЯ СУЩЕСТВУЮЩЕГО ЧЛЕНА КАТАЛОГА ПОД НОВЫМ ИМЕНЕМ
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Заказ G1103 п. 3 (направление 2 карточки класса ADR-1127), цикл #1612.
+#
+# ЧТО БЫЛО НЕ ТАК. Граница `PLANTED_INERT` выше названа ВЕРНО и напечатана
+# строкой отчёта — но она напечатана СВОДКОЙ, а вердикт КАЖДОЙ записи
+# `not_subject` по-прежнему читается «вердикт тот же», и `Differential.code`
+# отдаёт на таком наборе **0**, то есть «предмета нет». Три исхода инв. #17
+# («измерено · измерено и равно нулю · НЕ ИЗМЕРЕНО») здесь схлопнуты в два:
+# сторож, чей предмет решает СОДЕРЖИМОЕ набора, неотличим от «не члена».
+# Направление 2 карточки опирается ровно на это число, поэтому сужение предмета
+# им было бы сужением в сторону «чисто» — тот класс, против которого написан
+# весь прибор.
+#
+# ПОЧЕМУ КОПИЯ, А НЕ ВЫДУМАННОЕ СОДЕРЖИМОЕ. Модуль выше говорит верно: «сделать
+# зонд универсально содержательным нельзя — содержимое пришлось бы выдумывать
+# под предмет КАЖДОГО сторожа, то есть мерка стала бы прозой». Копия обходит это
+# НЕ угадыванием: донором берётся файл, который В ЭТОМ ЖЕ каталоге уже лежит и
+# сторожем уже ПРИНЯТ, а меняется у него РОВНО ОДНО — имя. Предикат класса
+# («каждый член набора назван производным артефактом») от смены имени ломается
+# ПО ПОСТРОЕНИЮ, какое бы содержимое сторож ни читал.
+#
+# Положительный контроль — тот же замер #1259, что назвал границу: на ADR-1112
+# содержательный `.py` сдвинул предмет 80 → 81, инертный не сдвинул (80 → 80).
+# Копия модуля, уже несущего чтение `origin/<ветка>`, воспроизводит этот сдвиг
+# ОБЩИМ правилом, а не знанием про этого сторожа.
+#
+# ЦЕНА ПЛАТИТСЯ ТОЛЬКО ТАМ, ГДЕ ОТВЕТ ИНАЧЕ ДВУСМЫСЛЕН. Второй зонд идёт лишь
+# у записи, у которой ВСЕ инертные зонды вердикта не сдвинули (кандидат в
+# `not_subject`). Запись, уже ставшая предметом или уже красная, второго прогона
+# не стоит: её ответ однозначен без него.
+COPY_SUFFIX_MARK = "_copy"
+
+# Предел размера донора. Без него копия могла бы весить мегабайты и платить за
+# ответ чужим временем; с ним «донора нет» становится НАЗВАННОЙ причиной, а не
+# тихим «не предмет». Три исхода различимы и здесь.
+COPY_DONOR_MAX_BYTES = 200_000
+
+COPY_UNMEASURED = "copy_unmeasured"   # донора нет либо копия не прочиталась
+
+# Каталог у записи — ДОГАДКА поверхности, и «вердикт тот же» на нём есть ответ о
+# КАТАЛОГЕ, а не о стороже (см. `FileEntry.dir_origin`). Третий исход, не ноль.
+GUESSED_DIR_UNMEASURED = "guessed_dir_unmeasured"
+
+
+def _copy_donor(target_dir: pathlib.Path) -> tuple[pathlib.Path | None, str]:
+    """Донор второго зонда: СУЩЕСТВУЮЩИЙ член каталога, принятый сторожем.
+
+    Отбор ДЕТЕРМИНИРОВАН (первый по имени среди подходящих) — «выберу
+    поинтереснее» было бы вкусом автора, а не меркой, и воспроизвести такой
+    замер было бы нечем. Выбранный донор ПЕЧАТАЕТСЯ.
+    """
+    cands: list[pathlib.Path] = []
+    for child in sorted(target_dir.iterdir(), key=lambda q: q.name):
+        if not child.is_file():
+            continue
+        if child.stem.startswith(PLANTED_STEM):
+            continue            # свой же зонд донором быть не может
+        if child.suffix not in PLANTED_SUFFIXES:
+            continue
+        try:
+            size = child.stat().st_size
+        except OSError:
+            continue
+        if size == 0 or size > COPY_DONOR_MAX_BYTES:
+            continue
+        cands.append(child)
+    if not cands:
+        return None, (f"в каталоге нет члена с расширением {', '.join(PLANTED_SUFFIXES)}, "
+                      f"непустого и не крупнее {COPY_DONOR_MAX_BYTES} Б — "
+                      "содержательный зонд построить НЕ ИЗ ЧЕГО")
+    donor = cands[0]
+    return donor, donor.name
+
 
 @dataclass
 class DiffEntry:
@@ -1237,16 +1345,43 @@ class Differential:
     @property
     def counts(self) -> dict[str, int]:
         out = {SUBJECT: 0, SET_DEPENDENT_GREEN: 0, NOT_SUBJECT: 0,
-               ALREADY_RED: 0, DIFF_UNMEASURED: 0}
+               ALREADY_RED: 0, DIFF_UNMEASURED: 0, COPY_UNMEASURED: 0,
+               GUESSED_DIR_UNMEASURED: 0}
         for e in self.entries:
             out[e.kind] += 1
+        return out
+
+    @property
+    def refuted_known_members(self) -> dict[str, str]:
+        """Известные члены класса, которых дифференциал назвал «не предметом».
+
+        ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ, зеркальный `Surface.lost_known_members`. У
+        поверхности он стои́т с первой редакции прибора; у ВЕРДИКТА его не было —
+        и замер #1612 показал, зачем он нужен: `test_adr_index_titles` (ADR-889)
+        приходит `not_subject` при ОБОИХ зондах, потому что поверхность разобрала
+        у него РОВНО ОДИН каталог — `docs/journal`, — а членство класса стои́т на
+        `docs/decisions`. Каталог НАБЛЮДЁН (прямой зов), содержательный зонд
+        отработал (копия `2026-W29.md`), и всё равно ответ неверен: зонд лёг не
+        туда, куда смотрит сторож своего КЛАССА.
+
+        Пока хоть один известный член приходит «не предметом», число `subject`
+        есть НИЖНЯЯ ГРАНИЦА, а не сужение предмета, и прибор обязан сказать это
+        вслух, а не отдать «предмет N» молча.
+        """
+        out: dict[str, str] = {}
+        for e in self.entries:
+            if e.kind == NOT_SUBJECT and e.path in KNOWN_MEMBERS:
+                out[e.path] = KNOWN_MEMBERS[e.path]
         return out
 
     @property
     def code(self) -> int:
         if self.leftovers:
             return 2
-        if self.counts[DIFF_UNMEASURED]:
+        if self.refuted_known_members:
+            return 2
+        if (self.counts[DIFF_UNMEASURED] or self.counts[COPY_UNMEASURED]
+                or self.counts[GUESSED_DIR_UNMEASURED]):
             return 2
         return 1 if self.counts[SUBJECT] else 0
 
@@ -1416,6 +1551,79 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
             if unmeasured:
                 why += (" · зонды БЕЗ вердикта: "
                         + ", ".join(pr[0] for pr in unmeasured))
+
+            # ── ВТОРОЙ ЗОНД идёт ТОЛЬКО у кандидата в `not_subject` ─────────
+            # Здесь и только здесь ответ инертного зонда двусмыслен (см.
+            # PLANTED_INERT): «вердикт тот же» означает либо «сторож набором не
+            # судит», либо «мой зонд его предиката не касается». Остальные три
+            # исхода однозначны и второго прогона не стоят.
+            if kind == NOT_SUBJECT:
+                # Каталог — ДОГАДКА ⇒ в него не стои́т и класть второй зонд: любой
+                # зонд ляжет мимо сторожа, и ответ был бы о каталоге. Вопрос
+                # задаётся ДО траты прогона — цена меры есть часть меры.
+                if entry.dir_origin(rel_dir) == ORIGIN_GUESS:
+                    entries.append(DiffEntry(
+                        entry.path, rel_dir, GUESSED_DIR_UNMEASURED,
+                        before=before, after=after,
+                        reason=f"инертный зонд [{sfx}] вердикта не сдвинул, НО каталог "
+                               f"`{rel_dir}` — ДОГАДКА поверхности (его ИМЕНУЕТ тест, а "
+                               f"перечисляет помощник по аргументу): зонд мог лечь мимо "
+                               f"сторожа, и «вердикт тот же» есть ответ о КАТАЛОГЕ. "
+                               f"Второй зонд НЕ ТРАЧЕН — он лёг бы туда же"))
+                    continue
+                donor, donor_note = _copy_donor(target_dir)
+                if donor is None:
+                    entries.append(DiffEntry(entry.path, rel_dir, COPY_UNMEASURED,
+                                             before=before, after=after,
+                                             reason=f"[зонд {sfx}] инертный зонд вердикта не "
+                                                    f"сдвинул, а содержательный построить НЕ ИЗ "
+                                                    f"ЧЕГО: {donor_note}"))
+                    continue
+                copy_path = target_dir / f"{PLANTED_STEM}{COPY_SUFFIX_MARK}{donor.suffix}"
+                if copy_path.exists():
+                    entries.append(DiffEntry(entry.path, rel_dir, DIFF_UNMEASURED,
+                                             before=before, after=after,
+                                             reason=f"имя второго зонда уже занято: "
+                                                    f"{copy_path.name} — наследство убитого "
+                                                    f"прогона; снять `--clean-planted`"))
+                    continue
+                try:
+                    copy_path.write_bytes(donor.read_bytes())
+                    c_after, c_line = _verdict(root, entry.path, timeout)
+                finally:
+                    try:
+                        copy_path.unlink()
+                    except OSError as exc:
+                        leftovers.append(f"{copy_path}: {exc}")
+                    for pyc in (target_dir / "__pycache__").glob(
+                            f"{PLANTED_STEM}{COPY_SUFFIX_MARK}.*"):
+                        try:
+                            pyc.unlink()
+                        except OSError:
+                            pass
+                if c_after == "unmeasured":
+                    entries.append(DiffEntry(entry.path, rel_dir, COPY_UNMEASURED,
+                                             before=before, after=c_after,
+                                             reason=f"инертный зонд вердикта не сдвинул, а "
+                                                    f"содержательный (копия `{donor_note}`) не "
+                                                    f"дошёл до вердикта: {c_line}"))
+                    continue
+                c_kind, c_why = _classify(before, c_after)
+                if c_kind == NOT_SUBJECT:
+                    entries.append(DiffEntry(
+                        entry.path, rel_dir, NOT_SUBJECT,
+                        before=before, after=c_after,
+                        reason=f"вердикт тот же И у инертного зонда [{sfx}], И у "
+                               f"СОДЕРЖАТЕЛЬНОГО (копия `{donor_note}` под новым именем), "
+                               f"а каталог НАБЛЮДЁН — ответ ИЗМЕРЕН, а не свойство зонда"))
+                else:
+                    entries.append(DiffEntry(entry.path, rel_dir, c_kind,
+                                             before=before, after=c_after,
+                                             reason=f"[зонд КОПИЯ `{donor_note}`] {c_why} — "
+                                                    f"инертный зонд этого НЕ показал: граница "
+                                                    f"PLANTED_INERT наблюдена на этом стороже"))
+                continue
+
             entries.append(DiffEntry(entry.path, rel_dir, kind, before=before, after=after,
                                      reason=f"[зонд {sfx}] {why}"))
     return Differential(str(root), entries, leftovers)
@@ -1463,19 +1671,39 @@ def render_differential(d: Differential) -> str:
         f"  ПРЕДМЕТ КЛАССА (зелёный стал НЕ зелёным): {c[SUBJECT]}",
         f"  зависит от набора, но ЗЕЛЕН:        {c[SET_DEPENDENT_GREEN]}",
         f"  КРАСЕН ДО подкладывания:            {c[ALREADY_RED]}",
-        f"  не предмет (вердикт тот же):       {c[NOT_SUBJECT]}",
+        f"  не предмет (ОБА зонда вердикта не сдвинули): {c[NOT_SUBJECT]}",
         f"  НЕ ИЗМЕРЕНО:                       {c[DIFF_UNMEASURED]}",
+        f"  НЕ ИЗМЕРЕНО содержательным зондом: {c[COPY_UNMEASURED]}",
+        f"  НЕ ИЗМЕРЕНО: каталог записи — ДОГАДКА поверхности: {c[GUESSED_DIR_UNMEASURED]}",
         # ── ГРАНИЦА ДИФФЕРЕНЦИАЛА ПЕЧАТАЕТСЯ, а не живёт в прозе ────────────
         # Иначе читатель примет «не предмет» за ответ о классе там, где зонд
         # ответить не способен ПО ПОСТРОЕНИЮ (замер #1259, см. PLANTED_INERT).
         f"  ⚠️ ЗОНД ИНЕРТЕН: {PLANTED_INERT}",
+        # С цикла #1612 граница не только НАЗВАНА, но и СПРОШЕНА у каждой
+        # записи-кандидата: «не предмет» ставится лишь когда вердикта не сдвинул
+        # И содержательный зонд (копия существующего члена каталога под новым
+        # именем), а «донора нет» есть ТРЕТИЙ исход с названной причиной.
+        f"  ✅ граница СПРОШЕНА у каждого кандидата в «не предмет»: второй зонд — "
+        f"КОПИЯ существующего члена каталога под новым именем (донор ≤ "
+        f"{COPY_DONOR_MAX_BYTES} Б, выбор ПЕЧАТАЕТСЯ)",
     ]
+    refuted = d.refuted_known_members
+    if refuted:
+        lines.append("  ⛔ МЕРКА ОПРОВЕРГНУТА: известный член класса пришёл «не предметом» —")
+        for path, why in refuted.items():
+            lines.append(f"       {path} ({why})")
+        lines.append("     число `ПРЕДМЕТ` есть НИЖНЯЯ ГРАНИЦА, а не сужение предмета (код 2)")
+    else:
+        lines.append(f"  ✅ ни один из {len(KNOWN_MEMBERS)} известных членов не пришёл "
+                     "«не предметом» (положительный контроль ВЕРДИКТА)")
     for e in d.entries:
         if e.kind == SUBJECT:
             lines.append(f"  🔴 {e.path} ← {e.enumerated_dir}")
             lines.append(f"       было: {e.before}  →  стало: {e.after}")
-        elif e.kind == DIFF_UNMEASURED:
+        elif e.kind in (DIFF_UNMEASURED, COPY_UNMEASURED, GUESSED_DIR_UNMEASURED):
             lines.append(f"  ⚠️ НЕ ИЗМЕРЕНО {e.path} ← {e.enumerated_dir}: {e.reason}")
+        elif e.kind == NOT_SUBJECT:
+            lines.append(f"  ⚪ не предмет {e.path} ← {e.enumerated_dir}: {e.reason}")
     if d.leftovers:
         lines.append("  ⛔ ПОДЛОЖЕННЫЙ ФАЙЛ НЕ СНЯТ — дерево грязное:")
         for item in d.leftovers:
@@ -1496,7 +1724,10 @@ def clean_planted(root: pathlib.Path) -> list[str]:
     не известно»: имя подкладываемого файла одно и известно по построению.
     """
     removed: list[str] = []
-    for path in root.rglob(f"{PLANTED_STEM}.*"):
+    # Шаблон НАКРЫВАЕТ оба зонда (`…probe.py` и `…probe_copy.py`): уборка, видящая
+    # только первый, оставила бы копию и при этом напечатала «дерево чисто» —
+    # ровно то «не измерено под видом ответа», против которого прибор написан.
+    for path in root.rglob(f"{PLANTED_STEM}*"):
         try:
             path.unlink()
             removed.append(path.relative_to(root).as_posix())

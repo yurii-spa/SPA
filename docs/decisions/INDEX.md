@@ -259,6 +259,7 @@
 | ADR-1128 | ADR-1128 — «Ключ ЖИВ» ≠ «ключ МОЖЕТ»: у ключа доставки спрашивается СПОСОБНОСТЬ, и `Actions: write` у него НЕТ | Accepted | [ADR-1128](ADR-1128-pat-capability-is-a-third-question.md) |
 | ADR-1129 | ADR-1129 — Один хоп через ПАРАМЕТР: третий исход переписи набор-зависимости дочитан со 106 до 81, предмет 265 → 263, вилка 265…371 → 263…344 | Accepted | [ADR-1129](ADR-1129-one-hop-through-a-parameter-reads-the-third-outcome.md) |
 | ADR-1130 | ADR-1130 — Общая дверь доставки накрывает НЕ БОЛЬШЕ пятой части класса (49 из 263, вилка 49…170): направление 1 карточки опровергнуто замером | Accepted | [ADR-1130](ADR-1130-the-general-door-reaches-at-most-a-fifth-of-the-class.md) |
+| ADR-1131 | ADR-1131 — Граница инертного зонда дифференциала СПРОШЕНА у каждого кандидата, а не только названа сводкой | Accepted | [ADR-1131](ADR-1131-inert-plant-boundary-is-asked-not-only-named.md) |
 
 ## Соглашения
 

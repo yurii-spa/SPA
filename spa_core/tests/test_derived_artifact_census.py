@@ -769,3 +769,414 @@ class TheTwoDoorsThatTheFourthKnownMemberNeeded(unittest.TestCase):
                             "красный ДО подкладывания объявлен «не предметом»")
         self.assertIn("зелёным", why,
                       "причина не называет недоступную премису")
+
+
+class TheInertPlantBoundaryIsNowASKEDNotOnlyNAMED(unittest.TestCase):
+    """Заказ G1103 п. 3, цикл #1612 — направление 2 карточки класса ADR-1127.
+
+    ЧТО ИЗМЕРЕНО И ПОЧЕМУ ЭТО НАХОДКА. Граница `PLANTED_INERT` названа верно и
+    напечатана СВОДКОЙ отчёта — но вердикт КАЖДОЙ записи `not_subject` читался
+    «вердикт тот же», а `Differential.code` отдавал на таком наборе **0**, то
+    есть «предмета нет». Для сторожа, чей предмет решает СОДЕРЖИМОЕ набора, это
+    «не измерено, выданное за ответ» (инв. #17): ровно та форма, из-за которой
+    #1259 и нашёл границу (на ADR-1112 инертный зонд 80→80, содержательный
+    80→81). Направление 2 карточки опирается на это число, поэтому сужение
+    предмета инертным зондом было бы сужением в сторону «чисто».
+
+    Второй зонд содержателен ПО ПОСТРОЕНИЮ, а не угадан: донором берётся файл,
+    который в ЭТОМ ЖЕ каталоге уже лежит и сторожем уже ПРИНЯТ, и меняется у
+    него РОВНО ОДНО — имя.
+    """
+
+    # ── донор: отбор ДЕТЕРМИНИРОВАН и фильтры РАБОТАЮТ ──────────────────────
+    def test_the_donor_is_the_first_eligible_by_name_and_the_filters_BITE(self):
+        """КАЖДЫЙ непригодный декой стои́т ПЕРЕД верным ответом — иначе снятие
+        соответствующего фильтра ответа не меняет и мутация ВЫЖИВАЕТ зелёной
+        (форма «выжившая мутация — дыра СЦЕНЫ», одиннадцать циклов подряд).
+        Порядок имён здесь — несущая часть мерки, а не оформление.
+
+        Наивные реализации, которые сцена РАЗЛИЧАЕТ, и каждая своим декоем:
+          * фильтра расширения нет → отдала бы `a_alien.txt`;
+          * фильтра пустого файла нет → отдала бы `b_empty.py`;
+          * предела размера нет → отдала бы `c_huge.json`;
+          * отбор не по первому имени (последний) → отдала бы `e_later.py`;
+          * «предпочесть `.py`» → отдала бы `e_later.py`.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_donor_") as d:
+            box = pathlib.Path(d)
+            (box / "a_alien.txt").write_text("не то расширение\n", encoding="utf-8")
+            (box / "b_empty.py").write_text("", encoding="utf-8")
+            # ⚠️ РАЗМЕР ЗАДАН АБСОЛЮТНЫМ ЧИСЛОМ, а не от `COPY_DONOR_MAX_BYTES`.
+            # Первая редакция писала `COPY_DONOR_MAX_BYTES + 10`, и сцена читала
+            # МУТИРОВАННУЮ константу: поднятие предела делало файл ровно настолько
+            # же крупнее, ответ не менялся, и мутация «предел вчетверо выше»
+            # ВЫЖИЛА зелёной (прогон 1 цикла #1612). Сцена, берущая мерку у
+            # предмета измерения, тавтологична по построению.
+            self.assertLessEqual(
+                mod.COPY_DONOR_MAX_BYTES, 300_000,
+                "объявленный предел донора вырос выше того, на котором стои́т эта "
+                "сцена — поднимать его можно только вместе с перемером сцены")
+            (box / "c_huge.json").write_text("{}" + " " * 300_001, encoding="utf-8")
+            (box / "d_right.md").write_text("# донор\n", encoding="utf-8")
+            (box / "e_later.py").write_text("X = 1\n", encoding="utf-8")
+            donor, note = mod._copy_donor(box)
+            self.assertIsNotNone(donor, f"донор не найден при двух пригодных: {note}")
+            self.assertEqual("d_right.md", donor.name,
+                             "отбор донора не детерминирован по имени либо фильтры не кусают")
+            self.assertEqual("d_right.md", note,
+                             "выбранный донор НЕ ПЕЧАТАЕТСЯ — замер нечем воспроизвести")
+
+    def test_the_prober_own_plant_can_NOT_be_the_donor(self):
+        """Копия СВОЕГО зонда содержательной не является — она тот же зонд."""
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_self_") as d:
+            box = pathlib.Path(d)
+            (box / f"{mod.PLANTED_STEM}.py").write_text(mod.PLANTED_PY, encoding="utf-8")
+            (box / f"{mod.PLANTED_STEM}{mod.COPY_SUFFIX_MARK}.md").write_text(
+                "x\n", encoding="utf-8")
+            donor, note = mod._copy_donor(box)
+            self.assertIsNone(donor,
+                              f"донором стал собственный зонд прибора: {donor}")
+            self.assertIn("НЕ ИЗ ЧЕГО", note,
+                          "причина «донора нет» не названа — тихое «не предмет»")
+
+    def test_no_donor_is_a_THIRD_outcome_and_NOT_code_zero(self):
+        """«Содержательный зонд построить не из чего» ≠ «предмета нет»."""
+        mod = _load()
+        only_copy = mod.Differential(root="/nowhere", entries=[
+            mod.DiffEntry("spa_core/tests/test_x.py", "pkg", mod.COPY_UNMEASURED,
+                          reason="донора нет"),
+        ])
+        self.assertEqual(2, only_copy.code,
+                         "НЕ ИЗМЕРЕНО содержательным зондом дало код, неотличимый от "
+                         "«измерено и равно нулю» — предмет инв. #17")
+        measured_zero = mod.Differential(root="/nowhere", entries=[
+            mod.DiffEntry("spa_core/tests/test_x.py", "pkg", mod.NOT_SUBJECT,
+                          reason="оба зонда"),
+        ])
+        self.assertEqual(0, measured_zero.code,
+                         "ИЗМЕРЕННЫЙ ноль стал неотличим от «не измерено» — ошибка в "
+                         "ОБРАТНУЮ сторону, и она тоже ложь")
+
+    # ── уборка обязана видеть ОБА зонда ────────────────────────────────────
+    def test_the_cleanup_sweeps_the_COPY_probe_too(self):
+        """Уборка, видящая один зонд, печатала бы «чисто» про грязное дерево."""
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_clean_") as d:
+            root = pathlib.Path(d)
+            pkg = root / "spa_core" / "analytics"
+            pkg.mkdir(parents=True)
+            (pkg / f"{mod.PLANTED_STEM}.py").write_text("x = 1\n", encoding="utf-8")
+            (pkg / f"{mod.PLANTED_STEM}{mod.COPY_SUFFIX_MARK}.py").write_text(
+                "y = 1\n", encoding="utf-8")
+            removed = mod.clean_planted(root)
+            self.assertEqual(2, len(removed),
+                             f"уборка сняла не оба зонда: {removed}")
+            self.assertFalse(
+                list(pkg.glob(f"{mod.PLANTED_STEM}*")),
+                "копия зонда осталась в дереве, а уборка отчиталась")
+
+    # ── ОТЧЁТ называет и границу, и то, что её СПРОСИЛИ ────────────────────
+    def test_the_report_says_the_boundary_was_ASKED_of_every_candidate(self):
+        mod = _load()
+        text = mod.render_differential(mod.Differential(root="/nowhere", entries=[]))
+        self.assertIn("ЗОНД ИНЕРТЕН", text, "граница зонда не напечатана")
+        self.assertIn("СПРОШЕНА", text,
+                      "отчёт не говорит, что границу СПРОСИЛИ у каждого кандидата — "
+                      "читатель примет ответ о зонде за ответ о классе")
+        self.assertIn("КОПИЯ", text, "второй зонд в отчёте не назван")
+
+    # ── НЕСУЩАЯ ПРОБА: воспроизводит замер #1259 ОБЩИМ правилом ────────────
+    def test_a_CONTENT_judging_guard_is_resolved_by_the_COPY_and_NOT_by_the_inert_plant(self):
+        """Дословная форма замера #1259: инертный зонд 80→80, содержательный 80→81.
+
+        Сцена — сторож, который перечисляет каталог и считает в нём файлы,
+        НЕСУЩИЕ маркер. Инертный зонд растит ЧИСЛО файлов и маркера не несёт ⇒
+        вердикт не двигается, и прибор без второго зонда сказал бы «не предмет».
+        Копия существующего члена маркер несёт ПО ПОСТРОЕНИЮ ⇒ сторож краснеет,
+        и он ЕСТЬ член класса.
+
+        Контроль в ОБЕ стороны: второй сторож той же сцены судит НАБОР по именам
+        (`len(list(...))`), его инертный зонд разрешает, и второй прогон у него
+        не нужен — «не предмет» у него ИЗМЕРЕН.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_e2e_") as d:
+            root = pathlib.Path(d)
+            pkg = root / "spa_core" / "analytics"
+            pkg.mkdir(parents=True)
+            (pkg / "m_one.py").write_text('MARKER = "derived-marker"\n', encoding="utf-8")
+
+            content_guard = (
+                "import pathlib\n"
+                "def test_content():\n"
+                "    r = pathlib.Path(__file__).resolve().parents[2]\n"
+                "    pkg = r / 'spa_core' / 'analytics'\n"
+                "    carry = [p for p in pkg.glob('*.py')\n"
+                "             if 'derived-marker' in p.read_text(encoding='utf-8')]\n"
+                "    assert len(carry) == 1, carry\n")
+            set_guard = (
+                "import pathlib\n"
+                "def test_set():\n"
+                "    r = pathlib.Path(__file__).resolve().parents[2]\n"
+                "    pkg = r / 'spa_core' / 'analytics'\n"
+                "    assert len(list(pkg.glob('*.py'))) >= 1\n")
+            _scene(root, "content_guard", content_guard)
+            _scene(root, "set_guard", set_guard)
+
+            surface = mod.measure_surface(root)
+            paths = {e.path for e in surface.subject}
+            self.assertEqual(
+                {"spa_core/tests/test_content_guard.py", "spa_core/tests/test_set_guard.py"},
+                paths, f"сцена не легла в предмет поверхности: {paths}")
+
+            diff = mod.measure_differential(root, surface, timeout=240)
+            got = {e.path: e for e in diff.entries}
+            self.assertEqual([], diff.leftovers, f"зонд не снят: {diff.leftovers}")
+            # Спрашивается ДЕРЕВО, а не счётчик прибора: `leftovers` пополняется
+            # лишь при ошибке снятия, поэтому забытый `unlink` оставил бы файл
+            # МОЛЧА — «дерево чисто» стало бы утверждением без наблюдения.
+            self.assertEqual(
+                [], sorted(q.name for q in pkg.glob(f"{mod.PLANTED_STEM}*")),
+                "подложенный файл остался в перечисляемом каталоге, а счётчик "
+                "`leftovers` пуст — доставка увезла бы байты, которых никто не писал")
+
+            content = got["spa_core/tests/test_content_guard.py"]
+            self.assertEqual(
+                mod.SUBJECT, content.kind,
+                "сторож, судящий СОДЕРЖИМОЕ набора, объявлен «не предметом» — "
+                f"инертный зонд ответил о себе: {content.reason}")
+            self.assertIn("КОПИЯ", content.reason,
+                          "предмет найден не вторым зондом — проба не о нём")
+
+            s = got["spa_core/tests/test_set_guard.py"]
+            self.assertEqual(
+                mod.NOT_SUBJECT, s.kind,
+                f"сторож, судящий НАБОР, назван предметом: {s.reason}")
+            self.assertIn("СОДЕРЖАТЕЛЬНОГО", s.reason,
+                          "«не предмет» поставлен без второго зонда — то есть "
+                          "по-прежнему есть ответ о зонде, а не о стороже")
+
+
+class TheDirectoryOfTheVerdictIsOBSERVEDOrItIsNotAnAnswer(unittest.TestCase):
+    """Заказ G1103 п. 3, цикл #1612 — ВТОРАЯ находка того же прогона, и она глубже.
+
+    ЗАМЕР НА ИЗВЕСТНОМ ЧЛЕНЕ. Дифференциал по ЧЕТЫРЁМ известным членам класса дал
+    «не предмет» ДВУМ записям, и одна из них — `test_adr_index_titles` (ADR-889,
+    колонка реестра решений). Причина не в содержимом зонда: у этого файла
+    поверхность разобрала РОВНО ОДИН каталог — `docs/journal`, — а членство его
+    класса стои́т на `docs/decisions`. Зонд лёг в каталог, которого сторож не
+    судит, и «вердикт тот же» оказался ответом о КАТАЛОГЕ.
+
+    ПОЧЕМУ ЭТО СВОЙСТВО МЕРЫ, А НЕ СЛУЧАЙ. Половина хопа `_helper_calls` ставит
+    каталог, который ИМЕНУЕТ тест, на зов помощника, перечисляющего каталог ИЗ
+    АРГУМЕНТА, и прибор сам говорит вслух: «названный каталог может и не дойти до
+    помощника». Для ПОВЕРХНОСТИ это верная ошибка в сторону большей; для ВЕРДИКТА
+    дифференциала — нет. Замер #1612 по всему предмету: из **1966** привязок
+    каталога **1815** (92,3 %) происходят из этой ветки-догадки, через помощника с
+    РАЗОБРАННЫМ каталогом — 84, прямым зовом — 67.
+    """
+
+    def _tree(self, box: pathlib.Path) -> pathlib.Path:
+        pkg = box / "spa_core" / "analytics"
+        pkg.mkdir(parents=True)
+        return pkg
+
+    def test_a_GUESSED_directory_gives_the_THIRD_outcome_and_a_nonzero_code(self):
+        """Сцена дословно повторяет форму известного члена: каталог ИМЕНУЕТ тест,
+        перечисляет помощник по аргументу, и вердикт не двигается."""
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_guess_") as d:
+            root = pathlib.Path(d)
+            pkg = self._tree(root)
+            (pkg / "m_one.py").write_text("X = 1\n", encoding="utf-8")
+            helpers = root / "scripts"
+            helpers.mkdir()
+            (helpers / "helper_enum.py").write_text(
+                "import pathlib\n"
+                "def names(where):\n"
+                "    return sorted(p.name for p in pathlib.Path(where).glob('*.py'))\n",
+                encoding="utf-8")
+            _scene(root, "guessed_dir",
+                   "import pathlib, sys\n"
+                   "REPO = pathlib.Path(__file__).resolve().parents[2]\n"
+                   "sys.path.insert(0, str(REPO / 'scripts'))\n"
+                   "PKG = REPO / 'spa_core' / 'analytics'\n"
+                   "import helper_enum\n"
+                   "def test_x():\n"
+                   "    # вердикт НЕ зависит от набора: сторож спрашивает тип ответа\n"
+                   "    assert isinstance(helper_enum.names(PKG), list)\n")
+            surface = mod.measure_surface(root)
+            entry = next(e for e in surface.subject
+                         if e.path == "spa_core/tests/test_guessed_dir.py")
+            self.assertEqual(
+                mod.ORIGIN_GUESS, entry.dir_origin("spa_core/analytics"),
+                "каталог, названный тестом и перечисляемый помощником ПО АРГУМЕНТУ, "
+                "объявлен НАБЛЮДЁННЫМ — ось происхождения не работает")
+
+            diff = mod.measure_differential(root, surface, timeout=240)
+            got = {(e.path, e.enumerated_dir): e for e in diff.entries}
+            e = got[("spa_core/tests/test_guessed_dir.py", "spa_core/analytics")]
+            self.assertEqual(
+                mod.GUESSED_DIR_UNMEASURED, e.kind,
+                f"«вердикт тот же» на ДОГАДАННОМ каталоге выдан за ответ о стороже: "
+                f"{e.kind} / {e.reason}")
+            self.assertNotEqual(
+                0, diff.code,
+                "третий исход дал код 0 — «не измерено» снова неотличимо от "
+                "«измерено и равно нулю» (инв. #17)")
+
+    def test_an_OBSERVED_directory_is_NOT_downgraded_to_unmeasured(self):
+        """Контроль в ОБРАТНУЮ сторону: ось не имеет права глушить всё подряд.
+
+        Прямой зов каталога — НАБЛЮДЕНИЕ, и «не предмет» на нём остаётся
+        вердиктом. Ось, объявляющая неизмеримым и наблюдённый каталог, сделала бы
+        дифференциал бесполезным — это было бы «осторожность вместо мерки».
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_obs_") as d:
+            root = pathlib.Path(d)
+            pkg = self._tree(root)
+            (pkg / "m_one.py").write_text("X = 1\n", encoding="utf-8")
+            _scene(root, "observed_dir",
+                   "import pathlib\n"
+                   "def test_x():\n"
+                   "    r = pathlib.Path(__file__).resolve().parents[2]\n"
+                   "    assert isinstance(list((r / 'spa_core' / 'analytics').glob('*.py')), list)\n")
+            surface = mod.measure_surface(root)
+            entry = next(e for e in surface.subject
+                         if e.path == "spa_core/tests/test_observed_dir.py")
+            self.assertEqual(mod.ORIGIN_OBSERVED,
+                             entry.dir_origin("spa_core/analytics"),
+                             "прямой зов каталога объявлен ДОГАДКОЙ")
+            diff = mod.measure_differential(root, surface, timeout=240)
+            e = next(x for x in diff.entries
+                     if x.path == "spa_core/tests/test_observed_dir.py")
+            self.assertEqual(mod.NOT_SUBJECT, e.kind,
+                             f"наблюдённый каталог понижен до «не измерено»: {e.reason}")
+            self.assertEqual(0, diff.code,
+                             "измеренный ноль дал ненулевой код — ошибка в обратную сторону")
+
+    def test_an_observation_OVERRIDES_a_guess_for_the_same_directory(self):
+        """Тот же каталог и догадкой, и прямым зовом ⇒ зонд ляжет по наблюдению."""
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_both_") as d:
+            root = pathlib.Path(d)
+            pkg = self._tree(root)
+            (pkg / "m_one.py").write_text("X = 1\n", encoding="utf-8")
+            helpers = root / "scripts"; helpers.mkdir()
+            (helpers / "helper_enum.py").write_text(
+                "import pathlib\n"
+                "def names(where):\n"
+                "    return sorted(p.name for p in pathlib.Path(where).glob('*.py'))\n",
+                encoding="utf-8")
+            _scene(root, "both_origins",
+                   "import pathlib, sys\n"
+                   "REPO = pathlib.Path(__file__).resolve().parents[2]\n"
+                   "sys.path.insert(0, str(REPO / 'scripts'))\n"
+                   "PKG = REPO / 'spa_core' / 'analytics'\n"
+                   "import helper_enum\n"
+                   "def test_x():\n"
+                   "    assert isinstance(helper_enum.names(PKG), list)\n"
+                   "    assert isinstance(list(PKG.glob('*.py')), list)\n")
+            surface = mod.measure_surface(root)
+            entry = next(e for e in surface.subject
+                         if e.path == "spa_core/tests/test_both_origins.py")
+            self.assertEqual(
+                mod.ORIGIN_OBSERVED, entry.dir_origin("spa_core/analytics"),
+                "наблюдение НЕ перебило догадку — прибор отказался бы отвечать там, "
+                "где сторож каталог действительно перечисляет")
+
+    def test_no_donor_reaches_the_THIRD_outcome_THROUGH_measure_differential(self):
+        """Мутация M15 ВЫЖИЛА на первом прогоне — и это была дыра СЦЕНЫ.
+
+        Проба `test_no_donor_is_a_THIRD_outcome_and_NOT_code_zero` собирает
+        `DiffEntry` руками и проверяет СВОЙСТВО `code`, а не ПРОВОДКУ: подмена
+        ярлыка внутри `measure_differential` её не касалась. Форма «выжившая
+        мутация — дыра сцены» подтвердилась двенадцатый раз подряд (#1202, #1217,
+        #1267, #1270…#1273, #1275, #1277, #1612). Выжившую записывают и чинят
+        МЕРКОЙ: сцена ниже доводит путь «донора нет» до вердикта сквозь прибор.
+
+        Каталог НАБЛЮДЁН (прямой зов) — иначе ответ перехватила бы ось догадки, и
+        сцена снова меряла бы не то.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_nodonor_") as d:
+            root = pathlib.Path(d)
+            pkg = self._tree(root)
+            # ни одного файла с пригодным расширением — донора построить НЕ ИЗ ЧЕГО
+            (pkg / "only_alien.txt").write_text("не то расширение\n", encoding="utf-8")
+            _scene(root, "nodonor_dir",
+                   "import pathlib\n"
+                   "def test_x():\n"
+                   "    r = pathlib.Path(__file__).resolve().parents[2]\n"
+                   "    pkg = r / 'spa_core' / 'analytics'\n"
+                   "    carry = [p for p in pkg.glob('*.py')\n"
+                   "             if 'derived-marker' in p.read_text(encoding='utf-8')]\n"
+                   "    assert len(carry) == 0, carry\n")
+            surface = mod.measure_surface(root)
+            diff = mod.measure_differential(root, surface, timeout=240)
+            e = next(x for x in diff.entries
+                     if x.path == "spa_core/tests/test_nodonor_dir.py")
+            self.assertEqual(
+                mod.COPY_UNMEASURED, e.kind,
+                f"«содержательный зонд построить не из чего» выдано за ответ: "
+                f"{e.kind} / {e.reason}")
+            self.assertIn("НЕ ИЗ ЧЕГО", e.reason, "причина третьего исхода не названа")
+            self.assertEqual(2, diff.code,
+                             "третий исход прошёл сквозь прибор с кодом «чисто»")
+
+
+class TheVERDICTAlsoNeedsItsKnownMemberControl(unittest.TestCase):
+    """Зеркало `Surface.lost_known_members`, которого у ВЕРДИКТА не было.
+
+    Замер #1612 на живом дереве: `test_adr_index_titles` (ADR-889, колонка
+    реестра решений) приходит `not_subject` ПРИ ОБОИХ зондах и при НАБЛЮДЁННОМ
+    каталоге — потому что поверхность разобрала у него ровно один каталог
+    (`docs/journal`), а членство класса стои́т на `docs/decisions`. То есть
+    остаётся ТРЕТЬЯ причина ложного «не предмета», которой ни один зонд не
+    лечит: зонд ложится не туда, куда смотрит сторож СВОЕГО класса.
+
+    Пока это так, `ПРЕДМЕТ N` есть НИЖНЯЯ ГРАНИЦА, и прибор обязан говорить это
+    вслух. Контроль, которого нет, зелен ПО ПОСТРОЕНИЮ (урок ADR-1113).
+    """
+
+    def test_a_known_member_called_not_a_subject_REFUTES_the_measure(self):
+        mod = _load()
+        known = next(iter(mod.KNOWN_MEMBERS))
+        refuted = mod.Differential(root="/nowhere", entries=[
+            mod.DiffEntry(known, "docs/journal", mod.NOT_SUBJECT, reason="оба зонда"),
+        ])
+        self.assertEqual({known: mod.KNOWN_MEMBERS[known]}, refuted.refuted_known_members,
+                         "известный член, названный «не предметом», мерку не опроверг")
+        self.assertEqual(2, refuted.code,
+                         "опровергнутая мерка отдала код, который читается как вердикт")
+        text = mod.render_differential(refuted)
+        self.assertIn("ОПРОВЕРГНУТА", text, "опровержение не напечатано")
+        self.assertIn("НИЖНЯЯ ГРАНИЦА", text,
+                      "отчёт не говорит, что `ПРЕДМЕТ` перестал быть сужением")
+        self.assertIn(known, text, "опровергший член не назван поимённо")
+
+    def test_the_control_is_SILENT_when_no_known_member_is_called_not_a_subject(self):
+        """Контроль в ОБРАТНУЮ сторону: он не имеет права звонить всегда.
+
+        Известный член, пришедший `subject` либо `already_red`, мерку НЕ
+        опровергает — иначе прибор отказывал бы на ВЕРНОМ состоянии, и это ровно
+        та краснота, из-за которой ADR-1073 запретил порог «предмет пуст».
+        Декой-запись НЕизвестного файла стои́т рядом: ось обязана спрашивать
+        ИМЯ, а не «есть ли вообще `not_subject`».
+        """
+        mod = _load()
+        known = next(iter(mod.KNOWN_MEMBERS))
+        ok = mod.Differential(root="/nowhere", entries=[
+            mod.DiffEntry(known, "spa_core/analytics", mod.SUBJECT, reason="покраснел"),
+            mod.DiffEntry("spa_core/tests/test_some_other_guard.py", "pkg",
+                          mod.NOT_SUBJECT, reason="оба зонда"),
+        ])
+        self.assertEqual({}, ok.refuted_known_members,
+                         "контроль звонит на верном состоянии — отказ вместо мерки")
+        self.assertEqual(1, ok.code, "найденный предмет не дал кода находки")
+        self.assertIn("✅", mod.render_differential(ok),
+                      "положительный ответ контроля не напечатан — читатель не узнает, "
+                      "спрашивали ли контроль вообще")
