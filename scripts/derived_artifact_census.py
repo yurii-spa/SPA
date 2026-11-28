@@ -251,6 +251,13 @@ KNOWN_MEMBERS_SOURCE = {
                    "(компилируется ли он) — рост набора её вердикта не меняет",
         "ADR-1038": "предмет — отсутствие двери песочницы у прибора; "
                     "производный артефакт он не охраняет",
+        "ADR-1126": "дверь судит СОДЕРЖИМОЕ одного уезжающего текста — "
+                    "называет ли претензия о прогоне CI свой прогон; "
+                    "производного артефакта над НАБОРОМ файлов у неё нет "
+                    "вовсе, поэтому рост набора её вердикта не меняет "
+                    "(та же форма, что ADR-886 и ADR-714). Приговор дан "
+                    "28.11: кандидат пришёл в реестр 27.11 и два дня стоял "
+                    "без него, краснив `main` ДВУМЯ именами",
     },
 }
 
@@ -330,6 +337,22 @@ class FileEntry:
         return out
 
 
+def _is_pytest_fixture(node: ast.AST) -> bool:
+    """Функция объявлена фикстурой pytest.
+
+    Спрашивается ДЕКОРАТОР, а не имя: «похоже на фикстуру по имени» — ровно
+    та мерка по соглашению об имени, которую положительный контроль реестра
+    опроверг у переписи дверей доставки (ADR-1127, п. 4а заказа G1101).
+    """
+    for dec in getattr(node, "decorator_list", ()):
+        target = dec.func if isinstance(dec, ast.Call) else dec
+        name = (target.attr if isinstance(target, ast.Attribute)
+                else getattr(target, "id", None))
+        if name == "fixture":
+            return True
+    return False
+
+
 class _PathResolver:
     """Прослеживает выражение пути по привязкам ОДНОГО модуля.
 
@@ -343,6 +366,26 @@ class _PathResolver:
         self._bind: dict[str, ast.expr] = {}
         self._attr: dict[str, ast.expr] = {}     # `self.<имя> = …`
         self.aliases: set[str] = set()           # `import ast as _ast`
+        # ── вход ОДНОГО ХОПА ЧЕРЕЗ ПАРАМЕТР (ADR-1129) ──────────────────────
+        # Карта «ребёнок → родитель» нужна ровно для одного вопроса: какая
+        # функция ОБЪЕМЛЕТ перечисляющий зов. Без неё параметр пришлось бы
+        # искать «есть ли в модуле функция с таким аргументом», а это та же
+        # подмена, что «RHS содержит имя» в § «Время в тестах»: в замере 28.11
+        # имя `data_dir` было параметром ШЕСТНАДЦАТИ функций одного файла.
+        self._parent: dict[ast.AST, ast.AST] = {}
+        self._funcs: dict[str, list[ast.AST]] = {}
+        self._fixtures: dict[str, ast.AST] = {}
+        self._scope: tuple = ()                  # объемлющие функции зова
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                self._parent[child] = node
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self._funcs.setdefault(node.name, []).append(node)
+                if _is_pytest_fixture(node):
+                    # Одноимённых фикстур две ⇒ вопрос о значении неоднозначен,
+                    # и первая ПЕРЕСТАЁТ быть ответом: держим None-маркер.
+                    self._fixtures[node.name] = (
+                        None if node.name in self._fixtures else node)
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 for tgt in node.targets:
@@ -371,6 +414,7 @@ class _PathResolver:
                     if isinstance(item.optional_vars, ast.Name):
                         self._bind.setdefault(item.optional_vars.id, item.context_expr)
         self._self_rel = self_rel
+        self._tree = tree
 
     # ── вход ────────────────────────────────────────────────────────────────
     def bindings(self) -> dict[str, ast.expr]:
@@ -381,8 +425,16 @@ class _PathResolver:
         """Разбор пути БЕЗ классификации: нужен поиску помощников по `.py`."""
         return self._as_rel(expr, depth=0)
 
-    def resolve(self, expr: ast.expr) -> tuple[str, str | None, str]:
-        """→ (ярлык, repo-relative каталог или None, причина)."""
+    def resolve(self, expr: ast.expr,
+                at: ast.AST | None = None) -> tuple[str, str | None, str]:
+        """→ (ярлык, repo-relative каталог или None, причина).
+
+        `at` — УЗЕЛ ЗОВА, а не выражение пути: по нему берутся объемлющие
+        функции, и только они дают право на хоп через параметр. Умолчание
+        `None` оставляет прибор таким, каким он был до ADR-1129 (хопа нет),
+        поэтому «параметр разобран» и «параметр не спрошен» различимы.
+        """
+        self._scope = self._enclosing_funcs(at) if at is not None else ()
         try:
             rel = self._as_rel(expr, depth=0)
         except _Sandbox as exc:
@@ -429,7 +481,10 @@ class _PathResolver:
                 raise _Sandbox(f"фикстура pytest `{expr.id}` — одноразовый каталог харнесса")
             bound = self._bind.get(expr.id)
             if bound is None:
-                raise _Unresolved(f"имя `{expr.id}` в модуле не привязано (параметр/фикстура/импорт)")
+                # ОДИН ХОП ЧЕРЕЗ ПАРАМЕТР: имя может быть аргументом объемлющей
+                # функции, и тогда его значение назначает ВЫЗЫВАЮЩИЙ. Хоп сам
+                # отказывает с НАЗВАННОЙ причиной, если ответа нет.
+                return self._param_hop(expr.id, depth)
             return self._as_rel(bound, depth + 1)
 
         # ── `Path(__file__)` и его якоря ──
@@ -473,6 +528,235 @@ class _PathResolver:
             raise _Unresolved(f"относительный литерал зависит от cwd: {s[:60]}")
 
         raise _Unresolved(f"форма выражения не разбирается: {type(expr).__name__}")
+
+    # ── ОДИН ХОП ЧЕРЕЗ ПАРАМЕТР (ADR-1129) ──────────────────────────────────
+    #
+    # ЗАМЕР, РАДИ КОТОРОГО ДВЕРЬ ПОСТАВЛЕНА (28.11, цикл #1275, заказ G1101
+    # п. 2 направление 3). Третий исход переписи — 106 файлов «путь сторожа
+    # прибором НЕ РАЗОБРАН», и верхний край вилки предмета (265 … 371) держали
+    # именно они. Форма причины у 52 из 106 одна: «имя `X` в модуле не
+    # привязано», а 78 её зовов разложились так:
+    #
+    #     64  имя есть ПАРАМЕТР объемлющей функции
+    #      8  распаковка кортежа
+    #      4  цель цикла `for`
+    #      2  не найдено нигде
+    #
+    # То есть дверь у класса ОДНА и она названа: значение параметра назначает
+    # не модуль, а ВЫЗЫВАЮЩИЙ (или фикстура pytest того же имени).
+    #
+    # ТРИ ИСТОЧНИКА, И НИ ОДИН НЕ СТАРШЕ ДРУГОГО. Ответы собираются со ВСЕХ
+    # трёх и СВЕРЯЮТСЯ: расхождение есть `unresolved` с названным расхождением,
+    # а не «возьму первый». Старшинство источника молча выбрало бы одну из двух
+    # несогласных правд — это та же подмена, что «первый зов `ps` победил».
+    #
+    #     фикстура   в модуле есть `@pytest.fixture` РОВНО этого имени
+    #     умолчание  у параметра объявлено значение по умолчанию
+    #     зовы       все зовы объемлющей функции в ЭТОМ модуле
+    #
+    # ХОП ОДИН НАМЕРЕННО, и граница ИЗМЕРЕНА, а не объявлена: аргумент зова,
+    # сам являющийся параметром, получает `unresolved` со СВОЕЙ причиной
+    # («аргумент зова сам есть параметр — второй хоп не делается»), поэтому
+    # население за границей одного хопа ВИДНО в выводе, а не выдано за ноль.
+    def _enclosing_funcs(self, node: ast.AST) -> tuple:
+        """Объемлющие функции зова, от ВНУТРЕННЕЙ к внешней."""
+        out = []
+        cur = self._parent.get(node)
+        while cur is not None:
+            if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                out.append(cur)
+            cur = self._parent.get(cur)
+        return tuple(out)
+
+    @staticmethod
+    def _param_slot(owner: ast.AST, name: str) -> tuple[int | None, ast.expr | None]:
+        """→ (позиция среди позиционных или None, выражение умолчания или None).
+
+        Позиция спрашивается у СИГНАТУРЫ: «имя встречается в аргументах зова»
+        привязкой не является (§ «Время в тестах»: контейнер привязкой не
+        является). `None` в умолчании — не значение, а его отсутствие.
+        """
+        pos = list(owner.args.posonlyargs) + list(owner.args.args)
+        names = [a.arg for a in pos]
+        default = None
+        if name in names:
+            tail = names[len(names) - len(owner.args.defaults):] if owner.args.defaults else []
+            if name in tail:
+                default = owner.args.defaults[tail.index(name)]
+            idx = names.index(name)
+        elif name in [a.arg for a in owner.args.kwonlyargs]:
+            k = [a.arg for a in owner.args.kwonlyargs].index(name)
+            default = owner.args.kw_defaults[k]
+            idx = None
+        else:
+            return None, None
+        if isinstance(default, ast.Constant) and default.value is None:
+            default = None                     # объявленное «ничего» значением не является
+        return idx, default
+
+    def _owns(self, owner: ast.AST, name: str) -> bool:
+        pos = [a.arg for a in list(owner.args.posonlyargs) + list(owner.args.args)]
+        return name in pos or name in [a.arg for a in owner.args.kwonlyargs]
+
+    def _caller_args(self, owner: ast.AST, name: str, idx: int | None) -> list[ast.expr]:
+        """Выражения, которые зовы ЭТОГО модуля подставляют параметру."""
+        pos = [a.arg for a in list(owner.args.posonlyargs) + list(owner.args.args)]
+        bound_self = bool(pos) and pos[0] in {"self", "cls"}
+        out: list[ast.expr] = []
+        for node in ast.walk(self._tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            called = (func.attr if isinstance(func, ast.Attribute)
+                      else getattr(func, "id", None))
+            if called != owner.name:
+                continue
+            got = None
+            for kw in node.keywords:
+                if kw.arg == name:
+                    got = kw.value
+            if got is None and idx is not None:
+                # `self.f(a)` съедает первый позиционный — смещение спрашивается
+                # у ФОРМЫ зова, а не угадывается по имени метода.
+                off = 1 if (bound_self and isinstance(func, ast.Attribute)) else 0
+                at = idx - off
+                if 0 <= at < len(node.args):
+                    got = node.args[at]
+            if got is not None:
+                out.append(got)
+        return out
+
+    def _fixture_value(self, node: ast.AST) -> ast.expr:
+        """Единственное возвращаемое фикстурой выражение, иначе отказ."""
+        seen: dict[str, ast.expr] = {}
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.Return) and sub.value is not None:
+                seen[_unparse(sub.value)] = sub.value
+            elif isinstance(sub, ast.Yield) and sub.value is not None:
+                seen[_unparse(sub.value)] = sub.value
+        if not seen:
+            raise _Unresolved(f"фикстура `{node.name}` ничего не возвращает")
+        if len(seen) > 1:
+            raise _Unresolved(
+                f"фикстура `{node.name}` возвращает {len(seen)} разных выражений")
+        return next(iter(seen.values()))
+
+    @staticmethod
+    def _verdict_key(kind: str, payload: object) -> str:
+        """Ключ СОГЛАСИЯ — ВЕРДИКТ, а не текст причины.
+
+        Две одноразовые сцены объясняются разными словами (`tmp_path` против
+        `TemporaryDirectory`), и ключ по тексту объявил бы их расхождением —
+        то есть отказал бы там, где оба источника говорят ОДНО И ТО ЖЕ. Для
+        разобранного пути ключ несёт сам путь: `scripts` и `docs` расхождение.
+        """
+        return kind if kind == SANDBOX else f"{kind}:{payload}"
+
+    def _probe(self, expr: ast.expr, depth: int) -> tuple[str, object]:
+        """Разбор КАНДИДАТА без второго хопа: область зова снимается.
+
+        ⚠️ Снятие области здесь ВЕРНО ПО ПОСТРОЕНИЮ и НЕНАБЛЮДАЕМО, и это
+        ЗАМЕР, а не оговорка. Мутация «область сохраняется» (M15 спецификации
+        ADR-1129) — единственная из двадцати, которую не убила ни одна сцена;
+        прогон полной поверхности с ней дал на **2628** настоящих файлах
+        **0** файлов с другим вердиктом и **0** зовов с другой причиной.
+        Причина: `self._scope` есть цепочка функций, объемлющих ПЕРЕЧИСЛЯЮЩИЙ
+        зов, а кандидат (аргумент вызывающего, умолчание, возврат фикстуры)
+        живёт в ДРУГОЙ лексической области — пересечься они могут только на
+        самом хопаемом имени, а этот путь перехвачен проверкой ниже. Мутант
+        записан ЭКВИВАЛЕНТНЫМ; выдумывать ему сцену значило бы подогнать
+        число под круглое (урок цикла #1217).
+        """
+        keep = self._scope
+        self._scope = ()
+        try:
+            rel = self._as_rel(expr, depth + 1)
+        except _Sandbox as exc:
+            return SANDBOX, str(exc)
+        except _Unresolved as exc:
+            return UNRESOLVED, str(exc)
+        finally:
+            self._scope = keep
+        if rel is None:
+            return UNRESOLVED, "кандидат не привязан к корню репозитория"
+        return SOURCE_DIR, rel
+
+    def _param_hop(self, name: str, depth: int) -> pathlib.PurePosixPath | None:
+        # Объемлющая функция берётся САМАЯ ВНУТРЕННЯЯ из владеющих именем:
+        # замыкание внутри теста объявляет своё `where`, и ответ внешней
+        # области был бы ответом о ДРУГОМ значении того же имени.
+        #
+        # Защиты «от самоповтора хопа» здесь НЕТ намеренно: `_probe` снимает
+        # область зова, поэтому второго хопа не бывает ПО ПОСТРОЕНИЮ, а
+        # ветвление, которого не видела ни одна сцена, есть украшение
+        # (`.claude/rules/deployment.md` § «Проверка сторожа сторожей»).
+        owner = next((f for f in self._scope if self._owns(f, name)), None)
+        if owner is None:
+            raise _Unresolved(
+                f"имя `{name}` в модуле не привязано (параметр/фикстура/импорт)")
+        if len(self._funcs.get(owner.name, ())) > 1:
+            raise _Unresolved(
+                f"имя функции `{owner.name}` в модуле не единственно — "
+                f"чьи зовы подставляют `{name}`, НЕ ИЗМЕРЕНО")
+        idx, default = self._param_slot(owner, name)
+        answers: dict[str, object] = {}
+        causes: list[str] = []
+
+        # Зовы спрашиваются ПЕРВЫМИ не из старшинства, а ради ПРИМЕНИМОСТИ
+        # следующего источника: pytest внедряет фикстуру в параметр, который
+        # сам не подставлен зовом, и у помощника, зовомого руками, фикстура
+        # источником не является ВОВСЕ. Замер 28.11 (сцена `inner_scope_wins`)
+        # нашёл это дефектом двери: замыкание `def _dirs(where)` внутри
+        # `def test_x(where)` получало ОБА источника и уходило в «РАСХОДЯТСЯ»,
+        # то есть дверь отказывала там, где ответ был один.
+        args = self._caller_args(owner, name, idx)
+        if not args:
+            causes.append(f"зовов `{owner.name}` с аргументом `{name}` в модуле нет")
+            fixture = self._fixtures.get(name, "absent")
+            if fixture is None:
+                causes.append(f"одноимённых фикстур `{name}` в модуле больше одной")
+            elif fixture != "absent":
+                try:
+                    kind, payload = self._probe(self._fixture_value(fixture), depth)
+                except _Unresolved as exc:
+                    kind, payload = UNRESOLVED, str(exc)
+                if kind == UNRESOLVED:
+                    causes.append(f"фикстура: {payload}")
+                else:
+                    answers[self._verdict_key(kind, payload)] = (kind, payload)
+
+        if default is not None:
+            kind, payload = self._probe(default, depth)
+            if kind == UNRESOLVED:
+                causes.append(f"умолчание: {payload}")
+            else:
+                answers[self._verdict_key(kind, payload)] = (kind, payload)
+
+        for arg in args:
+            if (isinstance(arg, ast.Name) and arg.id not in self._bind
+                    and arg.id not in PYTEST_TMP_FIXTURES):
+                causes.append(
+                    f"аргумент `{arg.id}` зова сам есть параметр — "
+                    f"второй хоп не делается")
+                continue
+            kind, payload = self._probe(arg, depth)
+            if kind == UNRESOLVED:
+                causes.append(f"зов: {payload}")
+            else:
+                answers[self._verdict_key(kind, payload)] = (kind, payload)
+
+        if not answers:
+            why = "; ".join(dict.fromkeys(causes)) or "источников значения не нашлось"
+            raise _Unresolved(f"параметр `{name}` ({owner.name}): {why}")
+        if len(answers) > 1:
+            named = ", ".join(sorted(answers))
+            raise _Unresolved(
+                f"параметр `{name}` ({owner.name}): источники РАСХОДЯТСЯ — {named}")
+        kind, payload = next(iter(answers.values()))
+        if kind == SANDBOX:
+            raise _Sandbox(
+                f"параметр `{name}` ({owner.name}) ведёт в одноразовую сцену: {payload}")
+        return payload
 
     def _call_as_rel(self, call: ast.Call, depth: int) -> pathlib.PurePosixPath | None:
         func = call.func
@@ -664,7 +948,7 @@ def _enumerating_calls(tree: ast.AST, resolver: "_PathResolver") -> list[EnumCal
                 target = node.args[0]
             else:
                 target = recv
-            kind, rel_dir, reason = resolver.resolve(target)
+            kind, rel_dir, reason = resolver.resolve(target, at=node)
             calls.append(EnumCall(node.lineno, attr, kind, rel_dir, reason))
         return calls
 

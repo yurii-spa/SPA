@@ -257,6 +257,7 @@
 | ADR-1126 | ADR-1126 — Доставка не спрашивала, называет ли уезжающая претензия о прогоне CI свой прогон: 14-я дверь (код 21), предмет журналов 5 из 429 | Accepted | [ADR-1126](ADR-1126-delivery-asks-whether-a-ci-claim-names-its-run.md) |
 | ADR-1127 | ADR-1127 — Население класса «производная мера без вопроса в момент доставки»: не пять, а 264 при вилке 264…370; единица класса — МЕРА, и три файловые формы её опровергли | Accepted | [ADR-1127](ADR-1127-population-of-derived-measures-without-a-delivery-question.md) |
 | ADR-1128 | ADR-1128 — «Ключ ЖИВ» ≠ «ключ МОЖЕТ»: у ключа доставки спрашивается СПОСОБНОСТЬ, и `Actions: write` у него НЕТ | Accepted | [ADR-1128](ADR-1128-pat-capability-is-a-third-question.md) |
+| ADR-1129 | ADR-1129 — Один хоп через ПАРАМЕТР: третий исход переписи набор-зависимости дочитан со 106 до 81, предмет 265 → 263, вилка 265…371 → 263…344 | Accepted | [ADR-1129](ADR-1129-one-hop-through-a-parameter-reads-the-third-outcome.md) |
 
 ## Соглашения
 
