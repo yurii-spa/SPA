@@ -1,0 +1,104 @@
+{
+  "title": "ADR-1132 — имя подкладываемого зонда диктует ГЛОБ перечисления (цикл #15626); прогон 2 на ФИНАЛЬНЫХ байтах, после починки сцены, опровергнутой M04",
+  "tests": [
+    "spa_core/tests/test_derived_artifact_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 глоб не разбирается вовсе: GLOB_FORM пуст",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "GLOB_FORM = frozenset({\"glob\", \"rglob\", \"iglob\"})",
+      "new": "GLOB_FORM = frozenset()"
+    },
+    {
+      "name": "M02 вычисляемый глоб выдан за «глоба нет» (молчаливая подстановка)",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "        return None, (f\"глоб вычисляется, литералом в дереве не лежит: \"\n                      f\"{_unparse(node.args[0])}\")",
+      "new": "        return None, \"\""
+    },
+    {
+      "name": "M03 модульная форма берёт путь ЦЕЛИКОМ, а не последний сегмент",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "    return (pathlib.PurePosixPath(lit).name if module_form else lit), \"\"",
+      "new": "    return lit, \"\""
+    },
+    {
+      "name": "M04 хоп через помощника теряет глоб помощника",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "                out.append(EnumCall(call.lineno, f\"{call.attr}@{helper.name}\",\n                                    SOURCE_DIR, rel_dir,\n                                    f\"каталог НАЗВАН в тесте, перечисляет {hrel} по аргументу\",\n                                    pattern=call.pattern,\n                                    pattern_note=call.pattern_note))",
+      "new": "                out.append(EnumCall(call.lineno, f\"{call.attr}@{helper.name}\",\n                                    SOURCE_DIR, rel_dir,\n                                    f\"каталог НАЗВАН в тесте, перечисляет {hrel} по аргументу\"))"
+    },
+    {
+      "name": "M05 сверка синтезированного имени с глобом снята",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "    bad = [n for n in names\n           if not fnmatch.fnmatch(n, pat) or stem not in n]",
+      "new": "    bad = []"
+    },
+    {
+      "name": "M06 уборка видит метку только в НАЧАЛЕ имени",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "    for path in root.rglob(f\"*{PLANTED_STEM}*\"):",
+      "new": "    for path in root.rglob(f\"{PLANTED_STEM}*\"):"
+    },
+    {
+      "name": "M07 донор берётся из КАТАЛОГА, а не из набора под глобом",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "        if pat is not None:\n            if not fnmatch.fnmatch(child.name, pat):\n                continue",
+      "new": "        if pat is not None:\n            if False:\n                continue"
+    },
+    {
+      "name": "M08 pattern_unmeasured не даёт кода 2",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "                or self.counts[GUESSED_DIR_UNMEASURED]\n                or self.counts[PATTERN_UNMEASURED]):",
+      "new": "                or self.counts[GUESSED_DIR_UNMEASURED]):"
+    },
+    {
+      "name": "M09 «имя зонда не синтезируется» записано как «не предмет»",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "                    entry.path, rel_dir, PATTERN_UNMEASURED,\n                    reason=\"ни одного имени зонда, удовлетворяющего глобам ",
+      "new": "                    entry.path, rel_dir, NOT_SUBJECT,\n                    reason=\"ни одного имени зонда, удовлетворяющего глобам "
+    },
+    {
+      "name": "M10 dir_patterns проглатывает причину неразобранного глоба",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "            if c.pattern_note:\n                note = f\"{self.path}:{c.lineno} `{c.attr}` — {c.pattern_note}\"",
+      "new": "            if False:\n                note = f\"{self.path}:{c.lineno} `{c.attr}` — {c.pattern_note}\""
+    },
+    {
+      "name": "M11 глоб без зонда до причины записи не доезжает",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "            why += refused_note",
+      "new": "            why += \"\""
+    },
+    {
+      "name": "M12 имя второго зонда не под глобом (фиксированное)",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "                copy_names, copy_why = _plant_names(\n                    copy_pat, stem=f\"{PLANTED_STEM}{COPY_SUFFIX_MARK}\")",
+      "new": "                copy_names, copy_why = (\n                    [f\"{PLANTED_STEM}{COPY_SUFFIX_MARK}.md\"], \"\")"
+    },
+    {
+      "name": "M13 без глоба зонд идёт только одним расширением",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "    if pattern is None:\n        return [f\"{stem}{sfx}\" for sfx in PLANTED_SUFFIXES], \"\"",
+      "new": "    if pattern is None:\n        return [f\"{stem}{PLANTED_SUFFIXES[0]}\"], \"\""
+    },
+    {
+      "name": "M14 префикс `**/` не снимается — рекурсивный глоб читается как подкаталог",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "    while pat.startswith(\"**/\"):\n        pat = pat[3:]\n    if \"/\" in pat:\n        return [], (f\"глоб `{pattern}` перечисляет ПОДКАТАЛОГИ",
+      "new": "    if \"/\" in pat:\n        return [], (f\"глоб `{pattern}` перечисляет ПОДКАТАЛОГИ"
+    },
+    {
+      "name": "M15 хоп через помощника с РАЗОБРАННЫМ каталогом теряет глоб",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "                out.append(EnumCall(call.lineno, f\"{call.attr}@{helper.name}\",\n                                    SOURCE_DIR, call.rel_dir,\n                                    f\"через помощника {hrel}\",\n                                    pattern=call.pattern,\n                                    pattern_note=call.pattern_note))",
+      "new": "                out.append(EnumCall(call.lineno, f\"{call.attr}@{helper.name}\",\n                                    SOURCE_DIR, call.rel_dir,\n                                    f\"через помощника {hrel}\"))"
+    },
+    {
+      "name": "M16 «имя уже занято» проверяется по ПРЕЖНИМ фиксированным именам",
+      "file": "scripts/derived_artifact_census.py",
+      "old": "            existing = [p for p in (target_dir / nm for nm, _ in plant) if p.exists()]",
+      "new": "            existing = [p for p in (target_dir / f\"{PLANTED_STEM}{sfx}\"\n                                    for sfx in PLANTED_SUFFIXES) if p.exists()]"
+    }
+  ]
+}

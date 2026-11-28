@@ -260,6 +260,7 @@
 | ADR-1129 | ADR-1129 — Один хоп через ПАРАМЕТР: третий исход переписи набор-зависимости дочитан со 106 до 81, предмет 265 → 263, вилка 265…371 → 263…344 | Accepted | [ADR-1129](ADR-1129-one-hop-through-a-parameter-reads-the-third-outcome.md) |
 | ADR-1130 | ADR-1130 — Общая дверь доставки накрывает НЕ БОЛЬШЕ пятой части класса (49 из 263, вилка 49…170): направление 1 карточки опровергнуто замером | Accepted | [ADR-1130](ADR-1130-the-general-door-reaches-at-most-a-fifth-of-the-class.md) |
 | ADR-1131 | ADR-1131 — Граница инертного зонда дифференциала СПРОШЕНА у каждого кандидата, а не только названа сводкой | Accepted | [ADR-1131](ADR-1131-inert-plant-boundary-is-asked-not-only-named.md) |
+| ADR-1132 | ADR-1132 — Имя подкладываемого зонда диктует ГЛОБ перечисления; причина, названная G1104 п. 2(в), ОПРОВЕРГНУТА | Accepted | [ADR-1132](ADR-1132-the-plant-name-is-dictated-by-the-enumeration-glob.md) |
 
 ## Соглашения
 

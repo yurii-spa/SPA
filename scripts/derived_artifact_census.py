@@ -160,6 +160,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import fnmatch
 import json
 import os
 import pathlib
@@ -186,6 +187,29 @@ SET_DEPENDENT_GREEN = "set_dependent_green"   # состав вердикта в
 NOT_SUBJECT = "not_subject"    # вердикт тот же
 ALREADY_RED = "already_red"    # красен ДО подкладывания — зелёным не был
 DIFF_UNMEASURED = "diff_unmeasured"   # прогон не дошёл до вердикта
+
+# ─── ИМЯ ЗОНДА НЕ ВХОДИТ В ГЛОБ ПЕРЕЧИСЛЕНИЯ — третий исход, не «не предмет» ─
+# Замер #15626 (заказ G1104 п. 2в) на ИЗВЕСТНОМ ЧЛЕНЕ `test_adr_index_titles`
+# (ADR-889), дерево `bf747728c`, четыре зонда на одном и том же стороже:
+#
+#   файл `zz…probe.md` в `docs/decisions`      27 passed → 27 passed
+#   файл `zz…probe.md` в `docs/journal`        27 passed → 27 passed
+#   файл `INDEX-archive-zz…probe.md`           27 passed → 1 FAILED, 26 passed
+#   тот же ПО ГЛОБУ, содержимое копии донора   27 passed → 27 passed
+#
+# Третий зонд и есть вердикт: сторож НАБОР-ЗАВИСИМ, то есть ЧЛЕН класса. Первые
+# два молчат не потому, что сторож набором не судит, а потому что ИМЯ зонда не
+# удовлетворяет глобу `INDEX-archive-*.md`, которым член перечисляет каталог:
+# зонд растит КАТАЛОГ и не растит того НАБОРА, который сторож читает.
+#
+# ЭТО ОПРОВЕРГАЕТ ПРИЧИНУ, НАЗВАННУЮ ЗАКАЗОМ G1104 п. 2(в). Там сказано:
+# «поверхность НЕ НАЗВАЛА каталог, на котором стои́т членство класса
+# (`docs/decisions`)», и лечить предлагалось ВТОРОЙ ДОРОГОЙ РАЗБОРА у
+# поверхности. Зонд №1 мерит ровно эту гипотезу — файл положен ИМЕННО в
+# `docs/decisions` — и вердикт не сдвигается. То есть названная причина была бы
+# правкой, не меняющей ответа: каталог поверхность назвала ВЕРНО (`docs/journal`,
+# прямой зов), неверным было ИМЯ зонда.
+PATTERN_UNMEASURED = "pattern_unmeasured"
 
 # ─── ИЗВЕСТНЫЕ ЧЛЕНЫ КЛАССА: форма, потерявшая любого, ОПРОВЕРГНУТА ─────────
 # Три артефакта найдены поимённо ДО этого прибора, каждый — после того, как
@@ -273,6 +297,11 @@ ENUMERATING = frozenset({"glob", "rglob", "iterdir", "listdir", "walk", "scandir
 # Зовы, у которых путь лежит в АРГУМЕНТЕ, а не в получателе (`os.listdir(p)`).
 ARG_FORM = frozenset({"listdir", "walk", "scandir", "glob", "iglob"})
 
+# Зовы, у которых набор решает ГЛОБ, а не весь каталог. Остальные
+# (`iterdir`/`listdir`/`walk`/`scandir`) перечисляют каталог целиком, и их набор
+# растит ЛЮБОЕ новое имя.
+GLOB_FORM = frozenset({"glob", "rglob", "iglob"})
+
 # ─── ВАЖНО: имя метода мерой НЕ является ────────────────────────────────────
 # Первая редакция этого прибора (и число «652» заказа G1061, снятое тем же
 # наивным совпадением по имени) считала перечисляющим зовом ЛЮБОЙ `.walk(...)`.
@@ -310,12 +339,22 @@ class NotMeasured(RuntimeError):
 
 @dataclass
 class EnumCall:
-    """Один перечисляющий зов: где стои́т, что перечисляет, как разобран."""
+    """Один перечисляющий зов: где стои́т, что перечисляет, как разобран.
+
+    ГЛОБ хранится рядом с каталогом, потому что без него каталог отвечает лишь
+    на половину вопроса. `X.glob("INDEX-archive-*.md")` зависит не от НАБОРА
+    каталога, а от набора ИМЁН, глобу удовлетворяющих, и зонд с чужим именем
+    растит первое, не растя второго (см. PATTERN_UNMEASURED).
+    """
     lineno: int
     attr: str
     kind: str
     rel_dir: str | None = None     # repo-relative каталог, когда разобран
     reason: str = ""               # почему именно этот ярлык
+    # `None` = перечисление БЕЗ глоба (`iterdir`/`listdir`/`walk`): набор растит
+    # ЛЮБОЕ имя. Непустая `pattern_note` = глоб ЕСТЬ и НЕ РАЗОБРАН (третий исход).
+    pattern: str | None = None
+    pattern_note: str = ""
 
 
 @dataclass
@@ -342,6 +381,27 @@ class FileEntry:
             if c.kind == SOURCE_DIR and c.rel_dir and c.rel_dir not in out:
                 out.append(c.rel_dir)
         return out
+
+    def dir_patterns(self, rel_dir: str) -> tuple[list[str | None], list[str]]:
+        """Глобы, которыми перечисляется ЭТОТ каталог, и причины неразобранных.
+
+        `None` в перечне глобов означает «перечисление без глоба», то есть
+        набор растит любое имя. Неразобранный глоб уходит ВТОРЫМ списком и
+        остаётся НАЗВАННОЙ причиной: молча считать его «любым именем» значило бы
+        подставить самый выгодный ответ вместо измеренного (инв. #17).
+        """
+        pats: list[str | None] = []
+        notes: list[str] = []
+        for c in self.calls:
+            if c.kind != SOURCE_DIR or c.rel_dir != rel_dir:
+                continue
+            if c.pattern_note:
+                note = f"{self.path}:{c.lineno} `{c.attr}` — {c.pattern_note}"
+                if note not in notes:
+                    notes.append(note)
+            elif c.pattern not in pats:
+                pats.append(c.pattern)
+        return pats, notes
 
     def dir_origin(self, rel_dir: str) -> str:
         """ОТКУДА у файла взялся этот каталог: ДОГАДКА или НАБЛЮДЕНИЕ.
@@ -952,6 +1012,28 @@ def measure_surface(root: pathlib.Path) -> Surface:
     return Surface(str(root), len(files), entries)
 
 
+def _glob_pattern(attr: str, node: ast.Call, *, module_form: bool) -> tuple[str | None, str]:
+    """Глоб перечисляющего зова: (глоб либо `None`, причина НЕ РАЗОБРАНО).
+
+    Три исхода различимы (инв. #17): глоба НЕТ вовсе (`iterdir` и родня — набор
+    растит любое имя) · глоб НАЗВАН литералом · глоб ЕСТЬ и вычисляется, то есть
+    по дереву НЕ ВИДЕН. Третий нельзя подставить ни одним из первых двух:
+    «считать любым именем» зеленило бы зонд, который ляжет мимо, а «считать
+    отсутствующим глобом» — то же самое другими словами.
+    """
+    if attr not in GLOB_FORM:
+        return None, ""
+    if not node.args:
+        return None, f"`{attr}` без аргумента — глоб не назван"
+    lit = _str_const(node.args[0])
+    if lit is None:
+        return None, (f"глоб вычисляется, литералом в дереве не лежит: "
+                      f"{_unparse(node.args[0])}")
+    # `glob.glob("docs/*.md")` несёт путь ЦЕЛИКОМ — глоб у него последний
+    # сегмент; `X.glob("*.md")` несёт только глоб.
+    return (pathlib.PurePosixPath(lit).name if module_form else lit), ""
+
+
 def _enumerating_calls(tree: ast.AST, resolver: "_PathResolver") -> list[EnumCall]:
         calls: list[EnumCall] = []
         for node in ast.walk(tree):
@@ -981,7 +1063,9 @@ def _enumerating_calls(tree: ast.AST, resolver: "_PathResolver") -> list[EnumCal
             else:
                 target = recv
             kind, rel_dir, reason = resolver.resolve(target, at=node)
-            calls.append(EnumCall(node.lineno, attr, kind, rel_dir, reason))
+            pattern, pnote = _glob_pattern(attr, node, module_form=module_form)
+            calls.append(EnumCall(node.lineno, attr, kind, rel_dir, reason,
+                                  pattern=pattern, pattern_note=pnote))
         return calls
 
 
@@ -1129,7 +1213,9 @@ def _helper_calls(root: pathlib.Path, tree: ast.AST, resolver: "_PathResolver",
             if call.kind == SOURCE_DIR:
                 out.append(EnumCall(call.lineno, f"{call.attr}@{helper.name}",
                                     SOURCE_DIR, call.rel_dir,
-                                    f"через помощника {hrel}"))
+                                    f"через помощника {hrel}",
+                                    pattern=call.pattern,
+                                    pattern_note=call.pattern_note))
                 continue
             if call.kind != UNRESOLVED:
                 continue
@@ -1140,9 +1226,14 @@ def _helper_calls(root: pathlib.Path, tree: ast.AST, resolver: "_PathResolver",
             # `TRACKER_DIR = REPO_ROOT / "nimbalyst-local" / "tracker"` стои́т в
             # тесте, а `glob` — в сборщике доски.
             for rel_dir in _named_source_dirs(root, resolver):
+                # Глоб берётся у ПОМОЩНИКА: каталог назначает вызывающий, а
+                # имена отбирает тот, кто перечисляет. Потеряй глоб здесь — и
+                # зонд у двух известных членов из четырёх лёг бы с чужим именем.
                 out.append(EnumCall(call.lineno, f"{call.attr}@{helper.name}",
                                     SOURCE_DIR, rel_dir,
-                                    f"каталог НАЗВАН в тесте, перечисляет {hrel} по аргументу"))
+                                    f"каталог НАЗВАН в тесте, перечисляет {hrel} по аргументу",
+                                    pattern=call.pattern,
+                                    pattern_note=call.pattern_note))
     return out
 
 
@@ -1226,6 +1317,60 @@ PLANTED_JSON = """{
 
 PLANTED_BODY = {".py": PLANTED_PY, ".md": PLANTED_MD, ".json": PLANTED_JSON}
 
+# Расширение, продиктованное ГЛОБОМ, может не оказаться ни одним из трёх выше
+# (`*.yaml`, `*.txt`). Подставлять тогда тело ЧУЖОГО формата значило бы угадывать;
+# текстовое тело с тем же маркером — названный выбор, и он печатается в причине.
+PLANTED_TEXT = ("Подложен прибором scripts/derived_artifact_census.py: растит НАБОР "
+                "имён, удовлетворяющих глобу перечисления, на одно. Снимается "
+                "прибором же (`--clean-planted`).\n")
+
+
+def _plant_names(pattern: str | None, *, stem: str) -> tuple[list[str], str]:
+    """Имена зондов, УДОВЛЕТВОРЯЮЩИЕ глобу перечисления, и причина отказа.
+
+    Имя не предполагается, а СВЕРЯЕТСЯ: синтезированное имя прогоняется через
+    `fnmatch` против того же глоба, и несовпадение есть НАЗВАННАЯ причина, а не
+    молчаливая подстановка. Своя копия правил глоба была бы ровно тем дефектом,
+    против которого написан прибор: зонд с «почти подходящим» именем растит
+    каталог и не растит набора.
+
+    Имя ОБЯЗАНО нести `stem` — на нём стои́т и уборка (`clean_planted`), и
+    проверка «имя уже занято» (наследство убитого прогона).
+    """
+    if pattern is None:
+        return [f"{stem}{sfx}" for sfx in PLANTED_SUFFIXES], ""
+
+    pat = pattern
+    while pat.startswith("**/"):
+        pat = pat[3:]
+    if "/" in pat:
+        return [], (f"глоб `{pattern}` перечисляет ПОДКАТАЛОГИ — файл, положенный в "
+                    f"сам каталог, его набора не растит")
+    if "*" not in pat:
+        return [], (f"глоб `{pattern}` без `*` — имя названо целиком, НОВЫМ именем "
+                    f"этот набор не растится вовсе")
+
+    head, _, tail = pat.partition("*")
+    tail = tail.replace("*", "")
+    if head == "" and tail == "":
+        names = [f"{stem}{sfx}" for sfx in PLANTED_SUFFIXES]
+    else:
+        names = [f"{head}{stem}{tail}"]
+
+    # ── СВЕРКА ЕСТЬ ДВЕРЬ, А НЕ РЕМЕНЬ ──────────────────────────────────────
+    # Первая редакция отказывала ОТДЕЛЬНОЙ ветвью на `?` и `[…]`, а сверку
+    # держала ремнём «на всякий случай» — то есть у двери было два сайта, и
+    # мутация, снявшая сверку, выжила бы зелёной (ответ не менялся ни на одном
+    # глобе). Ветвь снята: `ADR-[0-9]*.md` даёт имя `ADR-[0-9]zz…probe.md`,
+    # которое глобу НЕ удовлетворяет, и это ловит РОВНО сверка. Один вопрос —
+    # одна дверь, и её мутация теперь убивается сценой.
+    bad = [n for n in names
+           if not fnmatch.fnmatch(n, pat) or stem not in n]
+    if bad:
+        return [], (f"синтезированное имя глобу `{pattern}` НЕ удовлетворяет либо "
+                    f"не несёт метки прибора: {', '.join(bad)}")
+    return names, ""
+
 # ─── СОДЕРЖИМОЕ ЗОНДА ЕСТЬ ЧАСТЬ МЕРКИ, как и его РАСШИРЕНИЕ ────────────────
 # Цикл #1218 уже выучил половину этого урока: прогон, подкладывавший только
 # `.py`, нашёл 1 известного члена из 3, потому что доска и реестр перечисляют
@@ -1296,20 +1441,33 @@ COPY_UNMEASURED = "copy_unmeasured"   # донора нет либо копия 
 GUESSED_DIR_UNMEASURED = "guessed_dir_unmeasured"
 
 
-def _copy_donor(target_dir: pathlib.Path) -> tuple[pathlib.Path | None, str]:
-    """Донор второго зонда: СУЩЕСТВУЮЩИЙ член каталога, принятый сторожем.
+def _copy_donor(target_dir: pathlib.Path, *,
+                pattern: str | None = None) -> tuple[pathlib.Path | None, str]:
+    """Донор второго зонда: СУЩЕСТВУЮЩИЙ член НАБОРА, принятый сторожем.
 
     Отбор ДЕТЕРМИНИРОВАН (первый по имени среди подходящих) — «выберу
     поинтереснее» было бы вкусом автора, а не меркой, и воспроизвести такой
     замер было бы нечем. Выбранный донор ПЕЧАТАЕТСЯ.
+
+    Глоб перечисления ОТБИРАЕТ донора (замер #15626): «член каталога» и «член
+    НАБОРА, который сторож читает» — разные множества, и у `docs/journal` они
+    расходятся в сотни раз (набор `INDEX-archive-*.md` против всего каталога).
+    Донор не из набора делал бы копию двойне бесполезной: ни имя, ни содержимое
+    сторожа не касались бы.
     """
+    pat = pattern
+    while pat and pat.startswith("**/"):
+        pat = pat[3:]
     cands: list[pathlib.Path] = []
     for child in sorted(target_dir.iterdir(), key=lambda q: q.name):
         if not child.is_file():
             continue
-        if child.stem.startswith(PLANTED_STEM):
+        if PLANTED_STEM in child.stem:
             continue            # свой же зонд донором быть не может
-        if child.suffix not in PLANTED_SUFFIXES:
+        if pat is not None:
+            if not fnmatch.fnmatch(child.name, pat):
+                continue
+        elif child.suffix not in PLANTED_SUFFIXES:
             continue
         try:
             size = child.stat().st_size
@@ -1319,9 +1477,11 @@ def _copy_donor(target_dir: pathlib.Path) -> tuple[pathlib.Path | None, str]:
             continue
         cands.append(child)
     if not cands:
-        return None, (f"в каталоге нет члена с расширением {', '.join(PLANTED_SUFFIXES)}, "
-                      f"непустого и не крупнее {COPY_DONOR_MAX_BYTES} Б — "
-                      "содержательный зонд построить НЕ ИЗ ЧЕГО")
+        what = (f"удовлетворяющего глобу `{pattern}`" if pat is not None
+                else f"с расширением {', '.join(PLANTED_SUFFIXES)}")
+        return None, (f"в каталоге нет члена {what}, непустого и не крупнее "
+                      f"{COPY_DONOR_MAX_BYTES} Б — содержательный зонд построить "
+                      "НЕ ИЗ ЧЕГО")
     donor = cands[0]
     return donor, donor.name
 
@@ -1346,7 +1506,7 @@ class Differential:
     def counts(self) -> dict[str, int]:
         out = {SUBJECT: 0, SET_DEPENDENT_GREEN: 0, NOT_SUBJECT: 0,
                ALREADY_RED: 0, DIFF_UNMEASURED: 0, COPY_UNMEASURED: 0,
-               GUESSED_DIR_UNMEASURED: 0}
+               GUESSED_DIR_UNMEASURED: 0, PATTERN_UNMEASURED: 0}
         for e in self.entries:
             out[e.kind] += 1
         return out
@@ -1381,7 +1541,8 @@ class Differential:
         if self.refuted_known_members:
             return 2
         if (self.counts[DIFF_UNMEASURED] or self.counts[COPY_UNMEASURED]
-                or self.counts[GUESSED_DIR_UNMEASURED]):
+                or self.counts[GUESSED_DIR_UNMEASURED]
+                or self.counts[PATTERN_UNMEASURED]):
             return 2
         return 1 if self.counts[SUBJECT] else 0
 
@@ -1500,8 +1661,30 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
                 entries.append(DiffEntry(entry.path, rel_dir, DIFF_UNMEASURED,
                                          before=before, reason=f"первый прогон: {before_line}"))
                 continue
-            existing = [p for p in (target_dir / f"{PLANTED_STEM}{sfx}"
-                                    for sfx in PLANTED_SUFFIXES) if p.exists()]
+            # ── ИМЕНА ЗОНДОВ ДИКТУЕТ ГЛОБ ПЕРЕЧИСЛЕНИЯ ─────────────────────
+            # Замер #15626: у известного члена ADR-889 каталог назван ВЕРНО, а
+            # зонд с фиксированным именем растил каталог и не растил набора
+            # `INDEX-archive-*.md`. Глоба нет вовсе ⇒ прежнее поведение (по
+            # файлу на каждое расширение), и это ровно случай `iterdir`/`listdir`.
+            pats, pat_notes = entry.dir_patterns(rel_dir)
+            plant: list[tuple[str, str | None]] = []
+            refused: list[str] = list(pat_notes)
+            for pat in pats:
+                names, why = _plant_names(pat, stem=PLANTED_STEM)
+                if why:
+                    refused.append(why)
+                    continue
+                for nm in names:
+                    if nm not in [q for q, _ in plant]:
+                        plant.append((nm, pat))
+            if not plant:
+                entries.append(DiffEntry(
+                    entry.path, rel_dir, PATTERN_UNMEASURED,
+                    reason="ни одного имени зонда, удовлетворяющего глобам "
+                           "перечисления этого каталога: " + " · ".join(refused)))
+                continue
+
+            existing = [p for p in (target_dir / nm for nm, _ in plant) if p.exists()]
             if existing:
                 # Измеренный случай (цикл #1218): убитый первый прогон оставил
                 # подложенный файл в `landing/src/pages/admin`, и ВТОРОЙ прогон
@@ -1518,24 +1701,29 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
             # Один зонд на КАЖДОЕ расширение: вердикт берётся по ХУДШЕМУ исходу,
             # потому что сторож ключуется на своё расширение (см. PLANTED_SUFFIXES).
             probes: list[tuple[str, str, str]] = []
-            for sfx in PLANTED_SUFFIXES:
-                planted = target_dir / f"{PLANTED_STEM}{sfx}"
+            for nm, _nm_pat in plant:
+                planted = target_dir / nm
+                sfx = planted.suffix
                 try:
-                    planted.write_text(PLANTED_BODY[sfx], encoding="utf-8")
+                    planted.write_text(PLANTED_BODY.get(sfx, PLANTED_TEXT), encoding="utf-8")
                     after, after_line = _verdict(root, entry.path, timeout)
                 finally:
                     try:
                         planted.unlink()
                     except OSError as exc:
                         leftovers.append(f"{planted}: {exc}")
-                    for pyc in (target_dir / "__pycache__").glob(f"{PLANTED_STEM}.*"):
+                    for pyc in (target_dir / "__pycache__").glob(f"*{PLANTED_STEM}*"):
                         try:
                             pyc.unlink()
                         except OSError:
                             pass
-                probes.append((sfx, after, after_line))
+                probes.append((nm, after, after_line))
 
             unmeasured = [pr for pr in probes if pr[1] == "unmeasured"]
+            # Глоб, который не разобрался, доехать ОБЯЗАН: запись с частью
+            # зондов — ответ о ЧАСТИ набора, и молчание сделало бы её
+            # неотличимой от полной (инв. #17).
+            refused_note = (" · ГЛОБЫ БЕЗ ЗОНДА: " + " · ".join(refused)) if refused else ""
             graded = [(sfx, after, line) + _classify(before, after)
                       for sfx, after, line in probes if after != "unmeasured"]
             worst = next((g for g in graded if g[3] == SUBJECT), None) \
@@ -1551,6 +1739,7 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
             if unmeasured:
                 why += (" · зонды БЕЗ вердикта: "
                         + ", ".join(pr[0] for pr in unmeasured))
+            why += refused_note
 
             # ── ВТОРОЙ ЗОНД идёт ТОЛЬКО у кандидата в `not_subject` ─────────
             # Здесь и только здесь ответ инертного зонда двусмыслен (см.
@@ -1571,7 +1760,21 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
                                f"сторожа, и «вердикт тот же» есть ответ о КАТАЛОГЕ. "
                                f"Второй зонд НЕ ТРАЧЕН — он лёг бы туда же"))
                     continue
-                donor, donor_note = _copy_donor(target_dir)
+                # Глоб второго зонда ДЕТЕРМИНИРОВАН: первый из разобранных у
+                # этого каталога, и он ПЕЧАТАЕТСЯ. «Возьму поинтереснее» было бы
+                # вкусом автора, а воспроизвести такой замер нечем.
+                copy_pat = plant[0][1]
+                copy_names, copy_why = _plant_names(
+                    copy_pat, stem=f"{PLANTED_STEM}{COPY_SUFFIX_MARK}")
+                if copy_why:
+                    entries.append(DiffEntry(
+                        entry.path, rel_dir, PATTERN_UNMEASURED,
+                        before=before, after=after,
+                        reason=f"инертный зонд [{sfx}] вердикта не сдвинул, а имя "
+                               f"СОДЕРЖАТЕЛЬНОГО под глоб `{copy_pat}` не "
+                               f"синтезируется: {copy_why}"))
+                    continue
+                donor, donor_note = _copy_donor(target_dir, pattern=copy_pat)
                 if donor is None:
                     entries.append(DiffEntry(entry.path, rel_dir, COPY_UNMEASURED,
                                              before=before, after=after,
@@ -1579,7 +1782,9 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
                                                     f"сдвинул, а содержательный построить НЕ ИЗ "
                                                     f"ЧЕГО: {donor_note}"))
                     continue
-                copy_path = target_dir / f"{PLANTED_STEM}{COPY_SUFFIX_MARK}{donor.suffix}"
+                copy_name = next((q for q in copy_names if q.endswith(donor.suffix)),
+                                 copy_names[0])
+                copy_path = target_dir / copy_name
                 if copy_path.exists():
                     entries.append(DiffEntry(entry.path, rel_dir, DIFF_UNMEASURED,
                                              before=before, after=after,
@@ -1596,7 +1801,7 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
                     except OSError as exc:
                         leftovers.append(f"{copy_path}: {exc}")
                     for pyc in (target_dir / "__pycache__").glob(
-                            f"{PLANTED_STEM}{COPY_SUFFIX_MARK}.*"):
+                            f"*{PLANTED_STEM}{COPY_SUFFIX_MARK}*"):
                         try:
                             pyc.unlink()
                         except OSError:
@@ -1614,14 +1819,16 @@ def measure_differential(root: pathlib.Path, surface: Surface, *,
                         entry.path, rel_dir, NOT_SUBJECT,
                         before=before, after=c_after,
                         reason=f"вердикт тот же И у инертного зонда [{sfx}], И у "
-                               f"СОДЕРЖАТЕЛЬНОГО (копия `{donor_note}` под новым именем), "
-                               f"а каталог НАБЛЮДЁН — ответ ИЗМЕРЕН, а не свойство зонда"))
+                               f"СОДЕРЖАТЕЛЬНОГО (копия `{donor_note}` под именем "
+                               f"`{copy_name}`, глоб `{copy_pat}`), а каталог НАБЛЮДЁН "
+                               f"— ответ ИЗМЕРЕН, а не свойство зонда" + refused_note))
                 else:
                     entries.append(DiffEntry(entry.path, rel_dir, c_kind,
                                              before=before, after=c_after,
-                                             reason=f"[зонд КОПИЯ `{donor_note}`] {c_why} — "
-                                                    f"инертный зонд этого НЕ показал: граница "
-                                                    f"PLANTED_INERT наблюдена на этом стороже"))
+                                             reason=f"[зонд КОПИЯ `{donor_note}` → "
+                                                    f"`{copy_name}`] {c_why} — инертный зонд "
+                                                    f"этого НЕ показал: граница PLANTED_INERT "
+                                                    f"наблюдена на этом стороже" + refused_note))
                 continue
 
             entries.append(DiffEntry(entry.path, rel_dir, kind, before=before, after=after,
@@ -1675,6 +1882,8 @@ def render_differential(d: Differential) -> str:
         f"  НЕ ИЗМЕРЕНО:                       {c[DIFF_UNMEASURED]}",
         f"  НЕ ИЗМЕРЕНО содержательным зондом: {c[COPY_UNMEASURED]}",
         f"  НЕ ИЗМЕРЕНО: каталог записи — ДОГАДКА поверхности: {c[GUESSED_DIR_UNMEASURED]}",
+        f"  НЕ ИЗМЕРЕНО: имя зонда под ГЛОБ перечисления не синтезируется: "
+        f"{c[PATTERN_UNMEASURED]}",
         # ── ГРАНИЦА ДИФФЕРЕНЦИАЛА ПЕЧАТАЕТСЯ, а не живёт в прозе ────────────
         # Иначе читатель примет «не предмет» за ответ о классе там, где зонд
         # ответить не способен ПО ПОСТРОЕНИЮ (замер #1259, см. PLANTED_INERT).
@@ -1684,8 +1893,15 @@ def render_differential(d: Differential) -> str:
         # И содержательный зонд (копия существующего члена каталога под новым
         # именем), а «донора нет» есть ТРЕТИЙ исход с названной причиной.
         f"  ✅ граница СПРОШЕНА у каждого кандидата в «не предмет»: второй зонд — "
-        f"КОПИЯ существующего члена каталога под новым именем (донор ≤ "
+        f"КОПИЯ существующего члена НАБОРА под новым именем (донор ≤ "
         f"{COPY_DONOR_MAX_BYTES} Б, выбор ПЕЧАТАЕТСЯ)",
+        # ── ТРЕТЬЯ ГРАНИЦА: ИМЯ ЗОНДА ЕСТЬ ЧАСТЬ МЕРКИ ──────────────────────
+        # Замер #15626 на известном члене ADR-889: каталог был назван ВЕРНО, а
+        # зонд с фиксированным именем растил КАТАЛОГ и не растил НАБОРА
+        # `INDEX-archive-*.md`. Поэтому имя диктует глоб, и «глоб без `*`» либо
+        # «глоб с `[…]`» есть ТРЕТИЙ исход, а не «не предмет».
+        f"  ✅ имя зонда ДИКТУЕТ глоб перечисления и СВЕРЯЕТСЯ с ним (`fnmatch`): "
+        f"каталог и НАБОР, который сторож читает, — разные множества",
     ]
     refuted = d.refuted_known_members
     if refuted:
@@ -1700,7 +1916,8 @@ def render_differential(d: Differential) -> str:
         if e.kind == SUBJECT:
             lines.append(f"  🔴 {e.path} ← {e.enumerated_dir}")
             lines.append(f"       было: {e.before}  →  стало: {e.after}")
-        elif e.kind in (DIFF_UNMEASURED, COPY_UNMEASURED, GUESSED_DIR_UNMEASURED):
+        elif e.kind in (DIFF_UNMEASURED, COPY_UNMEASURED, GUESSED_DIR_UNMEASURED,
+                        PATTERN_UNMEASURED):
             lines.append(f"  ⚠️ НЕ ИЗМЕРЕНО {e.path} ← {e.enumerated_dir}: {e.reason}")
         elif e.kind == NOT_SUBJECT:
             lines.append(f"  ⚪ не предмет {e.path} ← {e.enumerated_dir}: {e.reason}")
@@ -1727,7 +1944,10 @@ def clean_planted(root: pathlib.Path) -> list[str]:
     # Шаблон НАКРЫВАЕТ оба зонда (`…probe.py` и `…probe_copy.py`): уборка, видящая
     # только первый, оставила бы копию и при этом напечатала «дерево чисто» —
     # ровно то «не измерено под видом ответа», против которого прибор написан.
-    for path in root.rglob(f"{PLANTED_STEM}*"):
+    # Звёздочка СЛЕВА обязательна с #15626: имя зонда теперь синтезируется под
+    # глоб перечисления (`INDEX-archive-zz…probe.md`), и метка в нём стои́т НЕ в
+    # начале. Уборка без неё печатала бы «дерево чисто» над подложенным файлом.
+    for path in root.rglob(f"*{PLANTED_STEM}*"):
         try:
             path.unlink()
             removed.append(path.relative_to(root).as_posix())

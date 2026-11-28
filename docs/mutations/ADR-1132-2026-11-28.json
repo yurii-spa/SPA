@@ -1,0 +1,177 @@
+{
+  "title": "ADR-1132 — имя подкладываемого зонда диктует ГЛОБ перечисления (цикл #15626); прогон 2 на ФИНАЛЬНЫХ байтах, после починки сцены, опровергнутой M04",
+  "tests": [
+    "spa_core/tests/test_derived_artifact_census.py"
+  ],
+  "baseline_failures": [],
+  "population": 16,
+  "applied": 16,
+  "counts": {
+    "killed": 16,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 глоб не разбирается вовсе: GLOB_FORM пуст",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_a_directory_with_only_an_unglowable_glob_is_pattern_unmeasured_END_TO_END",
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_a_leftover_plant_UNDER_THE_GLOB_is_recognised_as_already_taken",
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_the_SECOND_probe_also_gets_a_name_under_the_glob",
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_the_subject_is_found_THROUGH_the_prober_and_the_refused_glob_is_PRINTED",
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobSurvivesTheHopThroughTheHelper::test_the_helper_enumerating_BY_ARGUMENT_lends_its_glob_to_the_named_dir",
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobSurvivesTheHopThroughTheHelper::test_the_helper_that_names_the_dir_ITSELF_also_lends_its_glob",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_known_member_of_ADR_889_names_its_glob_in_THIS_tree",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_literal_glob_is_parsed_and_a_computed_one_is_the_THIRD_outcome",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_module_form_glob_takes_the_LAST_segment_not_the_whole_path"
+      ]
+    },
+    {
+      "name": "M02 вычисляемый глоб выдан за «глоба нет» (молчаливая подстановка)",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobSurvivesTheHopThroughTheHelper::test_the_helper_that_names_the_dir_ITSELF_also_lends_its_glob",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_literal_glob_is_parsed_and_a_computed_one_is_the_THIRD_outcome"
+      ]
+    },
+    {
+      "name": "M03 модульная форма берёт путь ЦЕЛИКОМ, а не последний сегмент",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_module_form_glob_takes_the_LAST_segment_not_the_whole_path"
+      ]
+    },
+    {
+      "name": "M04 хоп через помощника теряет глоб помощника",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobSurvivesTheHopThroughTheHelper::test_the_helper_enumerating_BY_ARGUMENT_lends_its_glob_to_the_named_dir"
+      ]
+    },
+    {
+      "name": "M05 сверка синтезированного имени с глобом снята",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_a_glob_that_cannot_be_satisfied_is_the_THIRD_outcome_with_a_reason"
+      ]
+    },
+    {
+      "name": "M06 уборка видит метку только в НАЧАЛЕ имени",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_cleanup_finds_a_plant_whose_marker_is_NOT_at_the_start_of_the_name"
+      ]
+    },
+    {
+      "name": "M07 донор берётся из КАТАЛОГА, а не из набора под глобом",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheDirectoryOfTheVerdictIsOBSERVEDOrItIsNotAnAnswer::test_no_donor_reaches_the_THIRD_outcome_THROUGH_measure_differential",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_no_member_of_the_globbed_set_is_a_named_reason_not_a_quiet_pass",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_donor_is_taken_from_the_GLOBBED_set_and_the_decoy_stands_FIRST"
+      ]
+    },
+    {
+      "name": "M08 pattern_unmeasured не даёт кода 2",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_a_directory_with_only_an_unglowable_glob_is_pattern_unmeasured_END_TO_END",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_a_directory_whose_every_glob_refuses_is_pattern_unmeasured_NOT_code_zero"
+      ]
+    },
+    {
+      "name": "M09 «имя зонда не синтезируется» записано как «не предмет»",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_a_directory_with_only_an_unglowable_glob_is_pattern_unmeasured_END_TO_END"
+      ]
+    },
+    {
+      "name": "M10 dir_patterns проглатывает причину неразобранного глоба",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobSurvivesTheHopThroughTheHelper::test_the_helper_that_names_the_dir_ITSELF_also_lends_its_glob",
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_literal_glob_is_parsed_and_a_computed_one_is_the_THIRD_outcome"
+      ]
+    },
+    {
+      "name": "M11 глоб без зонда до причины записи не доезжает",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_the_subject_is_found_THROUGH_the_prober_and_the_refused_glob_is_PRINTED"
+      ]
+    },
+    {
+      "name": "M12 имя второго зонда не под глобом (фиксированное)",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_the_SECOND_probe_also_gets_a_name_under_the_glob",
+        "spa_core/tests/test_derived_artifact_census.py::TheInertPlantBoundaryIsNowASKEDNotOnlyNAMED::test_a_CONTENT_judging_guard_is_resolved_by_the_COPY_and_NOT_by_the_inert_plant"
+      ]
+    },
+    {
+      "name": "M13 без глоба зонд идёт только одним расширением",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_an_enumeration_WITHOUT_a_glob_grows_the_set_with_ANY_name"
+      ]
+    },
+    {
+      "name": "M14 префикс `**/` не снимается — рекурсивный глоб читается как подкаталог",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheNameOfThePlantIsDictatedByTheGlob::test_the_synthesised_name_satisfies_the_glob_AND_carries_the_marker"
+      ]
+    },
+    {
+      "name": "M15 хоп через помощника с РАЗОБРАННЫМ каталогом теряет глоб",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobSurvivesTheHopThroughTheHelper::test_the_helper_that_names_the_dir_ITSELF_also_lends_its_glob"
+      ]
+    },
+    {
+      "name": "M16 «имя уже занято» проверяется по ПРЕЖНИМ фиксированным именам",
+      "file": "scripts/derived_artifact_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_derived_artifact_census.py::TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts::test_a_leftover_plant_UNDER_THE_GLOB_is_recognised_as_already_taken"
+      ]
+    }
+  ]
+}

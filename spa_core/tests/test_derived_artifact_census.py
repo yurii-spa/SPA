@@ -1180,3 +1180,523 @@ class TheVERDICTAlsoNeedsItsKnownMemberControl(unittest.TestCase):
         self.assertIn("✅", mod.render_differential(ok),
                       "положительный ответ контроля не напечатан — читатель не узнает, "
                       "спрашивали ли контроль вообще")
+
+
+class TheNameOfThePlantIsDictatedByTheGlob(unittest.TestCase):
+    """Заказ G1104 п. 2(в), цикл #15626 — и он ОПРОВЕРГАЕТ названную там причину.
+
+    ЗАКАЗ СКАЗАЛ: «поверхность НЕ НАЗВАЛА каталог, на котором стои́т членство
+    класса (`docs/decisions`); лечит только вторая дорога разбора у
+    поверхности». Замер четырьмя зондами на том же известном члене
+    (`test_adr_index_titles`, ADR-889, дерево `bf747728c`):
+
+        файл `zz…probe.md` в `docs/decisions`      27 passed → 27 passed
+        файл `zz…probe.md` в `docs/journal`        27 passed → 27 passed
+        файл `INDEX-archive-zz…probe.md`           27 passed → 1 FAILED, 26 passed
+        тот же ПО ГЛОБУ, содержимое копии донора   27 passed → 27 passed
+
+    Первый зонд мерит ровно гипотезу заказа — файл положен ИМЕННО в
+    `docs/decisions` — и вердикта не сдвигает. Значит названная причина была бы
+    правкой, не меняющей ответа: каталог поверхность назвала ВЕРНО
+    (`docs/journal`, прямой зов), неверным было ИМЯ зонда. Сторож перечисляет
+    `docs/journal` глобом `INDEX-archive-*.md`, и зонд с чужим именем растит
+    КАТАЛОГ, не растя НАБОРА, который сторож читает.
+
+    Поэтому имя зонда диктует ГЛОБ, и оно СВЕРЯЕТСЯ с ним (`fnmatch`), а не
+    предполагается. Невыразимый глоб (`[…]`, без `*`, с подкаталогом) есть
+    ТРЕТИЙ исход `pattern_unmeasured`, а не «не предмет».
+    """
+
+    # ── разбор глоба: три исхода различимы ──────────────────────────────────
+    def test_the_literal_glob_is_parsed_and_a_computed_one_is_the_THIRD_outcome(self):
+        """«Глоб вычисляется» ≠ «глоба нет»: второе зеленило бы зонд с чужим именем."""
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_glob_") as d:
+            root = pathlib.Path(d)
+            (root / "docs" / "journal").mkdir(parents=True)
+            _scene(root, "literal_glob", (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'def test_a():\n'
+                '    assert sorted((ROOT / "docs" / "journal").glob("INDEX-archive-*.md"))\n'
+            ))
+            _scene(root, "computed_glob", (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'STEM = "INDEX-archive"\n'
+                'def test_a():\n'
+                '    assert sorted((ROOT / "docs" / "journal").glob(f"{STEM}-*.md"))\n'
+            ))
+            s = mod.measure_surface(root)
+            by = {e.path: e for e in s.entries}
+
+            lit = by["spa_core/tests/test_literal_glob.py"]
+            pats, notes = lit.dir_patterns("docs/journal")
+            self.assertEqual(["INDEX-archive-*.md"], pats,
+                             "литеральный глоб не доехал до записи — имя зонда будет чужим")
+            self.assertEqual([], notes, "у разобранного глоба появилась причина НЕ ИЗМЕРЕНО")
+
+            comp = by["spa_core/tests/test_computed_glob.py"]
+            c_pats, c_notes = comp.dir_patterns("docs/journal")
+            self.assertEqual([], c_pats,
+                             "вычисляемый глоб выдан за разобранный — зонд лёг бы мимо набора")
+            self.assertEqual(1, len(c_notes), f"причина НЕ ИЗМЕРЕНО не названа: {c_notes}")
+            self.assertIn("вычисляется", c_notes[0])
+
+    def test_an_enumeration_WITHOUT_a_glob_grows_the_set_with_ANY_name(self):
+        """`iterdir` каталог читает целиком — здесь прежнее поведение ВЕРНО.
+
+        Декой стои́т рядом: если разборщик перестанет различать `iterdir` и
+        `glob`, одна из двух записей ответит неверно, и обе половины ловят это.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_noglob_") as d:
+            root = pathlib.Path(d)
+            (root / "spa_core" / "analytics").mkdir(parents=True)
+            _scene(root, "plain_iterdir", (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'def test_a():\n'
+                '    assert list((ROOT / "spa_core" / "analytics").iterdir())\n'
+            ))
+            s = mod.measure_surface(root)
+            entry = {e.path: e for e in s.entries}["spa_core/tests/test_plain_iterdir.py"]
+            pats, notes = entry.dir_patterns("spa_core/analytics")
+            self.assertEqual([None], pats,
+                             "перечисление без глоба перестало читаться как «любое имя»")
+            self.assertEqual([], notes)
+            names, why = mod._plant_names(None, stem=mod.PLANTED_STEM)
+            self.assertEqual("", why, f"зонд без глоба отказал: {why}")
+            self.assertEqual([f"{mod.PLANTED_STEM}{sfx}" for sfx in mod.PLANTED_SUFFIXES],
+                             names,
+                             "без глоба зонды перестали идти по каждому расширению — "
+                             "именно эту половину выучил цикл #1218")
+
+    def test_the_module_form_glob_takes_the_LAST_segment_not_the_whole_path(self):
+        """`glob.glob("docs/journal/INDEX-archive-*.md")` несёт путь ЦЕЛИКОМ.
+
+        Возьми его целиком — и синтез имени отказал бы «глоб перечисляет
+        ПОДКАТАЛОГИ», то есть разобранный глоб стал бы НЕ ИЗМЕРЕНО.
+        """
+        mod = _load()
+        tree = __import__("ast").parse(
+            'import glob\nglob.glob("docs/journal/INDEX-archive-*.md")\n')
+        call = next(n for n in __import__("ast").walk(tree)
+                    if isinstance(n, __import__("ast").Call))
+        pat, note = mod._glob_pattern("glob", call, module_form=True)
+        self.assertEqual("", note)
+        self.assertEqual("INDEX-archive-*.md", pat,
+                         "у модульной формы взят весь путь, а не последний сегмент")
+        names, why = mod._plant_names(pat, stem=mod.PLANTED_STEM)
+        self.assertEqual("", why, f"разобранный глоб отказал в синтезе: {why}")
+        self.assertEqual(["INDEX-archive-zz_derived_artifact_census_probe.md"], names)
+
+    # ── синтез имени: СВЕРЯЕТСЯ, а не предполагается ────────────────────────
+    def test_the_synthesised_name_satisfies_the_glob_AND_carries_the_marker(self):
+        """Два требования, и ОБА несущие: совпадение с глобом и метка прибора.
+
+        Метка нужна уборке (`clean_planted`) и проверке «имя уже занято»; имя
+        без неё оставляло бы в дереве файл, о котором уборка молчит.
+        """
+        mod = _load()
+        for pat, expect in (
+                ("INDEX-archive-*.md", "INDEX-archive-zz_derived_artifact_census_probe.md"),
+                ("test_*.py", "test_zz_derived_artifact_census_probe.py"),
+                ("*.md", "zz_derived_artifact_census_probe.md"),
+                ("**/*.json", "zz_derived_artifact_census_probe.json"),
+        ):
+            names, why = mod._plant_names(pat, stem=mod.PLANTED_STEM)
+            self.assertEqual("", why, f"глоб `{pat}` отказал: {why}")
+            self.assertIn(expect, names, f"глоб `{pat}` дал имена {names}")
+            for nm in names:
+                self.assertTrue(
+                    fnmatch_ok(nm, pat),
+                    f"синтезированное `{nm}` глобу `{pat}` НЕ удовлетворяет")
+                self.assertIn(mod.PLANTED_STEM, nm,
+                              f"в имени `{nm}` нет метки прибора — уборка его не найдёт")
+
+    def test_a_glob_that_cannot_be_satisfied_is_the_THIRD_outcome_with_a_reason(self):
+        """Три формы невыразимого глоба, и у каждой СВОЯ причина.
+
+        Один общий отказ был бы «не измерено» без адреса: читатель не узнал бы,
+        чинить ли глоб, расширять ли синтез или оставить как есть.
+        """
+        mod = _load()
+        cases = {
+            # Эту форму ловит РОВНО сверка `fnmatch`: имя `ADR-[0-9]zz…probe.md`
+            # синтезируется, глобу не удовлетворяет, и отказ приходит оттуда.
+            # Отдельной ветви на `?`/`[…]` в приборе НЕТ намеренно — у двери был
+            # бы второй сайт, и мутация, снявшая сверку, выжила бы зелёной.
+            "ADR-[0-9]*.md": "НЕ удовлетворяет",
+            "INDEX.md": "без `*`",
+            "sub/*.md": "ПОДКАТАЛОГИ",
+        }
+        for pat, needle in cases.items():
+            names, why = mod._plant_names(pat, stem=mod.PLANTED_STEM)
+            self.assertEqual([], names, f"глоб `{pat}` дал имя, которого не бывает: {names}")
+            self.assertIn(needle, why, f"причина отказа по `{pat}` не названа: {why}")
+
+    def test_a_directory_whose_every_glob_refuses_is_pattern_unmeasured_NOT_code_zero(self):
+        """`pattern_unmeasured` обязан давать код 2 — и отдельно от «не предмета».
+
+        Декой-запись `not_subject` стои́т рядом: ось обязана различать «зонд
+        ответил, вердикт тот же» и «зонда не существует вовсе».
+        """
+        mod = _load()
+        only_pattern = mod.Differential(root="/nowhere", entries=[
+            mod.DiffEntry("spa_core/tests/test_x.py", "docs/decisions",
+                          mod.PATTERN_UNMEASURED, reason="глоб без `*`"),
+        ])
+        self.assertEqual(2, only_pattern.code,
+                         "«имя зонда не синтезируется» прошло как измеренный ответ")
+        self.assertEqual(0, only_pattern.counts[mod.NOT_SUBJECT],
+                         "третий исход посчитан «не предметом»")
+        self.assertEqual(1, only_pattern.counts[mod.PATTERN_UNMEASURED])
+        text = mod.render_differential(only_pattern)
+        self.assertIn("НЕ ИЗМЕРЕНО", text)
+        self.assertIn("глоб без `*`", text,
+                      "причина не напечатана — читатель не узнает, чего прибор не мерил")
+
+        same_but_measured = mod.Differential(root="/nowhere", entries=[
+            mod.DiffEntry("spa_core/tests/test_x.py", "docs/decisions",
+                          mod.NOT_SUBJECT, reason="оба зонда вердикта не сдвинули"),
+        ])
+        self.assertEqual(0, same_but_measured.code,
+                         "измеренное «не предмет» перестало быть нулём — отказ на верном "
+                         "состоянии запер бы чужую починку")
+
+    # ── донор второго зонда: член НАБОРА, а не каталога ─────────────────────
+    def test_the_donor_is_taken_from_the_GLOBBED_set_and_the_decoy_stands_FIRST(self):
+        """«Член каталога» и «член набора, который сторож читает» — разные множества.
+
+        Декой `AAA-outside.md` первый по имени: отбор без глоба отдал бы его, и
+        копия была бы бесполезна дважды — ни имя, ни содержимое сторожа не
+        касались бы.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_donorset_") as d:
+            box = pathlib.Path(d)
+            (box / "AAA-outside.md").write_text("не член набора\n", encoding="utf-8")
+            (box / "INDEX-archive-one.md").write_text("# снимок\n", encoding="utf-8")
+            donor, note = mod._copy_donor(box, pattern="INDEX-archive-*.md")
+            self.assertIsNotNone(donor, f"донор из набора не найден: {note}")
+            self.assertEqual("INDEX-archive-one.md", donor.name,
+                             "донор взят из КАТАЛОГА, а не из НАБОРА под глобом")
+            self.assertEqual("INDEX-archive-one.md", note,
+                             "выбранный донор НЕ ПЕЧАТАЕТСЯ — замер нечем воспроизвести")
+
+    def test_no_member_of_the_globbed_set_is_a_named_reason_not_a_quiet_pass(self):
+        """В каталоге файлы есть, члена НАБОРА нет ⇒ причина НАЗЫВАЕТ глоб."""
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_donornone_") as d:
+            box = pathlib.Path(d)
+            (box / "AAA-outside.md").write_text("не член набора\n", encoding="utf-8")
+            donor, note = mod._copy_donor(box, pattern="INDEX-archive-*.md")
+            self.assertIsNone(donor, f"донором стал файл вне набора: {donor}")
+            self.assertIn("INDEX-archive-*.md", note,
+                          f"причина не называет глоб, которому никто не отвечает: {note}")
+
+    # ── уборка: метка стои́т НЕ в начале имени ───────────────────────────────
+    def test_cleanup_finds_a_plant_whose_marker_is_NOT_at_the_start_of_the_name(self):
+        """Регрессия ровно этой правки: имя теперь синтезируется под глоб.
+
+        Уборка с шаблоном `{STEM}*` напечатала бы «дерево чисто» над
+        подложенным `INDEX-archive-zz…probe.md` — «не измерено под видом
+        ответа». Декой-файл без метки обязан ОСТАТЬСЯ: уборка, снимающая
+        чужое, хуже уборки, не снимающей своего.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_clean_") as d:
+            root = pathlib.Path(d)
+            (root / "spa_core").mkdir(parents=True)
+            box = root / "docs" / "journal"
+            box.mkdir(parents=True)
+            planted = box / f"INDEX-archive-{mod.PLANTED_STEM}.md"
+            planted.write_text(mod.PLANTED_MD, encoding="utf-8")
+            innocent = box / "INDEX-archive-2026-W29.md"
+            innocent.write_text("# чужой файл\n", encoding="utf-8")
+            removed = mod.clean_planted(root)
+            self.assertEqual(["docs/journal/" + planted.name], removed,
+                             f"уборка сняла не то, что надо: {removed}")
+            self.assertFalse(planted.exists(), "подложенный файл остался в дереве")
+            self.assertTrue(innocent.exists(), "уборка снесла файл без метки прибора")
+
+    # ── ЖИВОЙ положительный контроль: известный член ADR-889 ────────────────
+    def test_the_known_member_of_ADR_889_names_its_glob_in_THIS_tree(self):
+        """Поверхность живого дерева обязана нести глоб `INDEX-archive-*.md`.
+
+        Это и есть замер, опровергший причину заказа G1104 п. 2(в): каталог у
+        члена назван ВЕРНО, а набор сторожа отбирает глоб. Пропади глоб из
+        записи — зонд снова ляжет с чужим именем, и известный член снова придёт
+        «не предметом», уже молча.
+        """
+        mod = _load()
+        s = mod.measure_surface(REPO)
+        by = {e.path: e for e in s.entries}
+        member = "spa_core/tests/test_adr_index_titles.py"
+        self.assertIn(member, by, "известный член исчез из поверхности")
+        self.assertIn("docs/journal", by[member].source_dirs,
+                      f"каталог члена не разобран: {by[member].source_dirs}")
+        pats, notes = by[member].dir_patterns("docs/journal")
+        self.assertIn("INDEX-archive-*.md", pats,
+                      f"глоб известного члена потерян: глобы {pats}, причины {notes}")
+        names, why = mod._plant_names("INDEX-archive-*.md", stem=mod.PLANTED_STEM)
+        self.assertEqual("", why)
+        self.assertEqual(["INDEX-archive-zz_derived_artifact_census_probe.md"], names,
+                         "имя зонда под глоб известного члена больше не синтезируется")
+
+
+class TheGlobSurvivesTheHopThroughTheHelper(unittest.TestCase):
+    """Глоб обязан доехать ЧЕРЕЗ помощника — обе половины хопа.
+
+    ПОЧЕМУ ЭТОТ КЛАСС ПОЯВИЛСЯ ВТОРЫМ ПРОГОНОМ, А НЕ ПЕРВЫМ. Мутация M04
+    («хоп через помощника теряет глоб») ВЫЖИЛА в первом мутационном прогоне
+    цикла #15626: ни одна сцена не вела глоб через помощника, и дыра была в
+    СЦЕНЕ, а не в коде. Это двенадцатый цикл подряд с той же формой, и
+    выжившую мутацию записывают, а не замазывают.
+
+    Половина хопа несущая: ДВА известных члена класса из четырёх перечисляют
+    каталог не сами, а помощником (`scripts/audit_untiered_analytics.py`,
+    `scripts/build_tracker_board.py`). Потеряй глоб здесь — и зонд у них снова
+    ляжет с чужим именем.
+    """
+
+    @staticmethod
+    def _helper_tree(root: pathlib.Path) -> None:
+        (root / "scripts").mkdir(parents=True, exist_ok=True)
+        (root / "docs" / "journal").mkdir(parents=True, exist_ok=True)
+        (root / "spa_core" / "analytics").mkdir(parents=True, exist_ok=True)
+
+    def test_the_helper_enumerating_BY_ARGUMENT_lends_its_glob_to_the_named_dir(self):
+        """Каталог назначает ВЫЗЫВАЮЩИЙ, имена отбирает ПЕРЕЧИСЛЯЮЩИЙ.
+
+        Декой: у помощника есть ВТОРОЙ зов с ДРУГИМ глобом по тому же аргументу
+        — запись обязана нести ОБА, иначе зонд закрывает лишь часть набора.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_hop_arg_") as d:
+            root = pathlib.Path(d)
+            self._helper_tree(root)
+            (root / "scripts" / "c15626_board.py").write_text(
+                'def rows(box):\n'
+                '    return sorted(box.glob("INDEX-archive-*.md"))\n'
+                'def extras(box):\n'
+                '    return sorted(box.glob("*.draft.md"))\n',
+                encoding="utf-8")
+            _scene(root, "named_dir_helper_globs", (
+                'import pathlib\n'
+                'from scripts import c15626_board\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'J = ROOT / "docs" / "journal"\n'
+                'def test_a():\n'
+                '    assert c15626_board.rows(J)\n'
+                'def test_b():\n'
+                '    assert not c15626_board.extras(J)\n'
+            ))
+            s = mod.measure_surface(root)
+            entry = {e.path: e for e in s.entries}[
+                "spa_core/tests/test_named_dir_helper_globs.py"]
+            self.assertIn("docs/journal", entry.source_dirs,
+                          f"каталог не доехал через хоп: {entry.source_dirs}")
+            pats, notes = entry.dir_patterns("docs/journal")
+            self.assertEqual([], notes, f"появилась причина НЕ ИЗМЕРЕНО: {notes}")
+            self.assertEqual({"INDEX-archive-*.md", "*.draft.md"}, set(pats),
+                             f"глобы помощника потеряны либо потеряны ЧАСТЬЮ: {pats}")
+
+    def test_the_helper_that_names_the_dir_ITSELF_also_lends_its_glob(self):
+        """Вторая половина хопа: каталог РАЗОБРАН у помощника.
+
+        Декой — вычисляемый глоб у ТОГО ЖЕ помощника: его причина обязана
+        доехать отдельным списком, а не превратиться в «глоба нет».
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_hop_own_") as d:
+            root = pathlib.Path(d)
+            self._helper_tree(root)
+            (root / "scripts" / "c15626_audit.py").write_text(
+                'import pathlib\n'
+                'REPO = pathlib.Path(__file__).resolve().parents[1]\n'
+                'PKG = REPO / "spa_core" / "analytics"\n'
+                'TAIL = "py"\n'
+                'def modules_on_disk():\n'
+                '    return sorted(PKG.glob("*.py"))\n'
+                'def computed():\n'
+                '    return sorted(PKG.glob(f"*.{TAIL}"))\n',
+                encoding="utf-8")
+            _scene(root, "helper_names_its_own_dir", (
+                'from scripts import c15626_audit\n'
+                'def test_a():\n'
+                '    assert c15626_audit.modules_on_disk() is not None\n'
+                'def test_b():\n'
+                '    assert c15626_audit.computed() is not None\n'
+            ))
+            s = mod.measure_surface(root)
+            entry = {e.path: e for e in s.entries}[
+                "spa_core/tests/test_helper_names_its_own_dir.py"]
+            self.assertIn("spa_core/analytics", entry.source_dirs,
+                          f"каталог помощника не разобран: {entry.source_dirs}")
+            pats, notes = entry.dir_patterns("spa_core/analytics")
+            self.assertIn("*.py", pats, f"глоб помощника потерян: {pats}")
+            self.assertEqual(1, len(notes),
+                             f"причина вычисляемого глоба помощника не доехала: {notes}")
+            self.assertIn("вычисляется", notes[0])
+
+
+class TheGlobDoorIsMeasuredTHROUGHTheProberNotOnItsParts(unittest.TestCase):
+    """Проводка меряется ПРОГОНОМ сквозь прибор, а не свойством объекта.
+
+    Урок цикла #1612, дословно: мутация M15 ВЫЖИЛА, «потому что ни одна сцена не
+    доводила путь „донора нет“ до вердикта сквозь прибор». Сцены ниже зовут
+    настоящий `measure_differential` на одноразовом дереве: вердикт снимает
+    настоящий `pytest` (0,2 с на такой сцене), зонды подкладываются и снимаются
+    настоящим прибором.
+    """
+
+    @staticmethod
+    def _tree(box: pathlib.Path, body: str, *, archives: int = 1) -> None:
+        (box / "spa_core" / "tests").mkdir(parents=True)
+        journal = box / "docs" / "journal"
+        journal.mkdir(parents=True)
+        for i in range(archives):
+            (journal / f"INDEX-archive-{i}.md").write_text(
+                "| ADR | Заголовок | Статус | Файл |\n", encoding="utf-8")
+        (box / "spa_core" / "tests" / "test_scene.py").write_text(body, encoding="utf-8")
+
+    def test_the_subject_is_found_THROUGH_the_prober_and_the_refused_glob_is_PRINTED(self):
+        """Сторож, читающий набор под глобом, приходит ПРЕДМЕТОМ — и глоб, под
+        который зонда нет, ДОЕЗЖАЕТ до причины этой же записи.
+
+        Два утверждения в одной сцене нарочно: каталог один, глобов два, и
+        запись обязана нести И вердикт по разобранному глобу, И имя того, по
+        которому зонда не было. Молчание о втором сделало бы ответ о ЧАСТИ
+        набора неотличимым от ответа о целом (инв. #17).
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_e2e_subj_") as d:
+            box = pathlib.Path(d)
+            self._tree(box, (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'J = ROOT / "docs" / "journal"\n'
+                'def test_exactly_one_archive():\n'
+                '    assert len(sorted(J.glob("INDEX-archive-*.md"))) == 1\n'
+                'def test_the_register_itself_is_not_here():\n'
+                '    assert not sorted(J.glob("INDEX.md"))\n'
+            ))
+            surface = mod.measure_surface(box)
+            diff = mod.measure_differential(box, surface, timeout=120)
+            kinds = [e.kind for e in diff.entries]
+            self.assertIn(mod.SUBJECT, kinds,
+                          f"предмет не найден сквозь прибор: "
+                          f"{[(e.kind, e.reason) for e in diff.entries]}")
+            subj = next(e for e in diff.entries if e.kind == mod.SUBJECT)
+            self.assertEqual("docs/journal", subj.enumerated_dir)
+            self.assertEqual("passed=2", subj.before)
+            self.assertIn("failed=1", subj.after,
+                          "зонд лёг в каталог и мимо набора — имя не под глобом")
+            self.assertIn("ГЛОБЫ БЕЗ ЗОНДА", subj.reason,
+                          f"глоб без зонда до причины не доехал: {subj.reason}")
+            self.assertIn("INDEX.md", subj.reason)
+            self.assertEqual([], diff.leftovers, f"зонд не снят: {diff.leftovers}")
+
+    def test_a_directory_with_only_an_unglowable_glob_is_pattern_unmeasured_END_TO_END(self):
+        """Та же запись, пройденная СКВОЗЬ прибор: ярлык `pattern_unmeasured`.
+
+        Поставь здесь `not_subject` — и прибор отдал бы код 0, то есть «предмета
+        нет», ничего не измерив. Декой: ярлык проверяется ИМЕНЕМ, а не «есть ли
+        хоть одна запись».
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_e2e_pat_") as d:
+            box = pathlib.Path(d)
+            self._tree(box, (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'def test_the_register_itself_is_not_here():\n'
+                '    assert not sorted((ROOT / "docs" / "journal").glob("INDEX.md"))\n'
+            ))
+            surface = mod.measure_surface(box)
+            diff = mod.measure_differential(box, surface, timeout=120)
+            self.assertEqual([mod.PATTERN_UNMEASURED], [e.kind for e in diff.entries],
+                             f"{[(e.kind, e.reason) for e in diff.entries]}")
+            self.assertEqual(2, diff.code, "НЕ ИЗМЕРЕНО прошло как измеренный ответ")
+            self.assertIn("без `*`", diff.entries[0].reason)
+            self.assertEqual([], diff.leftovers)
+
+    def test_a_leftover_plant_UNDER_THE_GLOB_is_recognised_as_already_taken(self):
+        """Наследство убитого прогона обязано узнаваться по НОВОМУ имени.
+
+        Проверка «имя уже занято» (цикл #1218) ключуется на имена зондов. Оставь
+        её на прежних `zz…probe.{py,md,json}` — и прогон судил бы дерево с
+        ЧУЖИМИ байтами, печатая обычный вердикт. Декой: в каталоге рядом лежит
+        файл БЕЗ метки прибора, и он занятостью НЕ является.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_e2e_left_") as d:
+            box = pathlib.Path(d)
+            self._tree(box, (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'def test_exactly_one_archive():\n'
+                '    assert len(sorted((ROOT / "docs" / "journal")'
+                '.glob("INDEX-archive-*.md"))) == 1\n'
+            ))
+            leftover = box / "docs" / "journal" / (
+                f"INDEX-archive-{mod.PLANTED_STEM}.md")
+            leftover.write_text(mod.PLANTED_MD, encoding="utf-8")
+            surface = mod.measure_surface(box)
+            diff = mod.measure_differential(box, surface, timeout=120)
+            self.assertEqual([mod.DIFF_UNMEASURED], [e.kind for e in diff.entries],
+                             f"{[(e.kind, e.reason) for e in diff.entries]}")
+            self.assertIn("уже занято", diff.entries[0].reason)
+            self.assertIn(leftover.name, diff.entries[0].reason,
+                          "занятое имя НЕ НАЗВАНО — чинить нечего")
+            self.assertTrue(leftover.exists(),
+                            "прибор снял чужие байты вместо отказа")
+
+    def test_the_SECOND_probe_also_gets_a_name_under_the_glob(self):
+        """Копия донора обязана лечь ПОД ГЛОБ — иначе второй зонд тоже мимо.
+
+        Сцена нарочно нечувствительна к набору (`>= 1`), чтобы инертный зонд
+        вердикта не сдвинул и прибор дошёл до ВТОРОГО зонда. Проверяется ИМЯ
+        копии: оно обязано удовлетворять глобу `INDEX-archive-*.md` и нести
+        метку прибора.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_e2e_copy_") as d:
+            box = pathlib.Path(d)
+            self._tree(box, (
+                'import pathlib\n'
+                'ROOT = pathlib.Path(__file__).resolve().parents[2]\n'
+                'def test_at_least_one_archive():\n'
+                '    assert len(sorted((ROOT / "docs" / "journal")'
+                '.glob("INDEX-archive-*.md"))) >= 1\n'
+            ))
+            surface = mod.measure_surface(box)
+            diff = mod.measure_differential(box, surface, timeout=120)
+            self.assertEqual([mod.NOT_SUBJECT], [e.kind for e in diff.entries],
+                             f"{[(e.kind, e.reason) for e in diff.entries]}")
+            reason = diff.entries[0].reason
+            copy_name = f"INDEX-archive-{mod.PLANTED_STEM}{mod.COPY_SUFFIX_MARK}.md"
+            self.assertIn(copy_name, reason,
+                          f"имя второго зонда не под глобом: {reason}")
+            self.assertTrue(fnmatch_ok(copy_name, "INDEX-archive-*.md"))
+            self.assertIn("INDEX-archive-0.md", reason,
+                          "донор НЕ НАПЕЧАТАН — замер нечем воспроизвести")
+            self.assertEqual([], diff.leftovers)
+
+
+def fnmatch_ok(name: str, pattern: str) -> bool:
+    """Сверка имени с глобом НЕЗАВИСИМЫМ зовом стандартного разборщика.
+
+    `fnmatch` тот же, что у прибора, и выдавать это за «чужую дверь» было бы
+    ложной претензией: совпадает БИБЛИОТЕКА, не совпадает ЗОВ. Сцена не
+    переписывает правил синтеза (`head + stem + tail`, снятие `**/`) — а именно
+    они и есть предмет: ошибись синтез — и сверка здесь покраснеет, потому что
+    она задаёт вопрос «подходит ли имя», а не «тот же ли алгоритм».
+    """
+    import fnmatch as _f
+    pat = pattern
+    while pat.startswith("**/"):
+        pat = pat[3:]
+    return _f.fnmatch(name, pat)
