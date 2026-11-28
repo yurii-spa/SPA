@@ -1,0 +1,215 @@
+{
+  "title": "ADR-1133 — §50 «Реализованы persistence и anti-churn gates»: проба-перенос вердикта прибора §22 (цикл #1280); прогон 2 на ФИНАЛЬНЫХ байтах, после починки сцен, опровергнутых M05 и M20",
+  "tests": [
+    "spa_core/tests/test_s50_anti_churn_gate_probe.py"
+  ],
+  "baseline_failures": [],
+  "population": 21,
+  "applied": 21,
+  "counts": {
+    "killed": 21,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 перенос кода 0 читается как находка (satisfied ↔ not_satisfied)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheVerdictIsTheDoorsCode::test_code_zero_becomes_satisfied",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheVerdictIsTheDoorsCode::test_the_verdict_is_not_read_off_the_report_text"
+      ]
+    },
+    {
+      "name": "M02 третий исход прибора схлопнут в находку (код 2 → not_satisfied)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_a_failed_positive_control_of_the_door_is_named",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_a_vocabulary_drift_of_the_owners_words_is_named",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_an_unmeasured_swing_leg_is_named_by_leg",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_an_unmeasured_value_is_named_by_name",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheVerdictIsTheDoorsCode::test_code_two_becomes_unmeasured_not_a_finding"
+      ]
+    },
+    {
+      "name": "M03 незнакомый код двери читается как ВЫПОЛНЕН (fail-OPEN)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheVerdictIsTheDoorsCode::test_an_unknown_code_is_unmeasured_and_names_the_code"
+      ]
+    },
+    {
+      "name": "M04 сверка предмета прибора с критерием §50 снята",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheProberIsAskedWhatItClaimsToMeasure::test_a_prober_about_another_section_cannot_measure_this_criterion",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheProberIsAskedWhatItClaimsToMeasure::test_a_prober_that_declares_no_section_cannot_measure_it_either"
+      ]
+    },
+    {
+      "name": "M05 проверка НАЛИЧИЯ дверей прибора снята",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheBrokenDoorIsUnmeasuredNotAFinding::test_a_prober_without_the_census_door_is_named_as_doorless_not_as_crashed",
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheBrokenDoorIsUnmeasuredNotAFinding::test_a_prober_without_the_verdict_door_is_named_as_doorless_not_as_crashed"
+      ]
+    },
+    {
+      "name": "M06 отсутствующие величины в находке НЕ названы",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheFindingNamesItsKind::test_absent_values_are_named_one_by_one"
+      ]
+    },
+    {
+      "name": "M07 зашитый порог объявлен отсутствующим (две породы слиты в одну)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheFindingNamesItsKind::test_a_hardcoded_threshold_is_named_as_hardcoded_not_as_absent"
+      ]
+    },
+    {
+      "name": "M08 инертное поле политики в находке НЕ названо",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheFindingNamesItsKind::test_an_inert_policy_field_is_named_as_inert"
+      ]
+    },
+    {
+      "name": "M09 качели объявлены пройденными ВСЕГДА, независимо от вердикта двери",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheFindingNamesItsKind::test_a_permitted_swing_is_named_even_when_all_nine_values_bind"
+      ]
+    },
+    {
+      "name": "M10 НЕ ИЗМЕРЕННАЯ величина в третьем исходе НЕ названа по имени",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_an_unmeasured_value_is_named_by_name"
+      ]
+    },
+    {
+      "name": "M11 НЕ ИЗМЕРЕННОЕ плечо качелей и его причина НЕ названы",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_an_unmeasured_swing_leg_is_named_by_leg"
+      ]
+    },
+    {
+      "name": "M12 расхождение словаря владельца в третьем исходе НЕ названо",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_a_vocabulary_drift_of_the_owners_words_is_named"
+      ]
+    },
+    {
+      "name": "M13 упавший положительный контроль прибора НЕ назван причиной",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheThirdOutcomeNamesItsReason::test_a_failed_positive_control_of_the_door_is_named"
+      ]
+    },
+    {
+      "name": "M14 проверка ФОРМЫ отчёта снята — форму ловит исключение, а не проба",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheBrokenDoorIsUnmeasuredNotAFinding::test_a_report_that_is_not_a_mapping_is_unmeasured_with_its_own_reason"
+      ]
+    },
+    {
+      "name": "M15 упавший ввоз прибора читается как находка о системе",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheBrokenDoorIsUnmeasuredNotAFinding::test_a_missing_prober_is_unmeasured"
+      ]
+    },
+    {
+      "name": "M16 упавший прибор читается как ВЫПОЛНЕННЫЙ критерий",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheBrokenDoorIsUnmeasuredNotAFinding::test_a_raising_census_is_unmeasured"
+      ]
+    },
+    {
+      "name": "M17 упавшая дверь вердикта читается как ВЫПОЛНЕННЫЙ критерий",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheBrokenDoorIsUnmeasuredNotAFinding::test_a_raising_verdict_door_is_unmeasured"
+      ]
+    },
+    {
+      "name": "M18 строка объявления §50 разошлась с населением карточки на байт",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheDeclarationLandsOnTheOwnersCriterion::test_the_declared_criterion_is_in_the_s50_population_of_the_card"
+      ]
+    },
+    {
+      "name": "M19 число владельца из пояснения убрано (пояснение без величины)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheRealProberIsActuallyWired::test_the_probe_carries_the_real_prober_verdict_and_both_agree"
+      ]
+    },
+    {
+      "name": "M20 окно прибора течёт в stdout сводки (redirect снят)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheDoorsWindowDoesNotLeakIntoTheSummary::test_a_door_that_prints_does_not_reach_stdout_through_the_probe"
+      ]
+    },
+    {
+      "name": "M21 глушитель съедает и stderr — голос RiskPolicy пропадает",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s50_anti_churn_gate_probe.py::TheDoorsWindowDoesNotLeakIntoTheSummary::test_the_probe_does_not_swallow_the_risk_engines_voice_on_stderr"
+      ]
+    }
+  ]
+}

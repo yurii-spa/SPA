@@ -1,0 +1,134 @@
+{
+  "title": "ADR-1133 — §50 «Реализованы persistence и anti-churn gates»: проба-перенос вердикта прибора §22 (цикл #1280); прогон 2 на ФИНАЛЬНЫХ байтах, после починки сцен, опровергнутых M05 и M20",
+  "tests": [
+    "spa_core/tests/test_s50_anti_churn_gate_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 перенос кода 0 читается как находка (satisfied ↔ not_satisfied)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if code == 0:\n        return SATISFIED, (\n            f\"все девять величин §22 спрашиваются",
+      "new": "    if code == 0:\n        return NOT_SATISFIED, (\n            f\"все девять величин §22 спрашиваются"
+    },
+    {
+      "name": "M02 третий исход прибора схлопнут в находку (код 2 → not_satisfied)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        return UNMEASURED, (f\"прибор §22 отказался мерить: \"",
+      "new": "        return NOT_SATISFIED, (f\"прибор §22 отказался мерить: \""
+    },
+    {
+      "name": "M03 незнакомый код двери читается как ВЫПОЛНЕН (fail-OPEN)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    return UNMEASURED, (f\"прибор §22 вернул код {code!r}, который не переносится в \"\n                        f\"вердикт критерия — молчать об этом нельзя\")",
+      "new": "    return SATISFIED, (f\"прибор §22 вернул код {code!r}, который не переносится в \"\n                       f\"вердикт критерия — молчать об этом нельзя\")"
+    },
+    {
+      "name": "M04 сверка предмета прибора с критерием §50 снята",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if section != ANTI_CHURN_SECTION:",
+      "new": "    if False:"
+    },
+    {
+      "name": "M05 проверка НАЛИЧИЯ дверей прибора снята",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    for door in (\"census\", \"verdict_code\"):\n        if not callable(getattr(census, door, None)):",
+      "new": "    for door in ():\n        if not callable(getattr(census, door, None)):"
+    },
+    {
+      "name": "M06 отсутствующие величины в находке НЕ названы",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if absent:\n            parts.append(f\"ни одна поверхность решения не спрашивает {len(absent)} \"\n                         f\"величин(у/ы): {', '.join(absent)}\")",
+      "new": "        if absent:\n            parts.append(\"величины отсутствуют\")"
+    },
+    {
+      "name": "M07 зашитый порог объявлен отсутствующим (две породы слиты в одну)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if literal:\n            parts.append(f\"порог зашит в коде, политикой не поворачивается: \"\n                         f\"{', '.join(literal)}\")",
+      "new": "        if literal:\n            parts.append(f\"ни одна поверхность решения не спрашивает: \"\n                         f\"{', '.join(literal)}\")"
+    },
+    {
+      "name": "M08 инертное поле политики в находке НЕ названо",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if inert:\n            parts.append(f\"поле политики объявлено и ничего не двигает: \"\n                         f\"{', '.join(inert)}\")",
+      "new": "        if inert:\n            pass"
+    },
+    {
+      "name": "M09 качели объявлены пройденными ВСЕГДА, независимо от вердикта двери",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    swings = [k for k in (\"two_step\", \"three_step\")\n              if ((reach.get(\"economics\") or {}).get(k) or {}).get(\"kind\") == \"permitted\"]",
+      "new": "    swings = [\"two_step\", \"three_step\"]"
+    },
+    {
+      "name": "M10 НЕ ИЗМЕРЕННАЯ величина в третьем исходе НЕ названа по имени",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            why.append(f\"НЕ ИЗМЕРЕНО величин {len(unmeas)}: {', '.join(unmeas)}\")",
+      "new": "            why.append(\"НЕ ИЗМЕРЕНО величин: есть\")"
+    },
+    {
+      "name": "M11 НЕ ИЗМЕРЕННОЕ плечо качелей и его причина НЕ названы",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if leg.get(\"kind\") == getattr(census, \"UNMEASURED\", \"unmeasured\"):\n                why.append(f\"достижимость качелей у {key} НЕ ИЗМЕРЕНА: \"\n                           f\"{leg.get('why') or 'причина не названа'}\")",
+      "new": "            if leg.get(\"kind\") == getattr(census, \"UNMEASURED\", \"unmeasured\"):\n                pass"
+    },
+    {
+      "name": "M12 расхождение словаря владельца в третьем исходе НЕ названо",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if report.get(\"vocab_errors\"):\n            why.append(f\"словарь владельца разошёлся: {report['vocab_errors']}\")",
+      "new": "        if report.get(\"vocab_errors\"):\n            pass"
+    },
+    {
+      "name": "M13 упавший положительный контроль прибора НЕ назван причиной",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if not ctrl.get(\"passed\"):\n            why.append(f\"положительный контроль прибора НЕ прошёл: \"\n                       f\"{ctrl.get('reason') or 'причина не названа'}\")",
+      "new": "        if not ctrl.get(\"passed\"):\n            pass"
+    },
+    {
+      "name": "M14 проверка ФОРМЫ отчёта снята — форму ловит исключение, а не проба",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not isinstance(report, dict):\n        return UNMEASURED, (f\"прибор §22 вернул {type(report).__name__}, а не отчёт — \"",
+      "new": "    if False:\n        return UNMEASURED, (f\"прибор §22 вернул {type(report).__name__}, а не отчёт — \""
+    },
+    {
+      "name": "M15 упавший ввоз прибора читается как находка о системе",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        return UNMEASURED, (f\"прибор §22 {ANTI_CHURN_CENSUS_MODULE!r} не ввозится: \"",
+      "new": "        return NOT_SATISFIED, (f\"прибор §22 {ANTI_CHURN_CENSUS_MODULE!r} не ввозится: \""
+    },
+    {
+      "name": "M16 упавший прибор читается как ВЫПОЛНЕННЫЙ критерий",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        return UNMEASURED, (f\"прибор §22 упал: {type(exc).__name__}: {exc}\")",
+      "new": "        return SATISFIED, (f\"прибор §22 упал: {type(exc).__name__}: {exc}\")"
+    },
+    {
+      "name": "M17 упавшая дверь вердикта читается как ВЫПОЛНЕННЫЙ критерий",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        return UNMEASURED, (f\"дверь вердикта прибора §22 упала: \"\n                            f\"{type(exc).__name__}: {exc}\")",
+      "new": "        return SATISFIED, (f\"дверь вердикта прибора §22 упала: \"\n                           f\"{type(exc).__name__}: {exc}\")"
+    },
+    {
+      "name": "M18 строка объявления §50 разошлась с населением карточки на байт",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "_probe_persistence_and_anti_churn_gates_are_implemented.s50_criterion = \\\n    \"Реализованы persistence и anti-churn gates.\"",
+      "new": "_probe_persistence_and_anti_churn_gates_are_implemented.s50_criterion = \\\n    \"Реализованы persistence и anti-churn gates\""
+    },
+    {
+      "name": "M19 число владельца из пояснения убрано (пояснение без величины)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    where = (f\"величин владельца {declared}, из них связывают политикой \"",
+      "new": "    where = (f\"величин владельца, из них связывают политикой \""
+    },
+    {
+      "name": "M20 окно прибора течёт в stdout сводки (redirect снят)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        with contextlib.redirect_stdout(sink):\n            report = census.census()",
+      "new": "        if sink:\n            report = census.census()"
+    },
+    {
+      "name": "M21 глушитель съедает и stderr — голос RiskPolicy пропадает",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        with contextlib.redirect_stdout(sink):\n            report = census.census()",
+      "new": "        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):\n            report = census.census()"
+    }
+  ]
+}

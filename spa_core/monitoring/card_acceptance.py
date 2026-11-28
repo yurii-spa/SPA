@@ -2291,6 +2291,215 @@ def _probe_book_does_not_oscillate_between_opportunities(
                         f"вердикт критерия — молчать об этом нельзя")
 
 
+#: Прибор §22 ТЗ «Portfolio CIO» («Anti-churn / hysteresis») в `sys.modules`. Модуль
+#: ПАКЕТНЫЙ, поэтому его подмена в `sys.modules` доходит до пробы — контроль этим и
+#: пользуется, чтобы увидеть: проба читает ПРИБОР, а не собственную копию его логики.
+ANTI_CHURN_CENSUS_MODULE = "spa_core.analytics.anti_churn_census"
+
+#: Дословная строка, которой прибор §22 объявляет СВОЙ предмет (`report["section"]`).
+#: Проба сверяет её: прибор, переделанный под другой предмет, обязан дать «НЕ
+#: ИЗМЕРЕНО», а не молча отдать свой вердикт под чужим критерием владельца. Без этой
+#: сверки «мерка есть» держалось бы на ИМЕНИ модуля, а имя предмета не называет.
+ANTI_CHURN_SECTION = "§22 Anti-churn / hysteresis"
+
+
+def _anti_churn_census_module():
+    """Прибор §22. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(ANTI_CHURN_CENSUS_MODULE)
+
+
+def _probe_persistence_and_anti_churn_gates_are_implemented(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий §50 приказа CIO: «Реализованы persistence и anti-churn gates.»
+
+    Предмет — заказ владельца **G1059 п. 2** приказа
+    `inbox-task-portfolio-cio-dynamic-capital-alloc`: «ДЕВЯТЬ критериев §50 без даже
+    ближней пробы — долг РАБОТЫ, не прибора. Брать ПО ОДНОМУ». Этот критерий из того
+    списка, и долг у него оказался НЕ работы, а ОДНОЙ СТРОКИ ОБЪЯВЛЕНИЯ.
+
+    Почему «мерки нет» было ответом о РЕЕСТРЕ, а не о мире
+    ---------------------------------------------------------------------------
+    ADR-1070 (20.11) назвал этот критерий среди девяти, у которых нет и ближней
+    пробы, и для `card_acceptance.PROBES` это было ВЕРНО. Но прибор, мерящий ровно
+    §22 владельца, к тому дню жил на `main` ОДИННАДЦАТЬ дней (ADR-965, 09.11,
+    `spa_core/analytics/anti_churn_census.py`) и уже отвечал — не «не знаю», а
+    НАХОДКОЙ. Он просто не был ЗАРЕГИСТРИРОВАН пробой, поэтому сводка §50
+    (`scripts/cio_dod_rollup.py`) честно печатала «машинной пробы, объявившей себя
+    мерой этого критерия, в реестре НЕТ», и восемь суток это читалось как «мерить
+    нечем». Цена той же породы, что у §49 `Persistence` и `Anti-churn` (ADR-506,
+    `TRANSCRIPTION`): не хватает ОДНОГО поля, а не прибора.
+
+    Почему §22 И ЕСТЬ этот критерий, а не ближняя мерка
+    ---------------------------------------------------------------------------
+    Слово «gates» в §50 — про ОРГАНЫ отказа, и владелец перечислил их сам, в §22:
+    девять policy-configurable величин (среди них «minimum persistence» — вторая
+    половина конъюнкции §50) плюс требование «защита от A → B → A → B». Прибор §22
+    мерит все три оси этого требования: величина СПРАШИВАЕТСЯ на пути решения ·
+    она поворачивается ПОЛИТИКОЙ, а не коммитом (ось дифференциальная) · сцена
+    качелей ПОСТРОЕНА, и у неё спрошен вердикт. Ширина мерки равна ширине критерия,
+    поэтому объявление здесь — не ложное усиление (`ADR-1070`, таблица ближних
+    промахов), а ровно оно.
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    `verdict_code` 0 → `satisfied` · 1 → `not_satisfied` · 2 → `unmeasured`;
+    незнакомый код — тоже `unmeasured`, потому что молчать о нём нельзя. Своего
+    порога у пробы нет НИ ОДНОГО: ни что считать «реализованным», ни сколько
+    величин достаточно, ни где край полосы выигрыша — всё это уже решено словом
+    владельца (§22/§41) и шкалой прибора. Второе правило здесь было бы вторым
+    местом для одного числа, а две копии одной мерки расходятся молча (ADR-220).
+
+    **Вердикт читается КОДОМ, а не текстом отчёта.** Проверка подстрокой («в
+    отчёте есть ABSENT») ответила бы одинаково и на верный замер, и на сломанный
+    прибор (`.claude/rules/acceptance.md` п. 3, ADR-333); печатный `render()`
+    прибора — его собственное окно для человека, и судить по нему значило бы судить
+    по окну, а не по предмету. Поэтому вердикт берётся у `verdict_code`, а stdout
+    прибора глотается, чтобы его окно не разъехалось со столбцами сводки §50.
+    **`stderr` НЕ глотается, и это выбор, а не недосмотр** (замер 28.11: сцены
+    прибора зовут настоящий RiskPolicy, и его отказы идут именно туда): заткнуть
+    голос risk-движка значило бы спрятать настоящий отказ ради опрятного вывода.
+
+    **Предмет сверяется с ОБЪЯВЛЕНИЕМ прибора** (`report["section"]`): «мерка есть»
+    иначе держалось бы на ИМЕНИ модуля, а имя предмета не называет — прибор,
+    переделанный под другую секцию, молча отдал бы свой вердикт под этим критерием.
+
+    Дерево — то, из которого ЗАПУЩЕН процесс, и вход `repo_root` НЕ объявлен
+    ---------------------------------------------------------------------------
+    Предмет §22 — сам КОД: поля политики, обе двери решения (`economics`, `damper`),
+    такт пересчёта. Прибор читает их ВВЕЗЁННЫМИ, и его `root=` касается только
+    counterpoint'а такта. Объяви проба `repo_root` входом — такт пришёл бы из
+    НАЗВАННОГО дерева, а девять величин и обе двери из дерева процесса: ровно
+    «половина инъекции», про которую написано в `.claude/rules/deployment.md`
+    (§ «ЛИЧНОСТЬ ПРОЦЕССА»). Один вердикт из двух деревьев хуже вердикта об одном:
+    сводка печатает «входы дерева: объявлены —», и это ПРАВДА, а не недосмотр.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Правильность недостающих органов.** `not_satisfied` говорит «величины нет /
+      порог зашит / качели проходят», а не «вот каким должен быть порог». Заводить
+      порог — money-path и решение владельца (ADR-285, предмет №1), и прибор, и
+      проба только ЧИТАЮТ.
+    * **Вред, УЖЕ случившийся в журнале денег.** Это другой вопрос, и у него свои
+      две пробы (§49 `Persistence` — `persistence_advantage_outlives_horizon`, §49
+      `Anti-churn` — `book_does_not_oscillate_between_opportunities`). Свернуть их
+      сюда значило бы собрать один вердикт из двух разных вопросов: «органа нет» и
+      «вреда не видно» могут быть истинны одновременно, и конъюнкция стала бы
+      нечитаемой.
+    * **Полноту §22 как списка.** Девять величин — слово владельца; десятой,
+      которую он не назвал, прибор не ищет, и проба тоже.
+    """
+    import contextlib
+    import io
+
+    try:
+        census = _anti_churn_census_module()
+    except BaseException as exc:  # noqa: BLE001 — ввоз не удался это «не измерено»
+        return UNMEASURED, (f"прибор §22 {ANTI_CHURN_CENSUS_MODULE!r} не ввозится: "
+                            f"{type(exc).__name__}: {exc} — измерять нечем")
+
+    for door in ("census", "verdict_code"):
+        if not callable(getattr(census, door, None)):
+            return UNMEASURED, (f"прибор §22 не несёт двери {door!r}: имя модуля есть, "
+                                f"вердикта взять неоткуда")
+
+    sink = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(sink):
+            report = census.census()
+    except BaseException as exc:  # noqa: BLE001 — упавший прибор это «не измерено»
+        return UNMEASURED, (f"прибор §22 упал: {type(exc).__name__}: {exc}")
+
+    if not isinstance(report, dict):
+        return UNMEASURED, (f"прибор §22 вернул {type(report).__name__}, а не отчёт — "
+                            f"вердикт брать неоткуда")
+
+    section = str(report.get("section") or "")
+    if section != ANTI_CHURN_SECTION:
+        return UNMEASURED, (
+            f"прибор объявляет предметом {section[:80]!r}, а критерий §50 спрашивает "
+            f"про {ANTI_CHURN_SECTION!r} — привязка не сходится, и считать его вердикт "
+            f"мерой этого критерия нельзя")
+
+    try:
+        code = census.verdict_code(report)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"дверь вердикта прибора §22 упала: "
+                            f"{type(exc).__name__}: {exc}")
+
+    params = report.get("params") or []
+    tally = report.get("tally") or {}
+
+    def _named(outcome: str) -> list:
+        return sorted(str(p.get("param")) for p in params
+                      if p.get("outcome") == outcome)
+
+    absent = _named(getattr(census, "ABSENT", "ABSENT"))
+    literal = _named(getattr(census, "LITERAL", "LITERAL"))
+    inert = _named(getattr(census, "DECLARED_INERT", "DECLARED_INERT"))
+    unmeas = _named(getattr(census, "UNMEASURED", "unmeasured"))
+    reach = report.get("reachability") or {}
+    swings = [k for k in ("two_step", "three_step")
+              if ((reach.get("economics") or {}).get(k) or {}).get("kind") == "permitted"]
+
+    declared = report.get("params_declared")
+    where = (f"величин владельца {declared}, из них связывают политикой "
+             f"{tally.get(getattr(census, 'BINDING', 'BINDING'), 0)}; шкала ввезена из "
+             f"{report.get('scale_imported_from')}; поверхностей решения "
+             f"{len(report.get('surfaces') or ())}")
+    blind = ("проба не судит, каким ДОЛЖЕН быть недостающий порог: это money-path и "
+             "решение владельца — и прибор, и проба только ЧИТАЮТ")
+
+    if code == 2:
+        why = []
+        if report.get("vocab_errors"):
+            why.append(f"словарь владельца разошёлся: {report['vocab_errors']}")
+        ctrl = report.get("control") or {}
+        if not ctrl.get("passed"):
+            why.append(f"положительный контроль прибора НЕ прошёл: "
+                       f"{ctrl.get('reason') or 'причина не названа'}")
+        if unmeas:
+            why.append(f"НЕ ИЗМЕРЕНО величин {len(unmeas)}: {', '.join(unmeas)}")
+        for key in ("economics", "damper", "tact"):
+            leg = reach.get(key) or {}
+            if leg.get("kind") == getattr(census, "UNMEASURED", "unmeasured"):
+                why.append(f"достижимость качелей у {key} НЕ ИЗМЕРЕНА: "
+                           f"{leg.get('why') or 'причина не названа'}")
+        return UNMEASURED, (f"прибор §22 отказался мерить: "
+                            f"{' · '.join(why) or 'причина не названа прибором'} "
+                            f"({where})")
+
+    if code == 1:
+        parts = []
+        if absent:
+            parts.append(f"ни одна поверхность решения не спрашивает {len(absent)} "
+                         f"величин(у/ы): {', '.join(absent)}")
+        if literal:
+            parts.append(f"порог зашит в коде, политикой не поворачивается: "
+                         f"{', '.join(literal)}")
+        if inert:
+            parts.append(f"поле политики объявлено и ничего не двигает: "
+                         f"{', '.join(inert)}")
+        if swings:
+            econ = reach.get("economics") or {}
+            parts.append("сцена качелей ПРОХОДИТ у двери цены ("
+                         + "; ".join(f"{k}: {(econ.get(k) or {}).get('decision')}"
+                                     for k in swings) + ")")
+        return NOT_SATISFIED, (
+            f"органы отказа §22 реализованы НЕ ПОЛНОСТЬЮ: "
+            f"{' · '.join(parts) or 'прибор назвал находку, не назвав её породу'} "
+            f"({where}; {blind})")
+
+    if code == 0:
+        return SATISFIED, (
+            f"все девять величин §22 спрашиваются на пути решения и поворачиваются "
+            f"политикой, а сцена качелей A → B → A не проходит ни у одной двери "
+            f"({where}; {blind})")
+
+    return UNMEASURED, (f"прибор §22 вернул код {code!r}, который не переносится в "
+                        f"вердикт критерия — молчать об этом нельзя")
+
+
 #: Имя переписи связывающих потолков в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его
 #: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
 #: увидеть: проба читает ПРИБОР, а не собственную копию его логики.
@@ -23676,6 +23885,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_risk_policy_unbypassable_in_executed_states,
     "book_does_not_oscillate_between_opportunities":
         _probe_book_does_not_oscillate_between_opportunities,
+    "persistence_and_anti_churn_gates_are_implemented":
+        _probe_persistence_and_anti_churn_gates_are_implemented,
     "trade_is_rechecked_immediately_before_execution":
         _probe_trade_is_rechecked_immediately_before_execution,
     "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
@@ -23864,6 +24075,8 @@ _probe_release_stage_is_declared_and_matches_behaviour.s50_criterion = \
     "Нет автоматического real-money execution без прохождения release stages."
 _probe_owner_has_the_three_stop_organs.s50_criterion = \
     "Есть owner pause/kill switch."
+_probe_persistence_and_anti_churn_gates_are_implemented.s50_criterion = \
+    "Реализованы persistence и anti-churn gates."
 
 
 def probes_by_s50_criterion() -> dict:

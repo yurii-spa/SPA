@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-28T15:11:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-28T16:52:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (bf747728c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (15c8a2dfb) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1711** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1712** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -454,7 +454,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (1002)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (1003)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1160,6 +1160,7 @@
 - Измерить население класса «карточка-тетрадь»: долю хроники, а не вес  ·  `inbox-izmerit-naselenie-klassa-kartochka-tetra.md` · 2026-11-19
 - Измерить население класса «мера спрашивает СОСТОЯНИЕ и не спрашивает СПОСОБНОСТЬ» (за пределами ключа GitHub)  ·  `inbox-izmerit-naselenie-klassa-mera-sprashivae.md` · 2026-11-27
 - Измерить население класса «печать называет меньше, чем замер содержит»  ·  `inbox-izmerit-naselenie-klassa-pechat-nazyvaet.md` · 2026-11-15
+- Измерить население класса «прибор приказа CIO есть, а переносящей пробы нет»  ·  `inbox-izmerit-naselenie-klassa-pribor-prikaza.md` · 2026-11-28
 - Измерить население класса «умолчание связывает изменяемый объявленный дом»  ·  `inbox-izmerit-naselenie-klassa-umolchanie-svya.md` · 2026-11-15
 - Измерить население класса: усечённый клон отвечает о происхождении коммита молча и НЕВЕРНО  ·  `inbox-izmerit-naselenie-klassa-usechennyi-klon.md` · 2026-11-04
 - Измерить население рода «пол над величиной, которую законная операция уменьшает»  ·  `inbox-izmerit-naselenie-roda-pol-nad-velichino.md` · 2026-11-18

@@ -261,6 +261,7 @@
 | ADR-1130 | ADR-1130 — Общая дверь доставки накрывает НЕ БОЛЬШЕ пятой части класса (49 из 263, вилка 49…170): направление 1 карточки опровергнуто замером | Accepted | [ADR-1130](ADR-1130-the-general-door-reaches-at-most-a-fifth-of-the-class.md) |
 | ADR-1131 | ADR-1131 — Граница инертного зонда дифференциала СПРОШЕНА у каждого кандидата, а не только названа сводкой | Accepted | [ADR-1131](ADR-1131-inert-plant-boundary-is-asked-not-only-named.md) |
 | ADR-1132 | ADR-1132 — Имя подкладываемого зонда диктует ГЛОБ перечисления; причина, названная G1104 п. 2(в), ОПРОВЕРГНУТА | Accepted | [ADR-1132](ADR-1132-the-plant-name-is-dictated-by-the-enumeration-glob.md) |
+| ADR-1133 | ADR-1133 — Критерий §50 «Реализованы persistence и anti-churn gates» был БЕЗ МЕРКИ при живом приборе своего предмета | Accepted | [ADR-1133](ADR-1133-s50-anti-churn-gate-criterion-had-a-prober-but-no-probe.md) |
 
 ## Соглашения
 
